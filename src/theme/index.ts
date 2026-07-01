@@ -28,12 +28,25 @@ export const radius = {
   pill: 9999,
 } as const;
 
+/**
+ * Manrope font family names as registered by `@expo-google-fonts/manrope`.
+ * Each weight is a distinct family — React Native's `fontWeight` won't pick
+ * between them on its own, so screens must pass the family they want.
+ */
+export const fonts = {
+  regular: 'Manrope_400Regular',
+  medium: 'Manrope_500Medium',
+  semibold: 'Manrope_600SemiBold',
+  bold: 'Manrope_700Bold',
+  extrabold: 'Manrope_800ExtraBold',
+} as const;
+
 export const type = {
-  display: { fontSize: 48, lineHeight: 52, letterSpacing: -0.96 },
-  h1: { fontSize: 32, lineHeight: 38 },
-  h2: { fontSize: 24, lineHeight: 30 },
-  h3: { fontSize: 18, lineHeight: 24 },
-  body: { fontSize: 16, lineHeight: 22 },
-  caption: { fontSize: 13, lineHeight: 18 },
-  micro: { fontSize: 11, lineHeight: 14 },
+  display: { fontSize: 48, lineHeight: 52, letterSpacing: -0.96, fontFamily: fonts.extrabold },
+  h1: { fontSize: 32, lineHeight: 38, fontFamily: fonts.bold },
+  h2: { fontSize: 24, lineHeight: 30, fontFamily: fonts.bold },
+  h3: { fontSize: 18, lineHeight: 24, fontFamily: fonts.semibold },
+  body: { fontSize: 16, lineHeight: 22, fontFamily: fonts.regular },
+  caption: { fontSize: 13, lineHeight: 18, fontFamily: fonts.medium },
+  micro: { fontSize: 11, lineHeight: 14, fontFamily: fonts.medium },
 } as const;

@@ -6,6 +6,14 @@ import { NavigationContainer, DarkTheme, useNavigation } from '@react-navigation
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  useFonts,
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import MapScreen from './src/screens/MapScreen';
@@ -119,6 +127,23 @@ function Root() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
+
+  if (!fontsLoaded) {
+    // Match the pre-auth splash so the transition is invisible.
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <NavigationContainer theme={theme}>
