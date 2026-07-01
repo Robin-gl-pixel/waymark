@@ -9,25 +9,28 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { getLieuxService } from '../services/lieuxService';
-import { LieuExtracted } from '../types/Lieu';
 import { colors, spacing, type, radius } from '../theme';
+import type { RootStackParamList } from '../navigation';
+
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Upload'>;
 
 export default function UploadScreen() {
+  const nav = useNavigation<Nav>();
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [extracted, setExtracted] = useState<LieuExtracted | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pickAndExtract = async () => {
     setError(null);
-    setExtracted(null);
 
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      setError('Autorise l\'accès aux photos pour choisir un screenshot.');
+      setError("Autorise l'accès aux photos pour choisir un screenshot.");
       return;
     }
 
@@ -44,15 +47,15 @@ export default function UploadScreen() {
     setLoading(true);
 
     try {
-      // Read as base64 (expo-image-picker's inline base64 option balloons memory on big screenshots).
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: 'base64',
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+      const mediaType: 'image/png' | 'image/jpeg' | 'image/webp' =
+        asset.uri.endsWith('.jpg') || asset.uri.endsWith('.jpeg') ? 'image/jpeg' : 'image/png';
+      const extracted = await getLieuxService().extractFromScreenshot(base64, mediaType);
+      nav.navigate('ExtractConfirm', {
+        extracted,
+        screenshotBase64: base64,
+        screenshotMediaType: mediaType,
       });
-      const mediaType = asset.uri.endsWith('.jpg') || asset.uri.endsWith('.jpeg')
-        ? 'image/jpeg'
-        : 'image/png';
-      const data = await getLieuxService().extractFromScreenshot(base64, mediaType);
-      setExtracted(data);
     } catch (err) {
       console.error(err);
       setError('Extraction échouée. Réessaie ou change de screenshot.');
@@ -83,17 +86,13 @@ export default function UploadScreen() {
           )}
         </Pressable>
 
+        {loading && (
+          <Text style={styles.hint}>Extraction en cours (~3-5s) — Claude analyse ton screenshot…</Text>
+        )}
         {error && <Text style={styles.error}>{error}</Text>}
 
         {imageUri && (
           <Image source={{ uri: imageUri }} style={styles.preview} resizeMode="contain" />
-        )}
-
-        {extracted && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Résultat de l'extraction</Text>
-            <Text style={styles.json}>{JSON.stringify(extracted, null, 2)}</Text>
-          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -104,7 +103,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: {
     paddingHorizontal: spacing['2xl'],
-    paddingTop: spacing['2xl'],
+    paddingTop: spacing.xl,
     paddingBottom: spacing['3xl'],
   },
   title: { ...type.h1, color: colors.text, fontWeight: '700' },
@@ -117,6 +116,7 @@ const styles = StyleSheet.create({
     marginTop: spacing['2xl'],
   },
   pickLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  hint: { ...type.caption, color: colors.textTertiary, textAlign: 'center', marginTop: spacing.md },
   error: { ...type.caption, color: colors.error, marginTop: spacing.md, textAlign: 'center' },
   preview: {
     height: 320,
@@ -124,19 +124,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     borderRadius: radius.md,
     backgroundColor: colors.bgElevated,
-  },
-  card: {
-    marginTop: spacing.xl,
-    padding: spacing.lg,
-    borderRadius: radius.md,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardTitle: { ...type.h3, color: colors.text, marginBottom: spacing.md },
-  json: {
-    ...type.caption,
-    color: colors.textSecondary,
-    fontFamily: 'Menlo',
   },
 });

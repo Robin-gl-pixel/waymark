@@ -1,44 +1,41 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { colors, spacing, type, radius } from '../theme';
-import UploadScreen from './UploadScreen';
+import type { RootStackParamList } from '../navigation';
+
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
-  const [showUpload, setShowUpload] = useState(false);
+  const nav = useNavigation<Nav>();
   const firstName = user?.displayName?.split(' ')[0] ?? 'toi';
-
-  if (showUpload) {
-    return (
-      <View style={{ flex: 1 }}>
-        <UploadScreen />
-        <Pressable onPress={() => setShowUpload(false)} style={styles.closeUpload}>
-          <Text style={styles.closeUploadLabel}>← Retour</Text>
-        </Pressable>
-      </View>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.body}>
         <Text style={styles.greeting}>Bonjour {firstName}.</Text>
         <Text style={styles.subtitle}>
-          Prêt à ajouter ton premier lieu ?
+          Screenshot Instagram, puis pin sur ta carte.
         </Text>
 
         <View style={{ flex: 1 }} />
 
         <Pressable
-          onPress={() => setShowUpload(true)}
+          onPress={() => nav.navigate('Upload')}
           style={({ pressed }) => [
             styles.primaryBtn,
             { backgroundColor: pressed ? colors.accentDim : colors.accent },
           ]}
         >
           <Text style={styles.primaryLabel}>+ Ajouter un lieu</Text>
+        </Pressable>
+
+        <Pressable onPress={() => nav.navigate('List')} style={styles.secondaryBtn}>
+          <Text style={styles.secondaryLabel}>Voir mes lieux</Text>
         </Pressable>
 
         <Pressable onPress={logout} style={styles.logoutBtn}>
@@ -67,6 +64,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   primaryLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  secondaryBtn: {
+    height: 56,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bgElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  secondaryLabel: { ...type.h3, color: colors.text },
   logoutBtn: {
     height: 56,
     borderRadius: radius.pill,
@@ -75,16 +81,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutLabel: { ...type.h3, color: colors.text },
-  closeUpload: {
-    position: 'absolute',
-    top: 60,
-    left: spacing.lg,
-    padding: spacing.md,
-  },
-  closeUploadLabel: {
-    ...type.body,
-    color: colors.accent,
-    fontWeight: '600',
-  },
+  logoutLabel: { ...type.body, color: colors.textSecondary },
 });
