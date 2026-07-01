@@ -13,6 +13,7 @@ import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { getAuthService } from '../services/authService';
+import { getLieuxService } from '../services/lieuxService';
 import { getOrCreateShortcutToken, regenerateShortcutToken } from '../services/shortcutTokenService';
 import { colors, spacing, type, radius } from '../theme';
 
@@ -70,10 +71,23 @@ export default function SettingsScreen() {
     });
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
+    if (!user) return;
+    // Fetch the current pin count so the dialog matches Apple's guidance to
+    // spell out what will be lost.
+    let pinCount = 0;
+    try {
+      pinCount = (await getLieuxService().getAllLieux(user.uid)).length;
+    } catch (err) {
+      console.warn('[confirmDelete] failed to count lieux, proceeding without count', err);
+    }
+    const pinsLine =
+      pinCount > 0
+        ? `Tes ${pinCount} pin${pinCount > 1 ? 's' : ''} seront perdu${pinCount > 1 ? 's' : ''}. `
+        : '';
     Alert.alert(
       'Supprimer ton compte ?',
-      'Toutes tes données (lieux, screenshots, compte) seront supprimées définitivement. Cette action est irréversible.',
+      `${pinsLine}Toutes tes données (lieux, screenshots, compte) seront supprimées définitivement. Cette action est irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Supprimer mon compte', style: 'destructive', onPress: performDelete },
@@ -85,7 +99,12 @@ export default function SettingsScreen() {
     setDeleting(true);
     try {
       await getAuthService().deleteAccount();
-      await logout();
+      // Confirm to the user before the auth listener kicks them back to AuthScreen.
+      Alert.alert(
+        'Compte supprimé',
+        'Toutes tes données ont été effacées. À bientôt.',
+        [{ text: 'OK', onPress: () => { logout().catch(console.error); } }],
+      );
     } catch (err) {
       console.error(err);
       Alert.alert('Erreur', 'Suppression échouée. Réessaie.');

@@ -6,5 +6,12 @@ service cloud.firestore {
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Server-only: Apple Sign In refresh tokens for the revoke flow.
+    // Default-deny would catch unmatched paths already; kept explicit so nobody
+    // "helpfully" opens this up later without noticing the sensitivity.
+    match /appleAuth/{userId} {
+      allow read, write: if false;
+    }
   }
 }

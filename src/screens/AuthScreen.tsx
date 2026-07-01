@@ -50,6 +50,17 @@ export default function AuthScreen() {
           await authService.updateDisplayName(displayName);
         }
       }
+
+      // Forward the one-shot authorizationCode to the backend so it can be exchanged
+      // for a refresh token stored server-side. Required for App Store guideline
+      // 5.1.1(v) — deleteAccount uses that token to revoke the Apple credential.
+      // Non-fatal: sign-in still succeeds if this fails; the user just won't have
+      // Apple credential revocation on delete (logged for follow-up).
+      if (appleCredential.authorizationCode) {
+        authService
+          .exchangeAppleAuthorizationCode(appleCredential.authorizationCode)
+          .catch((err) => console.warn('[AuthScreen] exchangeAppleCode failed', err));
+      }
     } catch (err) {
       const code = (err as { code?: string } | null)?.code;
       if (code !== 'ERR_REQUEST_CANCELED') {
