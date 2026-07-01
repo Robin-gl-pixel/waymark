@@ -1,44 +1,32 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import * as Crypto from 'expo-crypto';
-import { db } from '../auth/firebase';
-
 /**
- * The shortcut token lives on `/users/{uid}` as a top-level field so the
- * server-side HTTP endpoint (extractFromShortcut) can look up the user by
- * token equality in one Firestore query.
+ * SHORTCUT TOKEN SEAM.
  *
- * Ensure the user doc exists before writing the token — the app currently
- * doesn't materialize /users/{uid} until the first lieu is saved, so this
- * service handles bootstrap.
+ * The token lives on `/users/{uid}.shortcutToken` and is used by the
+ * `extractFromShortcut` Cloud Function to identify the caller. All
+ * firebase/firestore access happens in `firebaseShortcutTokenService.ts`.
  */
 
-async function generateHexToken(): Promise<string> {
-  const bytes = await Crypto.getRandomBytesAsync(32);
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+export interface ShortcutTokenService {
+  /** Return the existing token, or create + persist one on first call. Idempotent. */
+  getOrCreate(userId: string): Promise<string>;
+
+  /** Rotate: create a new token, invalidating the previous one. */
+  regenerate(userId: string): Promise<string>;
 }
 
-export async function getOrCreateShortcutToken(userId: string): Promise<string> {
-  const userRef = doc(db, 'users', userId);
-  const snap = await getDoc(userRef);
-  const existing = snap.exists() ? (snap.data().shortcutToken as string | undefined) : undefined;
-  if (existing) return existing;
+let _instance: ShortcutTokenService | null = null;
 
-  const token = await generateHexToken();
-  if (snap.exists()) {
-    await updateDoc(userRef, { shortcutToken: token, tokenUpdatedAt: serverTimestamp() });
-  } else {
-    await setDoc(userRef, { shortcutToken: token, tokenUpdatedAt: serverTimestamp(), createdAt: serverTimestamp() });
+export function getShortcutTokenService(): ShortcutTokenService {
+  if (!_instance) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { FirebaseShortcutTokenService } = require('./firebaseShortcutTokenService');
+    _instance = new FirebaseShortcutTokenService();
   }
-  return token;
+  return _instance!;
 }
 
-export async function regenerateShortcutToken(userId: string): Promise<string> {
-  const token = await generateHexToken();
-  await updateDoc(doc(db, 'users', userId), {
-    shortcutToken: token,
-    tokenUpdatedAt: serverTimestamp(),
-  });
-  return token;
-}
+// Backwards-compat named exports so existing screens keep working.
+export const getOrCreateShortcutToken = (userId: string): Promise<string> =>
+  getShortcutTokenService().getOrCreate(userId);
+export const regenerateShortcutToken = (userId: string): Promise<string> =>
+  getShortcutTokenService().regenerate(userId);

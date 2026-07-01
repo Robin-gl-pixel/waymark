@@ -11,12 +11,10 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useAuth } from '../auth/AuthContext';
+import { getAuthService } from '../services/authService';
 import { getOrCreateShortcutToken, regenerateShortcutToken } from '../services/shortcutTokenService';
 import { colors, spacing, type, radius } from '../theme';
-
-const FUNCTIONS_REGION = 'europe-west1';
 
 // Placeholder — will be replaced by the actual iCloud shortcut URL after publishing
 // via Shortcuts.app → Share → Copy iCloud Link. Documented in docs/shortcut-setup.md.
@@ -86,9 +84,7 @@ export default function SettingsScreen() {
   const performDelete = async () => {
     setDeleting(true);
     try {
-      const functions = getFunctions(undefined, FUNCTIONS_REGION);
-      const deleteAccount = httpsCallable(functions, 'deleteAccount');
-      await deleteAccount({});
+      await getAuthService().deleteAccount();
       await logout();
     } catch (err) {
       console.error(err);

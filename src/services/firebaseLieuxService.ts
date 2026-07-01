@@ -11,7 +11,7 @@ import {
   deleteDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { ref, uploadBytes, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, storage } from '../auth/firebase';
 import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
@@ -120,6 +120,10 @@ export class FirebaseLieuxService implements LieuxService {
     >(functions, 'extract');
     const result = await callable({ imageBase64, mediaType });
     return result.data;
+  }
+
+  async getScreenshotUrl(storagePath: string): Promise<string> {
+    return getDownloadURL(ref(storage, storagePath));
   }
 
   private hydrate(id: string, data: Record<string, unknown>): Lieu {

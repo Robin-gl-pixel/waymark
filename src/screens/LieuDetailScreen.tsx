@@ -14,8 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getDownloadURL, ref as storageRef } from 'firebase/storage';
-import { storage } from '../auth/firebase';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
@@ -48,13 +46,13 @@ export default function LieuDetailScreen() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const fetched = await getLieuxService().getLieuById(user.uid, lieuId);
+      const svc = getLieuxService();
+      const fetched = await svc.getLieuById(user.uid, lieuId);
       setLieu(fetched);
       setNotes(fetched?.userNotes ?? '');
       if (fetched) {
         try {
-          const url = await getDownloadURL(storageRef(storage, fetched.sourceInstagram.screenshotStoragePath));
-          setImgUri(url);
+          setImgUri(await svc.getScreenshotUrl(fetched.sourceInstagram.screenshotStoragePath));
         } catch {
           setImgUri(null);
         }

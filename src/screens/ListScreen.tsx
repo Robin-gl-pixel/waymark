@@ -12,8 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getDownloadURL, ref as storageRef } from 'firebase/storage';
-import { storage } from '../auth/firebase';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
@@ -106,7 +104,8 @@ function LieuRow({ lieu, onPress }: { lieu: Lieu; onPress: () => void }) {
   const [thumbUri, setThumbUri] = useState<string | null>(null);
 
   useEffect(() => {
-    getDownloadURL(storageRef(storage, lieu.sourceInstagram.screenshotStoragePath))
+    getLieuxService()
+      .getScreenshotUrl(lieu.sourceInstagram.screenshotStoragePath)
       .then(setThumbUri)
       .catch(() => setThumbUri(null));
   }, [lieu.sourceInstagram.screenshotStoragePath]);

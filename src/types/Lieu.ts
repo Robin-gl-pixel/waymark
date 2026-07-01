@@ -1,6 +1,12 @@
-import { Timestamp } from 'firebase/firestore';
-
 export type LieuCategory = 'resto' | 'bar' | 'café' | 'activité' | 'musée' | 'hôtel' | 'autre';
+
+// Structural match for firebase/firestore Timestamp so screens don't need to import from firebase/*.
+export interface Timestamp {
+  readonly seconds: number;
+  readonly nanoseconds: number;
+  toDate(): Date;
+  toMillis(): number;
+}
 
 /**
  * A persisted place in Mappies. Lives at `/users/{uid}/lieux/{lieuId}`.

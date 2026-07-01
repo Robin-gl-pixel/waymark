@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { OAuthProvider, signInWithCredential, updateProfile } from 'firebase/auth';
-import { auth } from '../auth/firebase';
+import { getAuthService } from '../services/authService';
 import { colors, spacing, type } from '../theme';
 
 export default function AuthScreen() {
@@ -37,12 +36,8 @@ export default function AuthScreen() {
       });
       if (!appleCredential.identityToken) throw new Error('Pas de token Apple');
 
-      const provider = new OAuthProvider('apple.com');
-      const firebaseCredential = provider.credential({
-        idToken: appleCredential.identityToken,
-        rawNonce,
-      });
-      const userCredential = await signInWithCredential(auth, firebaseCredential);
+      const authService = getAuthService();
+      const signedIn = await authService.signInWithApple(appleCredential.identityToken, rawNonce);
 
       // Apple only returns fullName on FIRST sign-in for this user. Persist it now or lose it forever.
       const fullName = appleCredential.fullName;
@@ -51,8 +46,8 @@ export default function AuthScreen() {
           .filter(Boolean)
           .join(' ')
           .trim();
-        if (displayName && userCredential.user.displayName !== displayName) {
-          await updateProfile(userCredential.user, { displayName });
+        if (displayName && signedIn.displayName !== displayName) {
+          await authService.updateDisplayName(displayName);
         }
       }
     } catch (err) {

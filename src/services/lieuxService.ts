@@ -26,6 +26,9 @@ export interface LieuxService {
 
   /** Call the `extract` Cloud Function and return the structured extraction. */
   extractFromScreenshot(imageBase64: string, mediaType: 'image/png' | 'image/jpeg' | 'image/webp'): Promise<LieuExtracted>;
+
+  /** Resolve a Storage path (e.g. `sourceInstagram.screenshotStoragePath`) to a signed URL loadable by <Image>. */
+  getScreenshotUrl(storagePath: string): Promise<string>;
 }
 
 let _instance: LieuxService | null = null;
