@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native
+ios/
+android/
+*.mobileprovision
+*.p12
+*.p8
+
+# Firebase
+functions/node_modules/
+functions/lib/
+.firebase/
+
+# System
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Screenshots examples (kept for dev, not shipped)
+screenshots-examples/*.png
+!screenshots-examples/.gitkeep
+
+# Sensitive
+GoogleService-Info.plist
+google-services.json
+serviceAccountKey.json
