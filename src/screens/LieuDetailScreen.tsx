@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,8 @@ export default function LieuDetailScreen() {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -66,18 +68,51 @@ export default function LieuDetailScreen() {
     load();
   }, [load]);
 
-  const saveNotes = async () => {
+  const flushNotes = useCallback(async () => {
     if (!user || !lieu) return;
-    if ((lieu.userNotes ?? '') === notes.trim()) return;
+    const next = (pendingSave.current ?? notes).trim();
+    pendingSave.current = null;
+    if ((lieu.userNotes ?? '') === next) return;
     setSaving(true);
     try {
-      await getLieuxService().updateLieu(user.uid, lieu.id, { userNotes: notes.trim() || null });
+      await getLieuxService().updateLieu(user.uid, lieu.id, { userNotes: next || null });
+      // Reflect the persisted value locally so subsequent equality checks skip no-op writes.
+      setLieu({ ...lieu, userNotes: next || null });
     } catch (err) {
       console.error(err);
     } finally {
       setSaving(false);
     }
+  }, [user, lieu, notes]);
+
+  const onNotesChange = (text: string) => {
+    setNotes(text);
+    pendingSave.current = text;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    // 800 ms is long enough to skip mid-word writes and short enough to feel autosaved.
+    saveTimer.current = setTimeout(() => {
+      flushNotes().catch(console.error);
+    }, 800);
   };
+
+  const onNotesBlur = () => {
+    // Blur is a hard flush: cancel the pending timer and write immediately.
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    flushNotes().catch(console.error);
+  };
+
+  // Guarantee an in-flight edit lands even if the screen unmounts.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        flushNotes().catch(console.error);
+      }
+    };
+  }, [flushNotes]);
 
   const openInMaps = () => {
     if (!lieu) return;
@@ -154,8 +189,8 @@ export default function LieuDetailScreen() {
           <Text style={styles.label}>Mes notes</Text>
           <TextInput
             value={notes}
-            onChangeText={setNotes}
-            onBlur={saveNotes}
+            onChangeText={onNotesChange}
+            onBlur={onNotesBlur}
             placeholder="Réserver 2 semaines avant, aller le vendredi soir, éviter en été…"
             placeholderTextColor={colors.textTertiary}
             multiline
