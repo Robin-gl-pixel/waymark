@@ -1,7 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_DEFAULT, Callout } from 'react-native-maps';
+import MapView from 'react-native-map-clustering';
+import RNMapView, { Marker, PROVIDER_DEFAULT, Callout } from 'react-native-maps';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
@@ -30,10 +31,14 @@ const FALLBACK_REGION = {
   longitudeDelta: 0.15,
 };
 
+// react-native-map-clustering exposes the inner MapView via a `mapRef` callback
+// (not a React `ref`), so we hold onto whatever it hands us.
+type MapHandle = { fitToCoordinates: RNMapView['fitToCoordinates'] };
+
 export default function MapScreen() {
   const { user } = useAuth();
   const nav = useNavigation<Nav>();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapHandle | null>(null);
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,12 +79,21 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <MapView
-        ref={mapRef}
+        mapRef={(ref) => {
+          mapRef.current = ref as unknown as MapHandle | null;
+        }}
+        // PROVIDER_DEFAULT resolves to Apple Maps on iOS (react-native-maps 1.x
+        // no longer exports a PROVIDER_APPLE constant). This matches issue #4's
+        // `provider="apple"` intent on the iOS-only build.
         provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFill}
         initialRegion={FALLBACK_REGION}
         showsUserLocation
         userInterfaceStyle="dark"
+        clusterColor={colors.accent}
+        clusterTextColor={colors.text}
+        radius={40}
+        minPoints={3}
       >
         {lieux.map((lieu) => (
           <Marker
