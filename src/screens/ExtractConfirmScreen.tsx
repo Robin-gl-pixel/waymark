@@ -70,7 +70,8 @@ export default function ExtractConfirmScreen() {
         screenshotBase64,
         screenshotMediaType,
       });
-      nav.reset({ index: 0, routes: [{ name: 'List' }] });
+      // After save, drop back to the tabs — user lands on the currently-focused tab (typically Map or List).
+      nav.reset({ index: 0, routes: [{ name: 'Main' }] });
     } catch (err) {
       console.error(err);
       setError("Sauvegarde échouée. Vérifie ta connexion et réessaie.");

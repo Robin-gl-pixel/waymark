@@ -1,16 +1,25 @@
 import { LieuExtracted } from './types/Lieu';
 
 /**
- * Root stack parameter list — single source of truth for typed navigation.
- * Update this when adding new screens; TS then propagates route names + params.
+ * Root stack — screens that push on top of the main tabs.
  */
 export type RootStackParamList = {
-  Home: undefined;
+  Main: undefined;
   Upload: undefined;
   ExtractConfirm: {
     extracted: LieuExtracted;
     screenshotBase64: string;
     screenshotMediaType: 'image/png' | 'image/jpeg' | 'image/webp';
   };
+  LieuDetail: { lieuId: string };
+};
+
+/**
+ * Bottom tabs under Main.
+ */
+export type TabParamList = {
+  Map: undefined;
   List: undefined;
+  _Add: undefined; // Fake tab: button that opens Upload in the root stack.
+  Settings: undefined;
 };

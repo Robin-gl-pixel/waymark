@@ -11,12 +11,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { storage } from '../auth/firebase';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
+import type { RootStackParamList } from '../navigation';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const CATEGORY_EMOJI: Record<LieuCategory, string> = {
   resto: '🍽️',
@@ -30,7 +34,7 @@ const CATEGORY_EMOJI: Record<LieuCategory, string> = {
 
 export default function ListScreen() {
   const { user } = useAuth();
-  const nav = useNavigation();
+  const nav = useNavigation<Nav>();
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,7 +94,9 @@ export default function ListScreen() {
             <Text style={styles.emptyBody}>Ajoute ton premier screenshot Insta.</Text>
           </View>
         }
-        renderItem={({ item }) => <LieuRow lieu={item} onPress={() => {/* Detail screen in issue #5 */}} />}
+        renderItem={({ item }) => (
+          <LieuRow lieu={item} onPress={() => nav.navigate('LieuDetail', { lieuId: item.id })} />
+        )}
       />
     </SafeAreaView>
   );
