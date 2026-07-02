@@ -272,7 +272,7 @@ Anthropic API: v1 sends full screenshot bytes. Confirm Anthropic zero-retention 
 Mapbox: only text is sent (name + city), never the image or user identifier.
 
 ### Privacy Policy URL (required)
-Publish at `https://waymark.app/privacy` before submission. Same URL goes in App Store Connect + in-app Settings.
+Publish at `https://robin-gl-pixel.github.io/waymark/privacy-policy.html` before submission. Same URL goes in App Store Connect + in-app Settings.
 
 ---
 
@@ -316,8 +316,8 @@ No mature content, no unrestricted web access (only Instagram-share ingest), no 
 
 - [ ] Title, subtitle, keywords locked in App Store Connect (EN + FR)
 - [ ] 5 screenshots exported at 1290x2796 for both locales
-- [ ] Privacy Policy URL live at `https://waymark.app/privacy`
-- [ ] Support URL live at `https://waymark.app/support` (or Notion page)
+- [ ] Privacy Policy URL live at `https://robin-gl-pixel.github.io/waymark/privacy-policy.html`
+- [ ] Support URL live at `https://github.com/Robin-gl-pixel/waymark/issues` (or Notion page)
 - [ ] Marketing URL points to landing page (or App Store direct)
 - [ ] App Privacy questionnaire completed per matrix above
 - [ ] Delete Account flow verified end-to-end (issue #6 closed)
