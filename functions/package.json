@@ -8,7 +8,8 @@
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "engines": {
     "node": "20"
@@ -22,8 +23,11 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.0",
+    "jest": "^30.4.1",
+    "ts-jest": "^29.4.11",
     "typescript": "~5.9.2"
   },
   "private": true

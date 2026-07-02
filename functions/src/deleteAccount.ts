@@ -1,9 +1,10 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { revokeRefreshToken, AppleAuthConfig } from './lib/apple';
+import { cascadeSocialDelete, FirestoreLike } from './lib/socialCascade';
 
 const APPLE_TEAM_ID = defineSecret('APPLE_TEAM_ID');
 const APPLE_KEY_ID = defineSecret('APPLE_KEY_ID');
@@ -18,14 +19,24 @@ const APPLE_PRIVATE_KEY = defineSecret('APPLE_PRIVATE_KEY');
  * succeed do we revoke tokens and delete the Auth user.
  *
  * Apple review requires this feature since June 2022 (Guideline 5.1.1(v)).
- * The Apple Sign In credential revocation (step 4) is what satisfies the
+ * The Apple Sign In credential revocation (step 5) is what satisfies the
  * "must invalidate the third-party credential" clause of that guideline.
+ *
+ * Social cascade (issue #18): before nuking my own subtree we walk the graph
+ * and clean up the state I leave behind on OTHER users — nullify
+ * `savedFromUserId` on downstream lieux, remove me from their
+ * following/followers, decrement counts. See `lib/socialCascade.ts` for the
+ * full protocol + idempotency contract + known V1 limitations.
+ *
+ * Timeout is bumped to the 540s Cloud Function max: a tail user with a large
+ * downstream save fan-out plus recursive-delete of their own subtree can take
+ * a while, and dying halfway leaves the delete visibly incomplete to the user.
  */
 export const deleteAccount = onCall(
   {
     region: 'europe-west1',
     memory: '256MiB',
-    timeoutSeconds: 60,
+    timeoutSeconds: 540,
     secrets: [APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_CLIENT_ID, APPLE_PRIVATE_KEY],
   },
   async (request): Promise<{ ok: true }> => {
@@ -36,27 +47,32 @@ export const deleteAccount = onCall(
     const auth = getAuth();
     const bucket = getStorage().bucket();
 
-    // 1. Delete the user's Firestore subtree (lieux subcollection + the parent user doc).
-    const lieuxSnap = await firestore.collection(`users/${uid}/lieux`).get();
-    const batchSize = 400; // Firestore batch limit is 500; leave headroom for the parent doc write.
-    let batch = firestore.batch();
-    let ops = 0;
-    for (const d of lieuxSnap.docs) {
-      batch.delete(d.ref);
-      ops++;
-      if (ops >= batchSize) {
-        await batch.commit();
-        batch = firestore.batch();
-        ops = 0;
-      }
+    // 1. Social cascade — MUST run before we nuke our own subcollections,
+    //    because phases 2/3 iterate our followers + following to reach the
+    //    other users' back-refs.
+    try {
+      const cascadeSummary = await cascadeSocialDelete(
+        uid,
+        firestore as unknown as FirestoreLike,
+        (n) => FieldValue.increment(n),
+      );
+      console.info('[deleteAccount] social cascade complete', { uid, ...cascadeSummary });
+    } catch (err) {
+      // Log but do NOT abort — a partially-cascaded delete is still preferable to a user
+      // who can't delete their account at all (Apple review will reject that). The trigger
+      // is idempotent, so an admin retry will finish the job.
+      console.error('[deleteAccount] social cascade failed (continuing)', { uid, err });
     }
-    batch.delete(firestore.doc(`users/${uid}`));
-    await batch.commit();
 
-    // 2. Purge Storage /users/{uid}/ prefix.
+    // 2. Recursive-delete my own subtree — followers, following, blocks, activity,
+    //    lieux, and the parent user doc itself. Admin SDK's recursiveDelete uses a
+    //    BulkWriter under the hood, so no batch-size ceremony needed here.
+    await firestore.recursiveDelete(firestore.doc(`users/${uid}`));
+
+    // 3. Purge Storage /users/{uid}/ prefix (screenshots + any other user-scoped blobs).
     await bucket.deleteFiles({ prefix: `users/${uid}/` });
 
-    // 3. Revoke the Apple Sign In credential (guideline 5.1.1(v)).
+    // 4. Revoke the Apple Sign In credential (guideline 5.1.1(v)).
     // Best-effort — if the token is missing or Apple returns 4xx we log and continue,
     // otherwise the user can never delete their account because of a stale/expired token.
     const appleAuthRef = firestore.doc(`appleAuth/${uid}`);
@@ -84,10 +100,10 @@ export const deleteAccount = onCall(
     // Delete the appleAuth doc regardless — we're deleting the user.
     await appleAuthRef.delete().catch(() => undefined);
 
-    // 4. Revoke Firebase refresh tokens (existing sessions across other devices die immediately).
+    // 5. Revoke Firebase refresh tokens (existing sessions across other devices die immediately).
     await auth.revokeRefreshTokens(uid);
 
-    // 5. Delete the Auth user.
+    // 6. Delete the Auth user.
     await auth.deleteUser(uid);
 
     return { ok: true };
