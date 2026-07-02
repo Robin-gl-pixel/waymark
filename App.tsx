@@ -24,6 +24,7 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import MapScreen from './src/screens/MapScreen';
@@ -36,6 +37,7 @@ import LieuDetailScreen from './src/screens/LieuDetailScreen';
 import SharedImageScreen from './src/screens/SharedImageScreen';
 import OnboardingSlidesScreen from './src/screens/OnboardingSlidesScreen';
 import PickUsernameScreen from './src/screens/PickUsernameScreen';
+import SeededFollowScreen from './src/screens/SeededFollowScreen';
 import EditUsernameScreen from './src/screens/EditUsernameScreen';
 import MyProfileScreen from './src/screens/MyProfileScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
@@ -127,10 +129,20 @@ function MainTabs() {
   );
 }
 
+/**
+ * Local AsyncStorage flag that records whether the current install has
+ * completed the SeededFollow step (GitHub #17). Persisting here — rather than
+ * on the user doc — keeps the change client-only for this PR; we accept the
+ * tradeoff that reinstalling the app re-shows the screen.
+ */
+const SEEDED_FOLLOW_STORAGE_KEY = '@waymark:seeded_follow_done_v1';
+
 function Root() {
   const { user, loading } = useAuth();
   const [profileLoading, setProfileLoading] = React.useState(true);
   const [hasUsername, setHasUsername] = React.useState(false);
+  const [seededFollowLoading, setSeededFollowLoading] = React.useState(true);
+  const [hasSeededFollowed, setHasSeededFollowed] = React.useState(false);
 
   const refreshProfile = React.useCallback(async () => {
     if (!user) {
@@ -151,12 +163,44 @@ function Root() {
     }
   }, [user]);
 
+  const refreshSeededFollow = React.useCallback(async () => {
+    if (!user) {
+      setHasSeededFollowed(false);
+      setSeededFollowLoading(false);
+      return;
+    }
+    try {
+      const value = await AsyncStorage.getItem(SEEDED_FOLLOW_STORAGE_KEY);
+      setHasSeededFollowed(value === 'true');
+    } catch (err) {
+      console.warn('[Root] read seededFollow flag failed', err);
+      // Fail open: treat as done rather than trapping the user on this screen
+      // if AsyncStorage is broken (e.g. wiped storage), so they still reach the app.
+      setHasSeededFollowed(true);
+    } finally {
+      setSeededFollowLoading(false);
+    }
+  }, [user]);
+
+  const markSeededFollowDone = React.useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(SEEDED_FOLLOW_STORAGE_KEY, 'true');
+    } catch (err) {
+      // If persistence fails, we still advance the UI — the worst case is the
+      // screen re-appears on next launch, which is fine.
+      console.warn('[Root] persist seededFollow flag failed', err);
+    }
+    setHasSeededFollowed(true);
+  }, []);
+
   React.useEffect(() => {
     setProfileLoading(true);
+    setSeededFollowLoading(true);
     refreshProfile();
-  }, [refreshProfile]);
+    refreshSeededFollow();
+  }, [refreshProfile, refreshSeededFollow]);
 
-  if (loading || (user && profileLoading)) {
+  if (loading || (user && (profileLoading || seededFollowLoading))) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.accent} size="large" />
@@ -175,7 +219,7 @@ function Root() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      {hasUsername ? (
+      {hasUsername && hasSeededFollowed ? (
         <>
           <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <RootStack.Screen name="Upload" component={UploadScreen} options={{ title: 'Nouveau lieu' }} />
@@ -198,12 +242,19 @@ function Root() {
             options={{ headerShown: false, gestureEnabled: false }}
           />
         </>
-      ) : (
+      ) : !hasUsername ? (
         <RootStack.Screen
           name="PickUsername"
           options={{ headerShown: false, gestureEnabled: false }}
         >
           {() => <PickUsernameScreen onComplete={refreshProfile} />}
+        </RootStack.Screen>
+      ) : (
+        <RootStack.Screen
+          name="SeededFollow"
+          options={{ headerShown: false, gestureEnabled: false }}
+        >
+          {() => <SeededFollowScreen onComplete={markSeededFollowDone} />}
         </RootStack.Screen>
       )}
     </RootStack.Navigator>

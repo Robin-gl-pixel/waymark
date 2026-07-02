@@ -16,6 +16,7 @@ export type RootStackParamList = {
   LieuDetail: { lieuId: string; ownerUid?: string };
   Onboarding: undefined;
   PickUsername: undefined;
+  SeededFollow: undefined;
   EditUsername: undefined;
   MyProfile: undefined;
   UserProfile: { uid: string };
