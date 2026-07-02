@@ -33,6 +33,7 @@ import UploadScreen from './src/screens/UploadScreen';
 import ExtractConfirmScreen from './src/screens/ExtractConfirmScreen';
 import LieuDetailScreen from './src/screens/LieuDetailScreen';
 import SharedImageScreen from './src/screens/SharedImageScreen';
+import OnboardingSlidesScreen from './src/screens/OnboardingSlidesScreen';
 import { colors } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
 
@@ -138,6 +139,11 @@ function Root() {
       />
       <RootStack.Screen name="ExtractConfirm" component={ExtractConfirmScreen} options={{ title: 'Vérifier' }} />
       <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
+      <RootStack.Screen
+        name="Onboarding"
+        component={OnboardingSlidesScreen}
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
     </RootStack.Navigator>
   );
 }
