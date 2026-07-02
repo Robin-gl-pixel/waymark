@@ -32,6 +32,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Activity feed (#14). Owner-only reads. Owner-only updates (the client
+    // flips `read: true` via `markActivityRead` when the feed is opened).
+    // Creation is server-only via Cloud Function triggers
+    // (`followTriggers.ts`, `saveAttribution.ts`) using the Admin SDK, which
+    // bypasses rules — so we deny direct client creates + deletes to keep the
+    // feed tamper-resistant. Kept explicit here even though the wildcard above
+    // technically permits it, so the invariant is discoverable.
+    match /users/{userId}/activity/{activityId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow create, delete: if false;
+    }
+
     // Follower / following sub-collections (#12).
     //
     // A follow is two symmetric writes committed as a single client-side batch:

@@ -33,5 +33,6 @@ export type TabParamList = {
   List: undefined;
   Network: undefined;
   _Add: undefined; // Fake tab: button that opens Upload in the root stack.
+  Profile: undefined;
   Settings: undefined;
 };

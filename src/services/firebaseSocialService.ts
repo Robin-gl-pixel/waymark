@@ -4,6 +4,8 @@ import type {
   ProfileInput,
   ReportInput,
   ReportReason,
+  Activity,
+  ActivityType,
   ActivityPage,
 } from '../types/User';
 import type { SocialService, FeedPage } from './socialService';
@@ -432,10 +434,108 @@ export class FirebaseSocialService implements SocialService {
   }
 
   // --- Activity ---
-  async getActivity(_cursor?: string): Promise<ActivityPage> { throw new SocialNotImplemented('getActivity'); }
-  async markActivityRead(_activityId: string): Promise<void> { throw new SocialNotImplemented('markActivityRead'); }
-  async getUnreadActivityCount(): Promise<number> { throw new SocialNotImplemented('getUnreadActivityCount'); }
+
+  /**
+   * Paginated in-app activity feed for the current user.
+   *
+   * Reads `users/{me}/activity` ordered by `createdAt` desc, page-of-20.
+   * Cursor = the previous page's tail `createdAt.toMillis()` — we re-hydrate
+   * it to a Firestore `Timestamp` for `startAfter` so the query engine can
+   * seek directly rather than scanning back to the start each page.
+   *
+   * Activity docs are only ever *written* by Cloud Function triggers
+   * (`followTriggers.ts`, `saveAttribution.ts`) via the Admin SDK — so we
+   * trust the schema without re-validating it here. The `read` field defaults
+   * to `false` (defensive) in case an older doc is missing it.
+   */
+  async getActivity(cursor?: string): Promise<ActivityPage> {
+    const {
+      auth,
+      db,
+      collection,
+      query: fsQuery,
+      orderBy,
+      limit,
+      startAfter,
+      getDocs,
+      Timestamp,
+    } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) return { items: [], cursor: null };
+
+    const cursorMs = cursor && Number.isFinite(Number(cursor)) ? Number(cursor) : null;
+    const baseCol = collection(db as never, `users/${me.uid}/activity`);
+    const q = cursorMs !== null
+      ? fsQuery(
+          baseCol,
+          orderBy('createdAt', 'desc'),
+          startAfter(Timestamp.fromMillis(cursorMs)),
+          limit(ACTIVITY_PAGE_SIZE),
+        )
+      : fsQuery(baseCol, orderBy('createdAt', 'desc'), limit(ACTIVITY_PAGE_SIZE));
+    const snap = await getDocs(q);
+
+    const items: Activity[] = snap.docs.map((d) => {
+      const data = d.data() as Record<string, unknown>;
+      return {
+        id: d.id,
+        type: data.type as ActivityType,
+        actorUid: (data.actorUid as string) ?? '',
+        actorUsername: (data.actorUsername as string) ?? '',
+        targetLieuId: (data.targetLieuId as string | undefined) ?? undefined,
+        createdAt: data.createdAt as Timestamp,
+        read: (data.read as boolean | undefined) ?? false,
+      };
+    });
+
+    // A full page = there's likely more. If we got fewer than PAGE_SIZE the
+    // caller has drained the feed and we return a null cursor.
+    const tail = items[items.length - 1];
+    const nextCursor =
+      items.length === ACTIVITY_PAGE_SIZE && tail
+        ? String(tail.createdAt.toMillis())
+        : null;
+
+    return { items, cursor: nextCursor };
+  }
+
+  /**
+   * Mark a single activity entry as read. Idempotent — an already-read doc is
+   * a no-op update. `markActivityRead` on a missing id throws (updateDoc on a
+   * non-existent doc surfaces the error to the caller so a stale UI id can't
+   * silently fail).
+   */
+  async markActivityRead(activityId: string): Promise<void> {
+    const { auth, db, doc, updateDoc } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    await updateDoc(doc(db as never, `users/${me.uid}/activity/${activityId}`), { read: true });
+  }
+
+  /**
+   * Unread-count query for the badge. Uses the composite index
+   * `[read ASC, createdAt DESC]` declared in `firestore.indexes.json`.
+   *
+   * Returns 0 when signed out — the badge helper is safe to call anywhere.
+   */
+  async getUnreadActivityCount(): Promise<number> {
+    const { auth, db, collection, query: fsQuery, where, getDocs } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) return 0;
+    const q = fsQuery(
+      collection(db as never, `users/${me.uid}/activity`),
+      where('read', '==', false),
+    );
+    const snap = await getDocs(q);
+    return snap.size;
+  }
 }
+
+/**
+ * Activity page size — matches PRD ("page 20") and the InMemory contract.
+ * Kept module-level so UI + tests reference the same knob.
+ */
+export const ACTIVITY_PAGE_SIZE = 20;
 
 /**
  * Feed page size — matches PRD ("page de 20") and the InMemory contract.
