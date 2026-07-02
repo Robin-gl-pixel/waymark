@@ -1,7 +1,6 @@
 /**
- * Geocoding orchestration — shared by `extract` (in-app upload) and
- * `extractFromShortcut` (iOS Shortcut). Tries strategies in order of expected
- * precision; first hit wins.
+ * Geocoding orchestration used by `extract`. Tries strategies in order of
+ * expected precision; first hit wins.
  *
  *   1. Mapbox by address (if Claude read the address from the screenshot)
  *   2. Google Places Text Search (rich POI DB for restos/bars/cafés)

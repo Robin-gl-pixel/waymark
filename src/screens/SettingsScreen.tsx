@@ -1,75 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
-  Linking,
-} from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { getAuthService } from '../services/authService';
 import { getLieuxService } from '../services/lieuxService';
-import { getOrCreateShortcutToken, regenerateShortcutToken } from '../services/shortcutTokenService';
 import { colors, spacing, type, radius } from '../theme';
-
-// Placeholder — will be replaced by the actual iCloud shortcut URL after publishing
-// via Shortcuts.app → Share → Copy iCloud Link. Documented in docs/shortcut-setup.md.
-const SHORTCUT_ICLOUD_URL = 'https://www.icloud.com/shortcuts/PLACEHOLDER';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
-  const [token, setToken] = useState<string | null>(null);
-  const [tokenLoading, setTokenLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    getOrCreateShortcutToken(user.uid)
-      .then(setToken)
-      .catch(console.error)
-      .finally(() => setTokenLoading(false));
-  }, [user]);
-
-  const copyToken = async () => {
-    if (!token) return;
-    await Clipboard.setStringAsync(token);
-    Alert.alert('Copié', 'Token copié dans le presse-papier.');
-  };
-
-  const regenerate = () => {
-    if (!user) return;
-    Alert.alert(
-      'Régénérer le token ?',
-      "Ton ancien Shortcut ne marchera plus. Tu devras le reconfigurer avec le nouveau token.",
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Régénérer',
-          style: 'destructive',
-          onPress: async () => {
-            setTokenLoading(true);
-            try {
-              const newToken = await regenerateShortcutToken(user.uid);
-              setToken(newToken);
-            } finally {
-              setTokenLoading(false);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const openShortcut = () => {
-    Linking.openURL(SHORTCUT_ICLOUD_URL).catch(() => {
-      Alert.alert('Info', "Le lien Shortcut n'est pas encore publié. Voir docs/shortcut-setup.md.");
-    });
-  };
 
   const confirmDelete = async () => {
     if (!user) return;
@@ -99,7 +38,6 @@ export default function SettingsScreen() {
     setDeleting(true);
     try {
       await getAuthService().deleteAccount();
-      // Confirm to the user before the auth listener kicks them back to AuthScreen.
       Alert.alert(
         'Compte supprimé',
         'Toutes tes données ont été effacées. À bientôt.',
@@ -122,39 +60,11 @@ export default function SettingsScreen() {
           <Text style={styles.cardValue}>{user?.displayName ?? user?.email ?? '—'}</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Ajout rapide depuis Photos</Text>
+        <Text style={styles.sectionTitle}>Ajout depuis Partager</Text>
         <Text style={styles.sectionBody}>
-          Installe le Shortcut iOS pour partager un screenshot depuis Photos ou Instagram directement vers Waymark, sans ouvrir l'app.
+          Depuis Photos, Instagram ou n'importe quelle app, tape Partager et choisis Waymark dans la
+          grille — l'extraction se lance automatiquement, aucune configuration.
         </Text>
-
-        <Pressable
-          onPress={openShortcut}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: pressed ? colors.accentDim : colors.accent },
-          ]}
-        >
-          <Text style={styles.primaryLabel}>Installer le Shortcut</Text>
-        </Pressable>
-
-        <Text style={styles.cardLabel}>Ton token perso (à coller dans le Shortcut)</Text>
-        <View style={styles.tokenBox}>
-          {tokenLoading ? (
-            <ActivityIndicator color={colors.accent} />
-          ) : (
-            <Text style={styles.tokenText} numberOfLines={1} ellipsizeMode="middle">
-              {token ?? '—'}
-            </Text>
-          )}
-        </View>
-        <View style={styles.tokenActions}>
-          <Pressable onPress={copyToken} disabled={!token} style={styles.smallBtn}>
-            <Text style={styles.smallBtnLabel}>Copier</Text>
-          </Pressable>
-          <Pressable onPress={regenerate} disabled={!token} style={styles.smallBtnGhost}>
-            <Text style={styles.smallBtnGhostLabel}>Régénérer</Text>
-          </Pressable>
-        </View>
 
         <View style={{ flex: 1 }} />
 
@@ -195,53 +105,12 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
-    marginTop: spacing.lg,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   cardValue: { ...type.h3, color: colors.text, fontWeight: '600' },
   sectionTitle: { ...type.h2, color: colors.text, fontWeight: '700', marginTop: spacing.xl },
   sectionBody: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm },
-  primaryBtn: {
-    height: 56,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-  },
-  primaryLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
-  tokenBox: {
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
-  },
-  tokenText: { ...type.caption, color: colors.text, fontFamily: 'Menlo' },
-  tokenActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  smallBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  smallBtnLabel: { ...type.body, color: colors.text },
-  smallBtnGhost: {
-    flex: 1,
-    height: 44,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  smallBtnGhostLabel: { ...type.body, color: colors.textSecondary },
   logoutBtn: {
     height: 56,
     borderRadius: radius.pill,

@@ -7,6 +7,7 @@ import { LieuExtracted } from './types/Lieu';
 export type RootStackParamList = {
   Main: NavigatorScreenParams<TabParamList> | undefined;
   Upload: undefined;
+  SharedImage: undefined;
   ExtractConfirm: {
     extracted: LieuExtracted;
     screenshotUri: string;

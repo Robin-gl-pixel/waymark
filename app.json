@@ -20,6 +20,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDevelopmentRegion": "fr",
+        "CFBundleLocalizations": ["fr"],
         "NSPhotoLibraryUsageDescription": "Waymark utilise tes screenshots Instagram pour extraire automatiquement les lieux recommandés.",
         "NSLocationWhenInUseUsageDescription": "Waymark utilise ta position pour te montrer les lieux enregistrés autour de toi.",
         "NSCameraUsageDescription": "Waymark peut utiliser l'appareil photo pour capturer directement un post Instagram à extraire."
@@ -45,7 +47,17 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsImageWithMaxCount": 1
+          },
+          "iosShareExtensionName": "Waymark Share",
+          "disableAndroid": true
+        }
+      ]
     ],
     "extra": {
       "eas": {

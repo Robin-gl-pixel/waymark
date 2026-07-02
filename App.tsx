@@ -6,7 +6,12 @@ import { View, ActivityIndicator, StyleSheet, Pressable, LogBox } from 'react-na
 LogBox.ignoreLogs(['Sending `onAnimatedValueUpdate` with no listeners registered.']);
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DarkTheme, useNavigation } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DarkTheme,
+  useNavigation,
+  useNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +23,7 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
+import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import MapScreen from './src/screens/MapScreen';
@@ -26,6 +32,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import UploadScreen from './src/screens/UploadScreen';
 import ExtractConfirmScreen from './src/screens/ExtractConfirmScreen';
 import LieuDetailScreen from './src/screens/LieuDetailScreen';
+import SharedImageScreen from './src/screens/SharedImageScreen';
 import { colors } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
 
@@ -124,10 +131,43 @@ function Root() {
     >
       <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="Upload" component={UploadScreen} options={{ title: 'Nouveau lieu' }} />
+      <RootStack.Screen
+        name="SharedImage"
+        component={SharedImageScreen}
+        options={{ title: 'Ajout depuis Partager', headerBackVisible: false, gestureEnabled: false }}
+      />
       <RootStack.Screen name="ExtractConfirm" component={ExtractConfirmScreen} options={{ title: 'Vérifier' }} />
       <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
     </RootStack.Navigator>
   );
+}
+
+type NavRef = ReturnType<typeof useNavigationContainerRef>;
+
+/**
+ * When iOS hands us a shared image via the Share Extension, jump to
+ * SharedImageScreen once per intent. resetShareIntent() (called from the
+ * screen after extract completes) clears hasShareIntent; the ref guards
+ * against re-entering the same screen on shareIntent object identity churn.
+ */
+function ShareIntentRouter({ navRef }: { navRef: NavRef }) {
+  const { user } = useAuth();
+  const { hasShareIntent, shareIntent } = useShareIntentContext();
+  const routedKey = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!user || !hasShareIntent || !navRef.isReady()) return;
+    const key = shareIntent?.files?.[0]?.path ?? shareIntent?.text ?? 'intent';
+    if (routedKey.current === key) return;
+    routedKey.current = key;
+    navRef.reset({ index: 0, routes: [{ name: 'SharedImage' } as never] });
+  }, [user, hasShareIntent, shareIntent, navRef]);
+
+  React.useEffect(() => {
+    if (!hasShareIntent) routedKey.current = null;
+  }, [hasShareIntent]);
+
+  return null;
 }
 
 export default function App() {
@@ -138,6 +178,7 @@ export default function App() {
     Manrope_700Bold,
     Manrope_800ExtraBold,
   });
+  const navRef = useNavigationContainerRef();
 
   if (!fontsLoaded) {
     // Match the pre-auth splash so the transition is invisible.
@@ -149,14 +190,17 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer theme={theme}>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <Root />
-        </AuthProvider>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <ShareIntentProvider>
+      <SafeAreaProvider>
+        <NavigationContainer theme={theme} ref={navRef}>
+          <AuthProvider>
+            <StatusBar style="light" />
+            <ShareIntentRouter navRef={navRef} />
+            <Root />
+          </AuthProvider>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ShareIntentProvider>
   );
 }
 
