@@ -14,6 +14,7 @@ export type RootStackParamList = {
     screenshotMediaType: 'image/png' | 'image/jpeg' | 'image/webp';
   };
   LieuDetail: { lieuId: string };
+  Onboarding: undefined;
 };
 
 /**

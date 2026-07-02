@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { getAuthService } from '../services/authService';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
+import type { RootStackParamList } from '../navigation';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
+  const nav = useNavigation<Nav>();
   const [deleting, setDeleting] = useState(false);
 
   const confirmDelete = async () => {
@@ -67,6 +73,17 @@ export default function SettingsScreen() {
         </Text>
 
         <View style={{ flex: 1 }} />
+
+        {/* REMOVE-ME (#17): temporary dev button to preview OnboardingSlidesScreen
+            without wiring the auth flow. Delete once the flow lands in #10. */}
+        {__DEV__ && (
+          <Pressable
+            onPress={() => nav.navigate('Onboarding')}
+            style={styles.devBtn}
+          >
+            <Text style={styles.devLabel}>Voir Onboarding (dev)</Text>
+          </Pressable>
+        )}
 
         <Pressable onPress={logout} style={styles.logoutBtn}>
           <Text style={styles.logoutLabel}>Se déconnecter</Text>
@@ -131,4 +148,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteLabel: { ...type.h3, color: colors.error, fontWeight: '600' },
+  devBtn: {
+    height: 44,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  devLabel: { ...type.caption, color: colors.textTertiary },
 });
