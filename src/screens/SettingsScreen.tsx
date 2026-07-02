@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ScrollView, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +10,11 @@ import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+// TODO(Robin): replace with real App Store URL post-submit.
+const WAYMARK_APP_STORE_URL = 'https://apps.apple.com/app/waymark';
+
+const INVITE_MESSAGE = `Rejoins-moi sur Waymark, l'app qui transforme tes screenshots Insta en carte : ${WAYMARK_APP_STORE_URL}`;
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -38,6 +43,17 @@ export default function SettingsScreen() {
         { text: 'Supprimer mon compte', style: 'destructive', onPress: performDelete },
       ],
     );
+  };
+
+  const inviteFriend = async () => {
+    try {
+      await Share.share({
+        message: INVITE_MESSAGE,
+        url: WAYMARK_APP_STORE_URL,
+      });
+    } catch (err) {
+      console.warn('[Settings] invite share failed', err);
+    }
   };
 
   const performDelete = async () => {
@@ -71,6 +87,24 @@ export default function SettingsScreen() {
           Depuis Photos, Instagram ou n'importe quelle app, tape Partager et choisis Waymark dans la
           grille — l'extraction se lance automatiquement, aucune configuration.
         </Text>
+
+        <View style={styles.actionGroup}>
+          <Pressable
+            onPress={() => nav.navigate('EditUsername')}
+            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+          >
+            <Text style={styles.actionLabel}>Changer mon @username</Text>
+            <Text style={styles.actionChevron}>›</Text>
+          </Pressable>
+          <View style={styles.actionDivider} />
+          <Pressable
+            onPress={inviteFriend}
+            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+          >
+            <Text style={styles.actionLabel}>Inviter un ami</Text>
+            <Text style={styles.actionChevron}>›</Text>
+          </Pressable>
+        </View>
 
         <View style={{ flex: 1 }} />
 
@@ -148,6 +182,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteLabel: { ...type.h3, color: colors.error, fontWeight: '600' },
+  actionGroup: {
+    marginTop: spacing['2xl'],
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
+    overflow: 'hidden',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  actionRowPressed: { opacity: 0.7 },
+  actionLabel: { ...type.body, color: colors.text, fontWeight: '600' },
+  actionChevron: { ...type.h3, color: colors.textTertiary },
+  actionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+  },
   devBtn: {
     height: 44,
     borderRadius: radius.pill,
