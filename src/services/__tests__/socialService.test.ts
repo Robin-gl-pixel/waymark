@@ -96,6 +96,15 @@ describe('SocialService seam contract (profile foundation, InMemorySocialService
       const found = await svc.getUserByUsername('BOB');
       expect(found?.username).toBe('bob');
     });
+
+    // Slice #11 — the acceptance criteria pin "returns null for unknown" as an
+    // explicit contract test even though the branch above already covers it.
+    // Kept as a top-level spec so failures point clearly at #11's promise.
+    it('returns null for an unknown username (slice #11)', async () => {
+      const svc = makeSvc();
+      await svc.upsertProfile({ username: 'somebody' });
+      expect(await svc.getUserByUsername('nobody')).toBeNull();
+    });
   });
 
   describe('getMyProfile', () => {
@@ -337,5 +346,89 @@ describe('validateReportInput — pure validation (slice #15)', () => {
     expect(() =>
       validateReportInput({ targetUid: '', reason: 'spam' }),
     ).toThrow(/targetUid/i);
+  });
+});
+
+/**
+ * Slice #11 contract tests — read profiles + search.
+ *
+ * The Firebase impl exact-matches on `username` via a Firestore query with
+ * `where('username' == q)` + `where('isPublic' == true)`; the InMemory impl
+ * mirrors that with its `usernameIndex` + `isPublic` filter. These specs pin
+ * the shared contract:
+ *   1. exact-match hits by lowercase handle
+ *   2. unknown → []
+ *   3. self is filtered out
+ *   4. private users are filtered out
+ *   5. leading `@` is stripped
+ *   6. exact-match ≠ prefix — searching "robin" doesn't return "robin.hesse"
+ */
+describe('SocialService seam contract — Search (slice #11)', () => {
+  let svc: InMemorySocialService;
+
+  beforeEach(() => {
+    svc = new InMemorySocialService();
+    seed(svc, ME, 'me');
+    seed(svc, ALICE, 'alice');
+    seed(svc, BOB, 'bob');
+    svc.setCurrentUid(ME);
+  });
+
+  it('searchUsers returns the exact match by username', async () => {
+    // Seed the canonical curated handle referenced in the golden path.
+    seed(svc, 'uid-wpc', 'waymark.paris.cool');
+
+    const results = await svc.searchUsers('waymark.paris.cool');
+    expect(results.map((u) => u.username)).toEqual(['waymark.paris.cool']);
+  });
+
+  it('searchUsers returns [] for an unknown username', async () => {
+    const results = await svc.searchUsers('unknown');
+    expect(results).toEqual([]);
+  });
+
+  it('searchUsers excludes my own uid from results', async () => {
+    // 'me' is the signed-in uid — a search for my own handle must return [].
+    const results = await svc.searchUsers('me');
+    expect(results).toEqual([]);
+  });
+
+  it('searchUsers excludes private users', async () => {
+    // Overwrite Alice with an isPublic:false variant.
+    svc.seedUser({
+      uid: ALICE,
+      username: 'alice',
+      displayName: null,
+      email: null,
+      isPublic: false,
+      isCurated: false,
+      followersCount: 0,
+      followingCount: 0,
+      avatarUrl: null,
+      bio: null,
+      usernameChangedAt: null,
+    });
+
+    const results = await svc.searchUsers('alice');
+    expect(results).toEqual([]);
+  });
+
+  it('searchUsers strips a leading @ from the input', async () => {
+    const results = await svc.searchUsers('@alice');
+    expect(results.map((u) => u.uid)).toEqual([ALICE]);
+  });
+
+  it('searchUsers is case-insensitive on input', async () => {
+    const results = await svc.searchUsers('ALICE');
+    expect(results.map((u) => u.uid)).toEqual([ALICE]);
+  });
+
+  it('searchUsers exact-matches only — a prefix does NOT match', async () => {
+    // Golden negative case from the PRD acceptance criteria — searching
+    // "robin" must NOT match a user whose handle is "robin.hesse".
+    seed(svc, 'uid-robin.hesse', 'robin.hesse');
+
+    const results = await svc.searchUsers('robin');
+    expect(results).toEqual([]);
   });
 });

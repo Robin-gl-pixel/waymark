@@ -37,6 +37,7 @@ import OnboardingSlidesScreen from './src/screens/OnboardingSlidesScreen';
 import PickUsernameScreen from './src/screens/PickUsernameScreen';
 import MyProfileScreen from './src/screens/MyProfileScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
+import SearchUsersScreen from './src/screens/SearchUsersScreen';
 import ReportScreen from './src/screens/ReportScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 import { getSocialService } from './src/services/socialService';
@@ -175,6 +176,7 @@ function Root() {
           <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
           <RootStack.Screen name="MyProfile" component={MyProfileScreen} options={{ title: 'Profil' }} />
           <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profil' }} />
+          <RootStack.Screen name="SearchUsers" component={SearchUsersScreen} options={{ title: 'Rechercher' }} />
           <RootStack.Screen name="Report" component={ReportScreen} options={{ title: 'Signaler' }} />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: 'Comptes bloqués' }} />
           <RootStack.Screen

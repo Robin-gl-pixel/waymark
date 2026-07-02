@@ -7,6 +7,23 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Public profile read (#11). Any authenticated user can read a user doc
+    // when the owner's profile is public. This powers UserProfileScreen and
+    // the exact-match SearchUsersScreen (query filters on `isPublic == true`,
+    // which the rule engine verifies against `resource.data.isPublic`).
+    match /users/{userId} {
+      allow read: if request.auth != null && resource.data.isPublic == true;
+    }
+
+    // Public read of a user's lieux (#11). Any authenticated user can list
+    // and read the lieux of a public owner. We resolve `isPublic` from the
+    // parent user doc via `get()` — memoized within a single rule evaluation,
+    // so it's one extra doc read per query, not per pin.
+    match /users/{userId}/lieux/{lieuId} {
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(userId)).data.isPublic == true;
+    }
+
     // Blocks — Apple guideline 1.2 (see #15). Explicit rule kept here even
     // though the wildcard above already covers it, so a future edit that
     // opens up read on `users/{uid}/*` for public profiles can't accidentally
