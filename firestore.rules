@@ -7,6 +7,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Blocks — Apple guideline 1.2 (see #15). Explicit rule kept here even
+    // though the wildcard above already covers it, so a future edit that
+    // opens up read on `users/{uid}/*` for public profiles can't accidentally
+    // leak someone's block list.
+    match /users/{userId}/blocks/{blockedUid} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Username uniqueness lock. `usernames/{lowercase}` maps a taken handle
     // to its owner uid. Reads are open so any authenticated client can check
     // availability. Creates require the caller to own the mapping and match
@@ -19,6 +27,16 @@ service cloud.firestore {
         && name.matches('^[a-z0-9._]{3,20}$');
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;
+    }
+
+    // Reports — Apple guideline 1.2 (see #15). Any authenticated user can
+    // create a report, nobody can read/list them from the client. Reads happen
+    // exclusively via the Admin SDK in a Cloud Function that relays each new
+    // report to a private Slack channel for manual review.
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+                    && request.resource.data.reporterUid == request.auth.uid;
+      allow read, update, delete: if false;
     }
 
     // Server-only: Apple Sign In refresh tokens for the revoke flow.

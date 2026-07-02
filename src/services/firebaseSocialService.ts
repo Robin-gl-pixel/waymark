@@ -3,6 +3,7 @@ import type {
   UserProfile,
   ProfileInput,
   ReportInput,
+  ReportReason,
   ActivityPage,
 } from '../types/User';
 import type { SocialService, FeedPage } from './socialService';
@@ -170,13 +171,75 @@ export class FirebaseSocialService implements SocialService {
   async isFollowing(_uid: string): Promise<boolean> { throw new SocialNotImplemented('isFollowing'); }
 
   // --- Block ---
-  async block(_uid: string): Promise<void> { throw new SocialNotImplemented('block'); }
-  async unblock(_uid: string): Promise<void> { throw new SocialNotImplemented('unblock'); }
-  async getBlocked(): Promise<UserProfile[]> { throw new SocialNotImplemented('getBlocked'); }
-  async isBlocked(_uid: string): Promise<boolean> { throw new SocialNotImplemented('isBlocked'); }
+  /**
+   * Block a user (Apple guideline 1.2 compliance).
+   *
+   * Bidirectional forced unfollow: clean up every follow edge on MY side of the
+   * graph in a single atomic batch. Server-side symmetry (removing my entry
+   * from THEIR followers sub-collection) lives in a Cloud Function trigger
+   * that owns the follow slice (#12).
+   */
+  async block(uid: string): Promise<void> {
+    const { auth, db, doc, writeBatch, serverTimestamp } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    if (uid === me.uid) throw new Error('Cannot block yourself');
+
+    const batch = writeBatch(db as never);
+    batch.set(doc(db as never, `users/${me.uid}/blocks/${uid}`), {
+      createdAt: serverTimestamp(),
+    });
+    batch.delete(doc(db as never, `users/${me.uid}/following/${uid}`));
+    batch.delete(doc(db as never, `users/${me.uid}/followers/${uid}`));
+    await batch.commit();
+  }
+
+  async unblock(uid: string): Promise<void> {
+    const { auth, db, doc, deleteDoc } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    await deleteDoc(doc(db as never, `users/${me.uid}/blocks/${uid}`));
+  }
+
+  async getBlocked(): Promise<UserProfile[]> {
+    const { auth, db, collection, getDocs } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) return [];
+    const snap = await getDocs(collection(db as never, `users/${me.uid}/blocks`));
+    const uids = snap.docs.map((d) => d.id);
+    const profiles = await Promise.all(uids.map((uid) => this.getUserByUid(uid)));
+    return profiles.filter((p): p is UserProfile => p !== null);
+  }
+
+  async isBlocked(uid: string): Promise<boolean> {
+    const { auth, db, doc, getDoc } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) return false;
+    const snap = await getDoc(doc(db as never, `users/${me.uid}/blocks/${uid}`));
+    return snap.exists();
+  }
 
   // --- Report ---
-  async report(_input: ReportInput): Promise<void> { throw new SocialNotImplemented('report'); }
+  /**
+   * Create a moderation report. Client writes to `/reports/{reportId}` — an
+   * `onDocumentCreated` Cloud Function relays it to a private Slack channel
+   * where Robin reviews manually (V1 moderation posture per PRD).
+   */
+  async report(input: ReportInput): Promise<void> {
+    const { auth, db, addDoc, collection, serverTimestamp } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    validateReportInput(input);
+    await addDoc(collection(db as never, 'reports'), {
+      reporterUid: me.uid,
+      targetUid: input.targetUid,
+      targetLieuId: input.targetLieuId ?? null,
+      reason: input.reason,
+      freeText: input.freeText ?? null,
+      status: 'open',
+      createdAt: serverTimestamp(),
+    });
+  }
 
   // --- Feed ---
   async getFeed(_cursor?: string): Promise<FeedPage> { throw new SocialNotImplemented('getFeed'); }
@@ -205,3 +268,27 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
 export const USERNAME_REGEX = /^[a-z0-9._]{3,20}$/;
 
 export const USERNAME_CHANGE_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Valid report reasons — matches ReportReason. Kept as an array for enum-style iteration in the UI. */
+export const REPORT_REASONS: readonly ReportReason[] = ['spam', 'offensif', 'faux'] as const;
+
+/** Max length of the optional freeText field on a report — matches the ReportScreen textarea cap. */
+export const REPORT_FREETEXT_MAX_LENGTH = 200;
+
+/**
+ * Validate a `ReportInput` before it hits Firestore. Throws on invalid reason
+ * or overlong freeText. Kept as a pure function so it's testable without a
+ * Firebase environment.
+ */
+export function validateReportInput(input: ReportInput): void {
+  if (!input || typeof input !== 'object') throw new Error('Invalid report input');
+  if (!input.targetUid || typeof input.targetUid !== 'string') {
+    throw new Error('targetUid is required');
+  }
+  if (!REPORT_REASONS.includes(input.reason)) {
+    throw new Error(`Invalid reason — must be one of ${REPORT_REASONS.join(', ')}`);
+  }
+  if (input.freeText !== undefined && input.freeText !== null && input.freeText.length > REPORT_FREETEXT_MAX_LENGTH) {
+    throw new Error(`freeText must be ≤ ${REPORT_FREETEXT_MAX_LENGTH} characters`);
+  }
+}

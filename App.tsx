@@ -36,6 +36,9 @@ import SharedImageScreen from './src/screens/SharedImageScreen';
 import OnboardingSlidesScreen from './src/screens/OnboardingSlidesScreen';
 import PickUsernameScreen from './src/screens/PickUsernameScreen';
 import MyProfileScreen from './src/screens/MyProfileScreen';
+import UserProfileScreen from './src/screens/UserProfileScreen';
+import ReportScreen from './src/screens/ReportScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 import { getSocialService } from './src/services/socialService';
 import { colors } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
@@ -171,6 +174,9 @@ function Root() {
           <RootStack.Screen name="ExtractConfirm" component={ExtractConfirmScreen} options={{ title: 'Vérifier' }} />
           <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
           <RootStack.Screen name="MyProfile" component={MyProfileScreen} options={{ title: 'Profil' }} />
+          <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profil' }} />
+          <RootStack.Screen name="Report" component={ReportScreen} options={{ title: 'Signaler' }} />
+          <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: 'Comptes bloqués' }} />
           <RootStack.Screen
             name="Onboarding"
             component={OnboardingSlidesScreen}

@@ -17,6 +17,9 @@ export type RootStackParamList = {
   Onboarding: undefined;
   PickUsername: undefined;
   MyProfile: undefined;
+  UserProfile: { uid: string };
+  Report: { targetUid: string; targetLieuId?: string };
+  BlockedUsers: undefined;
 };
 
 /**
