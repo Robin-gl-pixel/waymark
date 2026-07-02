@@ -28,6 +28,7 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
 import MapScreen from './src/screens/MapScreen';
 import ListScreen from './src/screens/ListScreen';
+import NetworkFeedScreen from './src/screens/NetworkFeedScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import UploadScreen from './src/screens/UploadScreen';
 import ExtractConfirmScreen from './src/screens/ExtractConfirmScreen';
@@ -95,6 +96,16 @@ function MainTabs() {
         component={ListScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Network"
+        component={NetworkFeedScreen}
+        options={{
+          tabBarLabel: 'Réseau',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen

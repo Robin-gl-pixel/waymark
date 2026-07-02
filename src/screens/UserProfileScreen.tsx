@@ -16,6 +16,7 @@ import MapView from 'react-native-map-clustering';
 import { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { getSocialService } from '../services/socialService';
 import { getLieuxService } from '../services/lieuxService';
+import { useAuth } from '../auth/AuthContext';
 import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
@@ -48,20 +49,24 @@ type View3 = 'map' | 'list';
 export default function UserProfileScreen() {
   const nav = useNavigation<Nav>();
   const { uid } = useRoute<Rt>().params;
+  const { user } = useAuth();
+  const isMe = user?.uid === uid;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View3>('map');
+  const [following, setFollowing] = useState<boolean | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Load profile + pins in parallel — both are independent Firestore reads.
+      // Load profile + pins + follow state in parallel — all independent reads.
       // Pins read fails gracefully if the owner is private (rules deny) — we
       // still show the header with a note.
-      const [p, ls] = await Promise.all([
+      const [p, ls, isFollowing] = await Promise.all([
         getSocialService().getUserByUid(uid),
         getLieuxService()
           .getAllLieux(uid)
@@ -69,20 +74,63 @@ export default function UserProfileScreen() {
             console.warn('[UserProfile] getAllLieux failed (owner may be private)', err);
             return [] as Lieu[];
           }),
+        isMe
+          ? Promise.resolve(false)
+          : getSocialService()
+              .isFollowing(uid)
+              .catch((err) => {
+                console.warn('[UserProfile] isFollowing failed', err);
+                return false;
+              }),
       ]);
       setProfile(p);
       setLieux(ls);
+      setFollowing(isFollowing);
     } catch (err) {
       console.error('[UserProfile] load failed', err);
       setError('Chargement échoué.');
     } finally {
       setLoading(false);
     }
-  }, [uid]);
+  }, [uid, isMe]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  /**
+   * Optimistic follow toggle. We flip the local state immediately so the
+   * button reacts instantly; on error we roll back. The Cloud Function
+   * trigger will update `followersCount` a second later — we bump the
+   * profile counter locally to mirror that so the header count doesn't lag.
+   */
+  const toggleFollow = useCallback(async () => {
+    if (followBusy || following === null || !profile || isMe) return;
+    const wasFollowing = following;
+    setFollowBusy(true);
+    setFollowing(!wasFollowing);
+    setProfile({
+      ...profile,
+      followersCount: Math.max(0, profile.followersCount + (wasFollowing ? -1 : 1)),
+    });
+    try {
+      if (wasFollowing) {
+        await getSocialService().unfollow(uid);
+      } else {
+        await getSocialService().follow(uid);
+      }
+    } catch (err) {
+      console.error('[UserProfile] follow toggle failed', err);
+      // Roll back on failure.
+      setFollowing(wasFollowing);
+      setProfile((p) =>
+        p ? { ...p, followersCount: Math.max(0, p.followersCount + (wasFollowing ? 1 : -1)) } : p,
+      );
+      Alert.alert('Erreur', 'Action échouée. Réessaie.');
+    } finally {
+      setFollowBusy(false);
+    }
+  }, [followBusy, following, profile, uid, isMe]);
 
   const openMenu = useCallback(() => {
     Alert.alert(
@@ -162,7 +210,14 @@ export default function UserProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ProfileHeader profile={profile} pinCount={lieux.length} />
+      <ProfileHeader
+        profile={profile}
+        pinCount={lieux.length}
+        showFollowButton={!isMe}
+        isFollowing={following}
+        followBusy={followBusy}
+        onToggleFollow={toggleFollow}
+      />
       <ViewToggle view={view} onChange={setView} />
       <View style={styles.bodyContainer}>
         {view === 'map' ? (
@@ -179,7 +234,21 @@ export default function UserProfileScreen() {
 // Header
 // -----------------------------------------------------------------------------
 
-function ProfileHeader({ profile, pinCount }: { profile: UserProfile; pinCount: number }) {
+function ProfileHeader({
+  profile,
+  pinCount,
+  showFollowButton,
+  isFollowing,
+  followBusy,
+  onToggleFollow,
+}: {
+  profile: UserProfile;
+  pinCount: number;
+  showFollowButton: boolean;
+  isFollowing: boolean | null;
+  followBusy: boolean;
+  onToggleFollow: () => void;
+}) {
   return (
     <View style={styles.header}>
       <View style={styles.avatarRow}>
@@ -199,6 +268,13 @@ function ProfileHeader({ profile, pinCount }: { profile: UserProfile; pinCount: 
             </View>
           )}
         </View>
+        {showFollowButton && (
+          <FollowButton
+            isFollowing={isFollowing}
+            busy={followBusy}
+            onPress={onToggleFollow}
+          />
+        )}
       </View>
 
       <View style={styles.counters}>
@@ -209,6 +285,48 @@ function ProfileHeader({ profile, pinCount }: { profile: UserProfile; pinCount: 
         <Counter label="Abonnements" value={profile.followingCount} />
       </View>
     </View>
+  );
+}
+
+function FollowButton({
+  isFollowing,
+  busy,
+  onPress,
+}: {
+  isFollowing: boolean | null;
+  busy: boolean;
+  onPress: () => void;
+}) {
+  // While isFollowing is unknown we render a neutral pill so tapping it doesn't
+  // guess wrong. Disabled during the load + during optimistic writes.
+  const label = isFollowing === null ? '…' : isFollowing ? 'Suivi' : 'Suivre';
+  const disabled = busy || isFollowing === null;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={isFollowing ? 'Se désabonner' : 'Suivre'}
+      style={({ pressed }) => [
+        styles.followBtn,
+        isFollowing ? styles.followBtnActive : styles.followBtnInactive,
+        pressed && !disabled && { opacity: 0.7 },
+        disabled && { opacity: 0.6 },
+      ]}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={isFollowing ? colors.text : colors.bg} />
+      ) : (
+        <Text
+          style={[
+            styles.followBtnLabel,
+            isFollowing ? styles.followBtnLabelActive : styles.followBtnLabelInactive,
+          ]}
+        >
+          {label}
+        </Text>
+      )}
+    </Pressable>
   );
 }
 
@@ -404,6 +522,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
+  followBtn: {
+    minWidth: 92,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  followBtnInactive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  followBtnActive: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+  },
+  followBtnLabel: { ...type.caption, fontWeight: '700' },
+  followBtnLabelInactive: { color: colors.bg },
+  followBtnLabelActive: { color: colors.text },
   counters: {
     flexDirection: 'row',
     alignItems: 'center',

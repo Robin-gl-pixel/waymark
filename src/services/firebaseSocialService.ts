@@ -1,4 +1,4 @@
-import type { Timestamp } from '../types/Lieu';
+import type { Lieu, Timestamp } from '../types/Lieu';
 import type {
   UserProfile,
   ProfileInput,
@@ -189,11 +189,74 @@ export class FirebaseSocialService implements SocialService {
   }
 
   // --- Follow ---
-  async follow(_uid: string): Promise<void> { throw new SocialNotImplemented('follow'); }
-  async unfollow(_uid: string): Promise<void> { throw new SocialNotImplemented('unfollow'); }
-  async getFollowing(_uid: string): Promise<UserProfile[]> { throw new SocialNotImplemented('getFollowing'); }
-  async getFollowers(_uid: string): Promise<UserProfile[]> { throw new SocialNotImplemented('getFollowers'); }
-  async isFollowing(_uid: string): Promise<boolean> { throw new SocialNotImplemented('isFollowing'); }
+
+  /**
+   * Follow another user. Writes both sides of the edge in a single atomic
+   * batch:
+   *   users/{me}/following/{uid}   — my perspective
+   *   users/{uid}/followers/{me}   — their perspective
+   *
+   * Denormalized counts (`followersCount` / `followingCount`) are NOT written
+   * here — a Cloud Function trigger listens on `followers/*` and increments
+   * both counters + writes an Activity in one hop. Doing it server-side keeps
+   * the write atomic across counts + activity even if a client dies mid-flow.
+   *
+   * Rules note: the follower-side write (`followers/{me}`) is only permitted
+   * to the follower (see firestore.rules) — that's what makes this a client
+   * write and not a Cloud Function.
+   */
+  async follow(uid: string): Promise<void> {
+    const { auth, db, doc, writeBatch, serverTimestamp } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    if (uid === me.uid) throw new Error('Cannot follow yourself');
+
+    const now = serverTimestamp();
+    const batch = writeBatch(db as never);
+    batch.set(doc(db as never, `users/${me.uid}/following/${uid}`), { createdAt: now });
+    batch.set(doc(db as never, `users/${uid}/followers/${me.uid}`), { createdAt: now });
+    await batch.commit();
+  }
+
+  /**
+   * Unfollow a user — symmetric to `follow`. Delete both edges in one batch.
+   * A missing edge is silently ignored (Firestore treats delete-of-nothing as
+   * a no-op), so a double-tap doesn't error.
+   */
+  async unfollow(uid: string): Promise<void> {
+    const { auth, db, doc, writeBatch } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+
+    const batch = writeBatch(db as never);
+    batch.delete(doc(db as never, `users/${me.uid}/following/${uid}`));
+    batch.delete(doc(db as never, `users/${uid}/followers/${me.uid}`));
+    await batch.commit();
+  }
+
+  async getFollowing(uid: string): Promise<UserProfile[]> {
+    const { db, collection, getDocs } = loadFirebase();
+    const snap = await getDocs(collection(db as never, `users/${uid}/following`));
+    const uids = snap.docs.map((d) => d.id);
+    const profiles = await Promise.all(uids.map((u) => this.getUserByUid(u)));
+    return profiles.filter((p): p is UserProfile => p !== null);
+  }
+
+  async getFollowers(uid: string): Promise<UserProfile[]> {
+    const { db, collection, getDocs } = loadFirebase();
+    const snap = await getDocs(collection(db as never, `users/${uid}/followers`));
+    const uids = snap.docs.map((d) => d.id);
+    const profiles = await Promise.all(uids.map((u) => this.getUserByUid(u)));
+    return profiles.filter((p): p is UserProfile => p !== null);
+  }
+
+  async isFollowing(uid: string): Promise<boolean> {
+    const { auth, db, doc, getDoc } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) return false;
+    const snap = await getDoc(doc(db as never, `users/${me.uid}/following/${uid}`));
+    return snap.exists();
+  }
 
   // --- Block ---
   /**
@@ -267,12 +330,133 @@ export class FirebaseSocialService implements SocialService {
   }
 
   // --- Feed ---
-  async getFeed(_cursor?: string): Promise<FeedPage> { throw new SocialNotImplemented('getFeed'); }
+
+  /**
+   * Chronological network feed — pins from users I follow, most-recent first.
+   *
+   * Fan-out strategy (V1 scale: <50 users, <100 pins/user):
+   *  1. List everyone I follow (single sub-collection read).
+   *  2. Load my block list in parallel — I never want to see a blocked user's
+   *     pins even if I still follow them (the block cascade should have
+   *     unfollowed, but this is defensive).
+   *  3. For each followed uid I'm not blocking, load their `users/{uid}/lieux`
+   *     ordered by `createdAt` desc, capped at `FEED_PER_USER_LIMIT` so a
+   *     hyperactive follow can't drown the merge.
+   *  4. Skip users whose `isPublic == false` — rules already deny the read,
+   *     but the client filter avoids surfacing a partial "you were blocked"
+   *     error state.
+   *  5. Merge, sort desc across all users, apply the cursor filter, slice
+   *     to `PAGE_SIZE`. Cursor = createdAt millis of the tail item; a follow
+   *     up call gets everything strictly older.
+   *
+   * This design is O(follows) reads per page — acceptable at V1 scale. If
+   * we hit 1000 followees per user we'd move to a materialised per-user feed
+   * (V2, per PRD "Explosion des reads Firestore" risk note).
+   */
+  async getFeed(cursor?: string): Promise<FeedPage> {
+    const { auth, db, collection, getDocs, query: fsQuery, orderBy, limit } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) return { items: [], cursor: null };
+
+    // 1. My follow set + block set.
+    const [followingSnap, blockedUids] = await Promise.all([
+      getDocs(collection(db as never, `users/${me.uid}/following`)),
+      (async () => {
+        const s = await getDocs(collection(db as never, `users/${me.uid}/blocks`));
+        return new Set(s.docs.map((d) => d.id));
+      })(),
+    ]);
+    const followedUids = followingSnap.docs
+      .map((d) => d.id)
+      .filter((uid) => !blockedUids.has(uid));
+    if (followedUids.length === 0) return { items: [], cursor: null };
+
+    // 2. In parallel: profile + latest lieux for each followee. Defensive
+    //    isPublic filter — rules already deny reads on private users but the
+    //    client filter keeps error paths quiet.
+    const perUser = await Promise.all(
+      followedUids.map(async (uid) => {
+        const [profile, lieuxSnap] = await Promise.all([
+          this.getUserByUid(uid),
+          getDocs(
+            fsQuery(
+              collection(db as never, `users/${uid}/lieux`),
+              orderBy('createdAt', 'desc'),
+              limit(FEED_PER_USER_LIMIT),
+            ),
+          ).catch((err) => {
+            // A private-owner denial or a transient read failure shouldn't
+            // nuke the whole feed — log it and treat as empty for this owner.
+            console.warn('[getFeed] read lieux for', uid, 'failed', err);
+            return null;
+          }),
+        ]);
+        if (!profile || !profile.isPublic || !lieuxSnap) return [];
+        return lieuxSnap.docs.map((d) => hydrateLieu(uid, d.id, d.data() as Record<string, unknown>));
+      }),
+    );
+
+    // 3. Merge + sort desc, cursor-filter, page.
+    let items: Lieu[] = perUser.flat();
+    items.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+
+    const cursorMs = cursor ? Number(cursor) : null;
+    if (cursorMs !== null && Number.isFinite(cursorMs)) {
+      items = items.filter((l) => l.createdAt.toMillis() < cursorMs);
+    }
+
+    const pageItems = items.slice(0, FEED_PAGE_SIZE);
+    const hasMore = items.length > FEED_PAGE_SIZE;
+    const tail = pageItems[pageItems.length - 1];
+    return {
+      items: pageItems,
+      cursor: hasMore && tail ? String(tail.createdAt.toMillis()) : null,
+    };
+  }
 
   // --- Activity ---
   async getActivity(_cursor?: string): Promise<ActivityPage> { throw new SocialNotImplemented('getActivity'); }
   async markActivityRead(_activityId: string): Promise<void> { throw new SocialNotImplemented('markActivityRead'); }
   async getUnreadActivityCount(): Promise<number> { throw new SocialNotImplemented('getUnreadActivityCount'); }
+}
+
+/**
+ * Feed page size — matches PRD ("page de 20") and the InMemory contract.
+ * Kept as a module-level export so tests + UI can reference the same knob.
+ */
+export const FEED_PAGE_SIZE = 20;
+
+/**
+ * How many pins we load per followed user before merging into the feed.
+ * Capped so a single hyperactive account can't dominate a page — 20 matches
+ * the page size, so even in the pathological case a single user could still
+ * fill the whole page if they had the 20 most recent pins.
+ */
+export const FEED_PER_USER_LIMIT = 20;
+
+/**
+ * Hydrate a Firestore `lieux/{id}` doc into a `Lieu` when the owner uid isn't
+ * the caller — the getFeed path reads from other users' subcollections, so we
+ * need a small mirror of `FirebaseLieuxService.hydrate` here rather than
+ * plumbing an owner override through the lieux service.
+ */
+function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>): Lieu {
+  return {
+    id,
+    userId: (data.userId as string) ?? ownerUid,
+    name: data.name as string,
+    city: data.city as string,
+    country: data.country as string,
+    address: data.address as string,
+    lat: data.lat as number,
+    lng: data.lng as number,
+    category: data.category as Lieu['category'],
+    description: (data.description as string) ?? null,
+    sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
+    userNotes: (data.userNotes as string) ?? null,
+    createdAt: data.createdAt as Timestamp,
+    updatedAt: data.updatedAt as Timestamp,
+  };
 }
 
 /**
