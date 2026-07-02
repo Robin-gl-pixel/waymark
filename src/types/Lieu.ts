@@ -9,7 +9,7 @@ export interface Timestamp {
 }
 
 /**
- * A persisted place in Mappies. Lives at `/users/{uid}/lieux/{lieuId}`.
+ * A persisted place in Waymark. Lives at `/users/{uid}/lieux/{lieuId}`.
  */
 export interface Lieu {
   id: string;

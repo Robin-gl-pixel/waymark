@@ -39,3 +39,7 @@ screenshots-examples/*.png
 GoogleService-Info.plist
 google-services.json
 serviceAccountKey.json
+secrets/
+
+# Setup scratchpad — Claude writes manual-action steps here
+NEXT-STEPS.md

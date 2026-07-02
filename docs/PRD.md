@@ -1,4 +1,4 @@
-# Mappies — PRD V1
+# Waymark — PRD V1
 
 **Status**: draft
 **Target ship date**: J+3 (submit-ready App Store)
@@ -20,23 +20,23 @@ Je vois régulièrement des influenceurs Instagram recommander des lieux (restau
 
 ## Solution
 
-Une app iOS "Mappies" qui transforme le screenshot Instagram en pin sur ma carte perso, sans saisie manuelle.
+Une app iOS "Waymark" qui transforme le screenshot Instagram en pin sur ma carte perso, sans saisie manuelle.
 
 Flow utilisateur idéal :
 1. Je vois un post Insta d'un influenceur recommandant "Chez Janou, Paris 4ème"
 2. Screenshot iPhone (Volume+ / Side button)
-3. Depuis Insta ou Photos, "Partager" → **Mappies Shortcut**
+3. Depuis Insta ou Photos, "Partager" → **Waymark Shortcut**
 4. L'app extrait automatiquement le nom, la ville, l'adresse. Enrichit avec lat/lng via Mapbox.
 5. Le lieu apparaît sur ma carte + dans ma liste, avec le screenshot d'origine attaché.
-6. Quand je suis à Paris → ouvre Mappies → carte → je vois tous les lieux à visiter autour de moi.
+6. Quand je suis à Paris → ouvre Waymark → carte → je vois tous les lieux à visiter autour de moi.
 
 ## User Stories
 
 ### Extraction & ajout
 
 1. En tant qu'utilisateur, je veux uploader un screenshot Instagram depuis ma pellicule iPhone, afin que l'app extraie automatiquement les infos du lieu.
-2. En tant qu'utilisateur, je veux partager un screenshot depuis Photos vers Mappies via le Share Sheet iOS, afin d'éviter d'ouvrir manuellement l'app.
-3. En tant qu'utilisateur, je veux un iOS Shortcut "Ajouter à Mappies" que je peux déclencher depuis Photos ou Instagram, afin d'accélérer encore l'ajout.
+2. En tant qu'utilisateur, je veux partager un screenshot depuis Photos vers Waymark via le Share Sheet iOS, afin d'éviter d'ouvrir manuellement l'app.
+3. En tant qu'utilisateur, je veux un iOS Shortcut "Ajouter à Waymark" que je peux déclencher depuis Photos ou Instagram, afin d'accélérer encore l'ajout.
 4. En tant qu'utilisateur, je veux voir un feedback visuel pendant l'extraction (~3-5s), afin de savoir que ça travaille.
 5. En tant qu'utilisateur, je veux pouvoir corriger le nom/ville extrait si l'IA s'est trompée, avant de sauvegarder.
 6. En tant qu'utilisateur, je veux que le screenshot d'origine soit attaché au lieu, afin de retrouver le contexte visuel (photo de l'influenceur, ambiance) plus tard.
@@ -156,9 +156,9 @@ Une seule fonction : `POST /extract`
 
 - Screen "Configurer le Shortcut" dans Settings
 - L'app génère un token utilisateur unique (stocké chiffré côté user + Firestore)
-- Lien iCloud Shortcut préconfiguré : "Reçoit une image → HTTPS POST à `https://mappies-api/extract-from-shortcut` avec `Authorization: Bearer <token>` + `image=<base64>`"
-- User tap le lien → iOS ouvre Shortcuts app → installe → prompt le token → paste depuis Mappies
-- Une fois installé : depuis Photos → bouton Share → "Ajouter à Mappies" → callback ouvre Mappies avec le lieu extrait pré-rempli
+- Lien iCloud Shortcut préconfiguré : "Reçoit une image → HTTPS POST à `https://waymark-api/extract-from-shortcut` avec `Authorization: Bearer <token>` + `image=<base64>`"
+- User tap le lien → iOS ouvre Shortcuts app → installe → prompt le token → paste depuis Waymark
+- Une fois installé : depuis Photos → bouton Share → "Ajouter à Waymark" → callback ouvre Waymark avec le lieu extrait pré-rempli
 
 ## Testing Decisions
 
@@ -203,14 +203,14 @@ Une seule fonction : `POST /extract`
 
 ### Plan J1 → J3 (indicatif, à préciser dans les issues)
 
-- **J1** : Setup Expo + Firebase project Mappies + copie des seams Theater (Auth, firebase.ts, claude.ts). Auth Sign in with Apple end-to-end. **Livrable J1** : je peux me logger, l'app s'ouvre sur un écran vide.
+- **J1** : Setup Expo + Firebase project Waymark + copie des seams Theater (Auth, firebase.ts, claude.ts). Auth Sign in with Apple end-to-end. **Livrable J1** : je peux me logger, l'app s'ouvre sur un écran vide.
 - **J2** : Cloud Function `/extract` + upload screenshot depuis app + création `Lieu` en Firestore + affichage liste. **Livrable J2** : j'upload scr1.png, je vois "La Gare / Le Gore" dans ma liste.
 - **J3** : Carte MapKit avec pins + fiche détail + iOS Shortcut + polish + submit App Store. **Livrable J3** : app soumise à Apple.
 
 ### Réutilisation Theater — inventaire précis
 
 - `src/auth/AuthContext.tsx` → copie directe, adapter le projet Firebase
-- `src/auth/firebase.ts` → copie, nouvelle config Firebase pour Mappies
+- `src/auth/firebase.ts` → copie, nouvelle config Firebase pour Waymark
 - `src/services/claude.ts` → copie, adapter le prompt système
 - `services/systemPrompt.ts` → template, remplacer contenu
 - `api/proxy.js` → pattern à copier pour la Cloud Function `/extract`

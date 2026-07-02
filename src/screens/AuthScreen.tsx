@@ -74,7 +74,7 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.hero}>
-        <Text style={styles.wordmark}>Mappies</Text>
+        <Text style={styles.wordmark}>Waymark</Text>
         <Text style={styles.tagline}>Vos recos Insta,</Text>
         <Text style={styles.tagline}>sur une carte.</Text>
       </View>

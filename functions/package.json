@@ -1,6 +1,6 @@
 {
-  "name": "mappies-functions",
-  "description": "Firebase Cloud Functions for Mappies",
+  "name": "waymark-functions",
+  "description": "Firebase Cloud Functions for Waymark",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",

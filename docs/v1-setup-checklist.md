@@ -1,4 +1,4 @@
-# Mappies V1 — setup checklist (things only you can do)
+# Waymark V1 — setup checklist (things only you can do)
 
 Everything in this doc is manual configuration that cannot be automated from code. Work top-down; each section calls out **why** the step exists so you can skip anything that's already in place.
 
@@ -6,22 +6,22 @@ Everything in this doc is manual configuration that cannot be automated from cod
 
 ---
 
-## 1. Firebase project — `mappies-app`
+## 1. Firebase project — `mappies-7748d`
 
 Console: https://console.firebase.google.com
 
-- [ ] Create project `mappies-app`
+- [ ] Create project `mappies-7748d`
 - [ ] **Authentication → Sign-in method → Apple** → enable
-  - Service ID: bundle identifier (`com.robinhesse.mappies` or whatever's in `app.json`)
+  - Service ID: bundle identifier (`com.robinhesse.waymark` or whatever's in `app.json`)
   - Apple Team ID + Key ID + private key (same values as §3 below)
 - [ ] **Firestore → Create database** (region: `europe-west1` to match the Cloud Functions)
 - [ ] **Storage → Get started** (region: `europe-west1`)
 - [ ] **Web app** → register → copy config into `.env`:
   ```
   EXPO_PUBLIC_FIREBASE_API_KEY=…
-  EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=mappies-app.firebaseapp.com
-  EXPO_PUBLIC_FIREBASE_PROJECT_ID=mappies-app
-  EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=mappies-app.firebasestorage.app
+  EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=mappies-7748d.firebaseapp.com
+  EXPO_PUBLIC_FIREBASE_PROJECT_ID=mappies-7748d
+  EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=mappies-7748d.firebasestorage.app
   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=…
   EXPO_PUBLIC_FIREBASE_APP_ID=…
   ```
@@ -45,7 +45,7 @@ firebase functions:secrets:set MAPBOX_SECRET_TOKEN
 
 Console: https://developer.apple.com/account/resources/authkeys/list
 
-- [ ] **Keys → +** → name "Mappies Sign In With Apple" → check **Sign In with Apple** → configure → primary App ID = your bundle ID → Continue → Register
+- [ ] **Keys → +** → name "Waymark Sign In With Apple" → check **Sign In with Apple** → configure → primary App ID = your bundle ID → Continue → Register
 - [ ] Download the `.p8` file **once** (you can't re-download it — treat like a password)
 - [ ] Note the **Key ID** (10 chars, shown next to the key)
 - [ ] Note your **Team ID** (top-right in developer.apple.com)
@@ -55,7 +55,7 @@ Then set the four Firebase Functions secrets:
 ```bash
 firebase functions:secrets:set APPLE_TEAM_ID          # 10-char team ID
 firebase functions:secrets:set APPLE_KEY_ID           # 10-char key ID from previous step
-firebase functions:secrets:set APPLE_CLIENT_ID        # bundle identifier, e.g. com.robinhesse.mappies
+firebase functions:secrets:set APPLE_CLIENT_ID        # bundle identifier, e.g. com.robinhesse.waymark
 firebase functions:secrets:set APPLE_PRIVATE_KEY      # paste .p8 contents INCLUDING -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
 ```
 
@@ -77,7 +77,7 @@ Apple requires a public HTTPS URL, not a raw markdown file.
 Cheapest option — GitHub Pages:
 
 - [ ] Repo → Settings → Pages → Source = `Deploy from a branch` → branch `main` /`docs`
-- [ ] Wait ~1 min → note the URL (e.g. `https://robin-gl-pixel.github.io/mappies/privacy-policy`)
+- [ ] Wait ~1 min → note the URL (e.g. `https://robin-gl-pixel.github.io/waymark/privacy-policy`)
 - [ ] Paste that URL into `docs/app-store-metadata.md` under "Privacy policy URL"
 - [ ] Reference it in the App Store Connect submission
 

@@ -124,7 +124,7 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>Ajout rapide depuis Photos</Text>
         <Text style={styles.sectionBody}>
-          Installe le Shortcut iOS pour partager un screenshot depuis Photos ou Instagram directement vers Mappies, sans ouvrir l'app.
+          Installe le Shortcut iOS pour partager un screenshot depuis Photos ou Instagram directement vers Waymark, sans ouvrir l'app.
         </Text>
 
         <Pressable

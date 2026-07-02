@@ -1,4 +1,4 @@
-# Mappies — App Store Metadata (v1.0.0)
+# Waymark — App Store Metadata (v1.0.0)
 
 **Status**: draft for J3 submission
 **Author**: Robin Hesse
@@ -12,7 +12,7 @@
 Two positioning bets, both drawn from `docs/competitive-velocity.md`:
 
 1. **Own the word "screenshot"** in the title. Zero direct competitor (Rhyme, Plotline, Stasht, DocentPro, JoySpot, Mapstr, Postcard, Stashed) uses "screenshot" in their App Store title or subtitle today. Stasht *does* extract screenshots but positions as a "saves inbox." Claiming the word first is a defensible search + memory hook — Apple Search Ads on "screenshot map" is currently empty inventory.
-2. **Lead with Instagram Stories and DMs**, not Instagram in general. Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) *can't* extract Stories or DMs because there's no shareable URL. That gap is Mappies' only durable moat while the screenshot-vision shelf life holds (est. 6–12 months).
+2. **Lead with Instagram Stories and DMs**, not Instagram in general. Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) *can't* extract Stories or DMs because there's no shareable URL. That gap is Waymark' only durable moat while the screenshot-vision shelf life holds (est. 6–12 months).
 
 Every field below is aligned to those two bets.
 
@@ -21,7 +21,7 @@ Every field below is aligned to those two bets.
 ## English (App Store US — primary locale)
 
 ### Title — 30 char max
-**`Mappies: Screenshot to Map`** — 26 chars
+**`Waymark: Screenshot to Map`** — 26 chars
 
 - Contains the wedge keyword ("screenshot") no competitor owns.
 - Implicit verb-phrase: screenshot -> map.
@@ -50,11 +50,11 @@ Notes:
 ```
 Your Instagram screenshots. On a map. In seconds.
 
-Mappies turns every Instagram screenshot — including Stories and DMs — into a pin on your personal map. No more forgetting the restaurant your favorite creator raved about. No more retyping addresses into Google Maps. No more Photos-app graveyard.
+Waymark turns every Instagram screenshot — including Stories and DMs — into a pin on your personal map. No more forgetting the restaurant your favorite creator raved about. No more retyping addresses into Google Maps. No more Photos-app graveyard.
 
 HOW IT WORKS
 1. Screenshot any place recommendation on Instagram: post, reel, or story.
-2. Share to Mappies via the iOS Share Sheet or our Shortcut.
+2. Share to Waymark via the iOS Share Sheet or our Shortcut.
 3. Our AI extracts the name, city, address, and category — in about 4 seconds.
 4. The place appears on your private map, with the original screenshot attached and the creator's handle saved.
 
@@ -77,7 +77,7 @@ Made in Paris.
 
 ### What's New (v1.0.0) — ~500 char target
 ```
-Welcome to Mappies 1.0.
+Welcome to Waymark 1.0.
 
 The fastest way to turn Instagram screenshots into a personal map.
 
@@ -89,13 +89,13 @@ This first release includes:
 - Sign in with Apple + iCloud sync across your iPhones
 - Full account and data deletion from Settings
 
-Made in Paris. Feedback welcome at hello@mappies.app.
+Made in Paris. Feedback welcome at hello@waymark.app.
 ```
 ~485 chars.
 
 ### Promotional text — 170 char max (editable without review)
 ```
-Instagram Stories, DMs, reels — Mappies extracts places from screenshots no other app can read. Screenshot in, pin on your map out. Free to try.
+Instagram Stories, DMs, reels — Waymark extracts places from screenshots no other app can read. Screenshot in, pin on your map out. Free to try.
 ```
 143 chars. Change post-launch to feature new capabilities or press mentions without resubmitting.
 
@@ -104,7 +104,7 @@ Instagram Stories, DMs, reels — Mappies extracts places from screenshots no ot
 ## French (App Store FR — secondary locale)
 
 ### Title — 30 char max
-**`Mappies : Screenshot en carte`** — 29 chars
+**`Waymark : Screenshot en carte`** — 29 chars
 
 - Garde "Screenshot" en anglais : le mot est utilisé tel quel en français courant, et il conserve la valeur SEO cross-store.
 - "En carte" = plus court que "vers carte" et plus idiomatique.
@@ -125,11 +125,11 @@ instagram,reels,stories,resto,voyage,carte,pin,ocr,ia,favoris,bookmark,visite,pa
 ```
 Vos screenshots Instagram. Sur une carte. En quelques secondes.
 
-Mappies transforme chaque screenshot Instagram — Stories et DMs compris — en épingle sur votre carte perso. Fini le resto oublié au fond de la pellicule. Fini la ressaisie manuelle des adresses dans Google Maps. Fini l'album Photos qui déborde de captures inutilisables.
+Waymark transforme chaque screenshot Instagram — Stories et DMs compris — en épingle sur votre carte perso. Fini le resto oublié au fond de la pellicule. Fini la ressaisie manuelle des adresses dans Google Maps. Fini l'album Photos qui déborde de captures inutilisables.
 
 COMMENT ÇA MARCHE
 1. Screenshotez une reco de lieu sur Instagram : post, reel ou story.
-2. Partagez vers Mappies depuis le Share Sheet iOS ou notre Raccourci.
+2. Partagez vers Waymark depuis le Share Sheet iOS ou notre Raccourci.
 3. Notre IA extrait le nom, la ville, l'adresse et la catégorie — en 4 secondes.
 4. Le lieu apparaît sur votre carte privée, avec le screenshot d'origine et le pseudo du créateur.
 
@@ -152,7 +152,7 @@ Fait à Paris.
 
 ### What's New (v1.0.0) — ~500 char
 ```
-Bienvenue sur Mappies 1.0.
+Bienvenue sur Waymark 1.0.
 
 La façon la plus rapide de transformer vos screenshots Instagram en carte personnelle.
 
@@ -164,13 +164,13 @@ Cette première version inclut :
 - Sign in with Apple + sync iCloud
 - Suppression complète du compte depuis les Réglages
 
-Fait à Paris. Retours : hello@mappies.app.
+Fait à Paris. Retours : hello@waymark.app.
 ```
 ~490 chars.
 
 ### Promotional text — 170 char max
 ```
-Stories Instagram, DMs, reels — Mappies extrait les lieux là où aucune autre app ne sait lire. Screenshot in, épingle sur la carte out. Gratuit à essayer.
+Stories Instagram, DMs, reels — Waymark extrait les lieux là où aucune autre app ne sait lire. Screenshot in, épingle sur la carte out. Gratuit à essayer.
 ```
 152 chars.
 
@@ -190,9 +190,9 @@ Order matters — App Store shows the first 3 screenshots on the search result c
 ### Screen 2 — Upload / Share Sheet demo
 - **Screen shown**: Upload screen mid-extraction, ideally with iOS Share Sheet overlay from Instagram (Stories UI visible in the source)
 - **EN headline** (5 max): `Works on Stories and DMs`
-- **EN subline** (10 max): `Every other app needs a URL. Mappies reads the screenshot.`
+- **EN subline** (10 max): `Every other app needs a URL. Waymark reads the screenshot.`
 - **FR headline**: `Marche sur Stories et DMs`
-- **FR subline**: `Les autres exigent une URL. Mappies lit le screenshot.`
+- **FR subline**: `Les autres exigent une URL. Waymark lit le screenshot.`
 
 ### Screen 3 — List view
 - **Screen shown**: List of saved places with category emoji, city, thumbnail, creator handle
@@ -240,7 +240,7 @@ Fill Apple's questionnaire as follows:
 | Diagnostics — Crash Data | Yes | No | No | App stability (if Firebase Crashlytics is enabled — confirm before submit) |
 | Diagnostics — Product Interaction | No | — | — | No PostHog in v1 (moved to v1.1) |
 
-**Tracking**: No. Mappies does not use IDFA and does not share any data with third parties for advertising.
+**Tracking**: No. Waymark does not use IDFA and does not share any data with third parties for advertising.
 
 ### Delete Account (Apple mandate since June 30, 2022 — issue #6)
 
@@ -272,7 +272,7 @@ Anthropic API: v1 sends full screenshot bytes. Confirm Anthropic zero-retention 
 Mapbox: only text is sent (name + city), never the image or user identifier.
 
 ### Privacy Policy URL (required)
-Publish at `https://mappies.app/privacy` before submission. Same URL goes in App Store Connect + in-app Settings.
+Publish at `https://waymark.app/privacy` before submission. Same URL goes in App Store Connect + in-app Settings.
 
 ---
 
@@ -288,7 +288,7 @@ Every direct competitor lives in Travel:
 - JoySpot — Travel
 - Postcard — Travel
 
-The only outlier is Stasht ("Save social inspo") which sits in **Lifestyle** to reflect its universal-saves-inbox positioning. Mappies is not that — it is maps-first.
+The only outlier is Stasht ("Save social inspo") which sits in **Lifestyle** to reflect its universal-saves-inbox positioning. Waymark is not that — it is maps-first.
 
 **Secondary category**: **Food & Drink**. Restaurants and bars are the dominant use case per the PRD problem statement. Food & Drink has less crowded charts than Travel and gives a second discovery surface.
 
@@ -301,7 +301,7 @@ No mature content, no unrestricted web access (only Instagram-share ingest), no 
 
 | App | Primary category | Age | Model |
 |---|---|---|---|
-| Mappies (proposed) | Travel | 4+ | Free (v1) |
+| Waymark (proposed) | Travel | 4+ | Free (v1) |
 | Rhyme | Travel | 4+ | Freemium $9.99/mo |
 | Plotline | Travel | 4+ | Freemium |
 | Stasht | Lifestyle | 4+ | Free |
@@ -316,8 +316,8 @@ No mature content, no unrestricted web access (only Instagram-share ingest), no 
 
 - [ ] Title, subtitle, keywords locked in App Store Connect (EN + FR)
 - [ ] 5 screenshots exported at 1290x2796 for both locales
-- [ ] Privacy Policy URL live at `https://mappies.app/privacy`
-- [ ] Support URL live at `https://mappies.app/support` (or Notion page)
+- [ ] Privacy Policy URL live at `https://waymark.app/privacy`
+- [ ] Support URL live at `https://waymark.app/support` (or Notion page)
 - [ ] Marketing URL points to landing page (or App Store direct)
 - [ ] App Privacy questionnaire completed per matrix above
 - [ ] Delete Account flow verified end-to-end (issue #6 closed)

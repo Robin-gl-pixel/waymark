@@ -1,4 +1,4 @@
-# Mappies
+# Waymark
 
 Screenshot Instagram → pin sur ta carte perso. Zéro saisie.
 

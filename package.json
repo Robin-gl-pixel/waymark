@@ -1,17 +1,18 @@
 {
-  "name": "mappies",
+  "name": "waymark",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "ios": "expo start --ios",
+    "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
     "build:ios:dev": "eas build --profile development --platform ios",
     "build:ios:preview": "eas build --profile preview --platform ios",
     "build:ios:prod": "eas build --profile production --platform ios",
     "submit:ios": "eas submit --platform ios",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "android": "expo run:android"
   },
   "dependencies": {
     "@expo-google-fonts/manrope": "^0.4.2",
