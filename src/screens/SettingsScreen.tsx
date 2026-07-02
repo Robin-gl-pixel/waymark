@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ScrollView, Share } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, ScrollView, Share, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { getAuthService } from '../services/authService';
 import { getLieuxService } from '../services/lieuxService';
+import { getSocialService } from '../services/socialService';
 import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
@@ -20,6 +21,40 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const nav = useNavigation<Nav>();
   const [deleting, setDeleting] = useState(false);
+  // `isPublic === null` means "unknown yet" — we render the row disabled until
+  // getMyProfile resolves so a rushed tap can't toggle a nullish value.
+  const [isPublic, setIsPublic] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await getSocialService().getMyProfile();
+        if (cancelled) return;
+        // Match server-side default in `upsertProfile` (isPublic: true).
+        setIsPublic(me?.isPublic ?? true);
+      } catch (err) {
+        console.warn('[Settings] load visibility failed', err);
+        if (!cancelled) setIsPublic(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleVisibility = async (next: boolean) => {
+    // Optimistic swap so the switch responds instantly; rollback on write error.
+    const previous = isPublic;
+    setIsPublic(next);
+    try {
+      await getSocialService().setProfileVisibility(next);
+    } catch (err) {
+      console.warn('[Settings] setProfileVisibility failed', err);
+      setIsPublic(previous);
+      Alert.alert('Erreur', 'Impossible de mettre à jour la visibilité. Réessaie.');
+    }
+  };
 
   const confirmDelete = async () => {
     if (!user) return;
@@ -104,7 +139,24 @@ export default function SettingsScreen() {
             <Text style={styles.actionLabel}>Inviter un ami</Text>
             <Text style={styles.actionChevron}>›</Text>
           </Pressable>
+          <View style={styles.actionDivider} />
+          <View style={styles.actionRow}>
+            <Text style={styles.actionLabel}>Profil public</Text>
+            <Switch
+              value={isPublic ?? true}
+              onValueChange={toggleVisibility}
+              disabled={isPublic === null}
+              trackColor={{ true: colors.accent, false: colors.border }}
+              thumbColor={colors.text}
+              ios_backgroundColor={colors.border}
+            />
+          </View>
         </View>
+        <Text style={styles.visibilityHint}>
+          {isPublic === false
+            ? 'En privé, tes lieux sont invisibles aux autres.'
+            : 'Quand ton profil est public, les autres users voient tes lieux dans leur feed et sur ton profil.'}
+        </Text>
 
         <View style={{ flex: 1 }} />
 
@@ -204,6 +256,12 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
     marginHorizontal: spacing.lg,
+  },
+  visibilityHint: {
+    ...type.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   devBtn: {
     height: 44,
