@@ -2,7 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { extractPlaceFromScreenshot } from './lib/claude';
-import { geocodePlace } from './lib/mapbox';
+import { orchestrateGeocode } from './lib/geocode';
 
 /**
  * HTTP endpoint for the iOS Shortcut flow.
@@ -28,7 +28,7 @@ export const extractFromShortcut = onRequest(
     region: 'europe-west1',
     memory: '512MiB',
     timeoutSeconds: 60,
-    secrets: ['ANTHROPIC_API_KEY', 'MAPBOX_SECRET_TOKEN'],
+    secrets: ['ANTHROPIC_API_KEY', 'MAPBOX_SECRET_TOKEN', 'GOOGLE_PLACES_API_KEY'],
     cors: false,
   },
   async (req, res) => {
@@ -87,7 +87,7 @@ export const extractFromShortcut = onRequest(
 
     let geo = null;
     try {
-      geo = await geocodePlace(vision.name, vision.city, vision.country);
+      geo = await orchestrateGeocode(vision);
     } catch (err) {
       console.error('[extractFromShortcut] geocoding failed', err);
     }

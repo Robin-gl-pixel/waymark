@@ -1,5 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
+import sharp from 'sharp';
 import { SYSTEM_PROMPT, USER_PROMPT_LINE } from './prompt';
+
+// Anthropic Vision recommends max ~1568px on longest side; anything larger
+// gets tokenized wastefully and slows the call to 15-20s. Downsample + JPEG
+// re-encode brings a 6MB PNG down to ~200KB and total latency to 3-5s.
+const MAX_DIM = 1568;
+const JPEG_QUALITY = 82;
 
 export interface ExtractedFromVision {
   name: string | null;
@@ -15,12 +22,22 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY ?? '',
 });
 
-const MODEL = 'claude-sonnet-4-5';
+const MODEL = 'claude-haiku-4-5-20251001';
 
 export async function extractPlaceFromScreenshot(
   imageBase64: string,
-  mediaType: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png',
+  _mediaType: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png',
 ): Promise<ExtractedFromVision> {
+  const inputBuf = Buffer.from(imageBase64, 'base64');
+  const t0 = Date.now();
+  const resizedBuf = await sharp(inputBuf)
+    .resize({ width: MAX_DIM, height: MAX_DIM, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
+  const resizedB64 = resizedBuf.toString('base64');
+  const t1 = Date.now();
+  console.log(`[claude] resize: ${inputBuf.length}B → ${resizedBuf.length}B in ${t1 - t0}ms`);
+
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 1024,
@@ -31,13 +48,16 @@ export async function extractPlaceFromScreenshot(
         content: [
           {
             type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+            source: { type: 'base64', media_type: 'image/jpeg', data: resizedB64 },
           },
           { type: 'text', text: USER_PROMPT_LINE },
         ],
       },
     ],
   });
+
+  const t2 = Date.now();
+  console.log(`[claude] model=${MODEL} api call: ${t2 - t1}ms, in_tokens=${response.usage?.input_tokens}, out_tokens=${response.usage?.output_tokens}`);
 
   const textBlock = response.content.find((c) => c.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {

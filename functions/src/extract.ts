@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { extractPlaceFromScreenshot, ExtractedFromVision } from './lib/claude';
-import { geocodePlace, GeocodedPlace } from './lib/mapbox';
+import { GeocodedPlace } from './lib/mapbox';
+import { orchestrateGeocode } from './lib/geocode';
 
 export interface LieuExtractedResponse extends ExtractedFromVision {
   lat: number | null;
@@ -28,7 +29,7 @@ export const extract = onCall(
     region: 'europe-west1',
     memory: '512MiB',
     timeoutSeconds: 60,
-    secrets: ['ANTHROPIC_API_KEY', 'MAPBOX_SECRET_TOKEN'],
+    secrets: ['ANTHROPIC_API_KEY', 'MAPBOX_SECRET_TOKEN', 'GOOGLE_PLACES_API_KEY'],
   },
   async (request): Promise<LieuExtractedResponse> => {
     if (!request.auth?.uid) {
@@ -52,6 +53,13 @@ export const extract = onCall(
     let vision: ExtractedFromVision;
     try {
       vision = await extractPlaceFromScreenshot(imageBase64, mediaType);
+      console.log('[extract] vision result', {
+        name: vision.name,
+        city: vision.city,
+        country: vision.country,
+        address: vision.address,
+        category: vision.category,
+      });
     } catch (err) {
       console.error('[extract] vision failed', err);
       throw new HttpsError('internal', 'Extraction visuelle échouée.');
@@ -70,7 +78,7 @@ export const extract = onCall(
 
     let geo: GeocodedPlace | null = null;
     try {
-      geo = await geocodePlace(vision.name, vision.city, vision.country);
+      geo = await orchestrateGeocode(vision);
     } catch (err) {
       console.error('[extract] geocoding failed', err);
       // Fall through: better a lieu without coords than no lieu at all.
