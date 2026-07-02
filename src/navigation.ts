@@ -19,6 +19,7 @@ export type RootStackParamList = {
   EditUsername: undefined;
   MyProfile: undefined;
   UserProfile: { uid: string };
+  SearchUsers: undefined;
   Report: { targetUid: string; targetLieuId?: string };
   BlockedUsers: undefined;
 };

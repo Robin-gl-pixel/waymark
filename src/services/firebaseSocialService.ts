@@ -161,7 +161,32 @@ export class FirebaseSocialService implements SocialService {
   }
 
   // --- Search ---
-  async searchUsers(_query: string): Promise<UserProfile[]> { throw new SocialNotImplemented('searchUsers'); }
+  /**
+   * Exact-match search on `username` (V1 — no fuzzy). The caller may pass a
+   * leading `@` for UX; we strip it, lowercase, and query the `users`
+   * collection with `where('username' == uname)` + `where('isPublic' == true)`.
+   *
+   * Excludes the signed-in user client-side (Firestore doesn't support
+   * "not equal to a specific value" as a query filter). Capped at 20 hits —
+   * exact match on a unique field will only ever return 0 or 1, but the limit
+   * is kept in case V2 relaxes uniqueness or adds prefix support.
+   */
+  async searchUsers(query: string): Promise<UserProfile[]> {
+    const uname = query.toLowerCase().replace(/^@/, '').trim();
+    if (!uname) return [];
+    const { auth, db, collection, query: fsQuery, where, limit, getDocs } = loadFirebase();
+    const myUid = auth.currentUser?.uid;
+    const q = fsQuery(
+      collection(db as never, 'users'),
+      where('username', '==', uname),
+      where('isPublic', '==', true),
+      limit(20),
+    );
+    const snap = await getDocs(q);
+    return snap.docs
+      .filter((d) => d.id !== myUid)
+      .map((d) => this.hydrateUser(d.id, d.data() as Record<string, unknown>));
+  }
 
   // --- Follow ---
   async follow(_uid: string): Promise<void> { throw new SocialNotImplemented('follow'); }
