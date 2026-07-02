@@ -35,6 +35,10 @@ functions/lib/
 screenshots-examples/*.png
 !screenshots-examples/.gitkeep
 
+# Dev debug screenshots at repo root (not shipped)
+/scr*.png
+error screenshot/
+
 # Sensitive
 GoogleService-Info.plist
 google-services.json

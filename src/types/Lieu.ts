@@ -65,6 +65,6 @@ export interface LieuInput {
   description: string | null;
   sourceAuthor: string | null;
   userNotes: string | null;
-  screenshotBase64: string;
+  screenshotUri: string;
   screenshotMediaType: 'image/png' | 'image/jpeg' | 'image/webp';
 }

@@ -1,5 +1,9 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Pressable, LogBox } from 'react-native';
+
+// react-native-maps + react-native-map-clustering emit noisy Animated updates on iOS
+// that have no JS listeners. Harmless — silence to keep the console useful.
+LogBox.ignoreLogs(['Sending `onAnimatedValueUpdate` with no listeners registered.']);
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DarkTheme, useNavigation } from '@react-navigation/native';

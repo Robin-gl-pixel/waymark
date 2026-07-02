@@ -7,20 +7,40 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Upload'>;
 
+// Great-circle distance in meters. Used to detect duplicate-location uploads.
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Distance below which two coords are considered the same venue. 100m accounts
+// for geocoding jitter (Mapbox/Google can differ by 20-50m for the same address)
+// without merging genuinely-adjacent-but-distinct venues on the same street.
+const DUPLICATE_DISTANCE_M = 100;
+
 export default function UploadScreen() {
   const nav = useNavigation<Nav>();
+  const { user } = useAuth();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +55,10 @@ export default function UploadScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: false,
+      allowsMultipleSelection: false,
+      selectionLimit: 1,
       quality: 0.9,
       base64: false,
     });
@@ -47,18 +69,61 @@ export default function UploadScreen() {
     setLoading(true);
 
     try {
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
-      const mediaType: 'image/png' | 'image/jpeg' | 'image/webp' =
-        asset.uri.endsWith('.jpg') || asset.uri.endsWith('.jpeg') ? 'image/jpeg' : 'image/png';
-      const extracted = await getLieuxService().extractFromScreenshot(base64, mediaType);
+      // Downsample + JPEG re-encode BEFORE sending to Claude. 6MB PNG → ~150KB JPEG.
+      // The upload of the raw file dominates wall time (~20s over cellular for 8MB base64),
+      // so this alone brings extraction from ~25s to ~4s.
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1568 } }],
+        { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+      );
+      const base64 = manipulated.base64!;
+      const extracted = await getLieuxService().extractFromScreenshot(base64, 'image/jpeg');
+
+      // Duplicate check: if the extracted coords land within DUPLICATE_DISTANCE_M
+      // of an existing lieu, don't create a second one — send the user to the
+      // existing pin instead. Skips when the extraction has no coords (Mapbox
+      // and Google both failed) — nothing meaningful to compare against.
+      if (user && extracted.lat != null && extracted.lng != null) {
+        const existing = await getLieuxService().getAllLieux(user.uid);
+        const dup = existing.find(
+          (l) => haversineMeters(l.lat, l.lng, extracted.lat!, extracted.lng!) < DUPLICATE_DISTANCE_M,
+        );
+        if (dup) {
+          Alert.alert(
+            'Déjà dans ta collection',
+            `"${dup.name}" a déjà été enregistré.`,
+            [
+              {
+                text: 'Voir sur la carte',
+                onPress: () =>
+                  nav.reset({
+                    index: 0,
+                    routes: [
+                      {
+                        name: 'Main',
+                        params: { screen: 'Map', params: { focusLieuId: dup.id } },
+                      },
+                    ],
+                  }),
+              },
+              { text: 'Annuler', style: 'cancel' },
+            ],
+          );
+          return;
+        }
+      }
+
       nav.navigate('ExtractConfirm', {
         extracted,
-        screenshotBase64: base64,
-        screenshotMediaType: mediaType,
+        screenshotUri: manipulated.uri,
+        screenshotMediaType: 'image/jpeg',
       });
     } catch (err) {
-      console.error(err);
-      setError('Extraction échouée. Réessaie ou change de screenshot.');
+      console.error('[UploadScreen] extract failed', err);
+      const e = err as { code?: string; message?: string; details?: unknown };
+      const detail = e?.message || e?.code || 'unknown';
+      setError(`Extraction échouée: ${detail}`);
     } finally {
       setLoading(false);
     }

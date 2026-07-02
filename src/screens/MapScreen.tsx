@@ -1,17 +1,20 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView from 'react-native-map-clustering';
 import RNMapView, { Marker, PROVIDER_DEFAULT, Callout } from 'react-native-maps';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
-import type { RootStackParamList } from '../navigation';
+import type { RootStackParamList, TabParamList } from '../navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type MapRt = RouteProp<TabParamList, 'Map'>;
 
 const CATEGORY_EMOJI: Record<LieuCategory, string> = {
   resto: '🍽️',
@@ -33,28 +36,60 @@ const FALLBACK_REGION = {
 
 // react-native-map-clustering exposes the inner MapView via a `mapRef` callback
 // (not a React `ref`), so we hold onto whatever it hands us.
-type MapHandle = { fitToCoordinates: RNMapView['fitToCoordinates'] };
+type MapHandle = {
+  fitToCoordinates: RNMapView['fitToCoordinates'];
+  animateToRegion: RNMapView['animateToRegion'];
+};
 
 export default function MapScreen() {
   const { user } = useAuth();
   const nav = useNavigation<Nav>();
+  const route = useRoute<MapRt>();
+  const focusLieuId = route.params?.focusLieuId;
   const mapRef = useRef<MapHandle | null>(null);
+  const focusedLieuIdRef = useRef<string | null>(null);
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
+
+  const recenterOnMe = useCallback(async () => {
+    if (!mapRef.current || locating) return;
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Localisation refusée',
+          "Active la localisation dans Réglages pour recentrer la carte sur ta position.",
+        );
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      mapRef.current.animateToRegion(
+        {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        },
+        500,
+      );
+    } catch (err) {
+      console.warn('[MapScreen] recenter failed', err);
+    } finally {
+      setLocating(false);
+    }
+  }, [locating]);
+
+  const hasFitRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
       const list = await getLieuxService().getAllLieux(user.uid);
       setLieux(list);
-      // Fit map to all pins once loaded.
-      if (list.length > 0 && mapRef.current) {
-        const coords = list.map((l) => ({ latitude: l.lat, longitude: l.lng }));
-        mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 100, right: 60, bottom: 200, left: 60 },
-          animated: false,
-        });
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -62,11 +97,55 @@ export default function MapScreen() {
     }
   }, [user]);
 
+  // Center on the first lieu once loaded. animateToRegion needs a non-zero duration
+  // to reliably fire on iOS, and a small delay lets react-native-map-clustering
+  // finish invoking the mapRef callback if it's still racing with our load().
+  useEffect(() => {
+    if (hasFitRef.current || loading || lieux.length === 0) return;
+    if (focusLieuId) return;
+    hasFitRef.current = true;
+    const first = lieux[0];
+    const t = setTimeout(() => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: first.lat,
+          longitude: first.lng,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        },
+        500,
+      );
+    }, 200);
+    return () => clearTimeout(t);
+  }, [loading, lieux, focusLieuId]);
+
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load]),
   );
+
+  // When we land on the tab with a focusLieuId (e.g. "Voir sur la carte" from detail),
+  // animate to that pin once lieux are loaded. Ref-guarded so a re-render doesn't re-focus.
+  useEffect(() => {
+    if (!focusLieuId || loading) return;
+    if (focusedLieuIdRef.current === focusLieuId) return;
+    const target = lieux.find((l) => l.id === focusLieuId);
+    if (!target) return;
+    focusedLieuIdRef.current = focusLieuId;
+    const t = setTimeout(() => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: target.lat,
+          longitude: target.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        500,
+      );
+    }, 200);
+    return () => clearTimeout(t);
+  }, [focusLieuId, loading, lieux]);
 
   if (loading) {
     return (
@@ -100,21 +179,32 @@ export default function MapScreen() {
             key={lieu.id}
             coordinate={{ latitude: lieu.lat, longitude: lieu.lng }}
             title={lieu.name}
-            description={lieu.city}
-          >
-            <View style={styles.pin}>
-              <Text style={styles.pinEmoji}>{CATEGORY_EMOJI[lieu.category]}</Text>
-            </View>
-            <Callout tooltip onPress={() => nav.navigate('LieuDetail', { lieuId: lieu.id })}>
-              <View style={styles.callout}>
-                <Text style={styles.calloutTitle}>{lieu.name}</Text>
-                <Text style={styles.calloutMeta}>{lieu.city}</Text>
-                <Text style={styles.calloutHint}>Toucher pour ouvrir</Text>
-              </View>
-            </Callout>
-          </Marker>
+            description={`${CATEGORY_EMOJI[lieu.category]} ${lieu.city}`}
+            pinColor="tomato"
+            onCalloutPress={() => nav.navigate('LieuDetail', { lieuId: lieu.id })}
+          />
         ))}
       </MapView>
+
+      <SafeAreaView style={styles.controlsOverlay} edges={['top']} pointerEvents="box-none">
+        <Pressable
+          onPress={recenterOnMe}
+          disabled={locating}
+          style={({ pressed }) => [
+            styles.locateBtn,
+            pressed && { opacity: 0.7 },
+            locating && { opacity: 0.5 },
+          ]}
+          accessibilityLabel="Recentrer sur ma position"
+          hitSlop={8}
+        >
+          {locating ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Ionicons name="locate" size={22} color={colors.text} />
+          )}
+        </Pressable>
+      </SafeAreaView>
 
       {lieux.length === 0 && (
         <SafeAreaView style={styles.emptyOverlay} edges={['top']} pointerEvents="box-none">
@@ -156,6 +246,26 @@ const styles = StyleSheet.create({
   calloutTitle: { ...type.h3, color: colors.text, fontWeight: '600' },
   calloutMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
   calloutHint: { ...type.micro, color: colors.accent, marginTop: spacing.sm },
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'flex-end',
+    padding: spacing.lg,
+  },
+  locateBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   emptyOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

@@ -16,7 +16,7 @@ function makeInput(overrides: Partial<LieuInput> = {}): LieuInput {
     description: null,
     sourceAuthor: '@alice',
     userNotes: null,
-    screenshotBase64: 'AAAA',
+    screenshotUri: 'file:///tmp/mock.png',
     screenshotMediaType: 'image/png',
     ...overrides,
   };

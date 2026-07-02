@@ -13,72 +13,97 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
-import type { LieuCategory } from '../types/Lieu';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ExtractConfirm'>;
 type Rt = RouteProp<RootStackParamList, 'ExtractConfirm'>;
-
-const CATEGORIES: LieuCategory[] = ['resto', 'bar', 'café', 'activité', 'musée', 'hôtel', 'autre'];
 
 export default function ExtractConfirmScreen() {
   const nav = useNavigation<Nav>();
   const route = useRoute<Rt>();
   const { user } = useAuth();
-  const { extracted, screenshotBase64, screenshotMediaType } = route.params;
+  const { extracted, screenshotUri, screenshotMediaType } = route.params;
 
-  // Editable fields, seeded from extraction. Nulls become empty strings for the UI.
-  const [name, setName] = useState(extracted.name ?? '');
-  const [city, setCity] = useState(extracted.city ?? '');
-  const [country, setCountry] = useState(extracted.country ?? 'France');
-  const [address, setAddress] = useState(extracted.addressCanonical ?? extracted.address ?? '');
-  const [category, setCategory] = useState<LieuCategory>(extracted.category ?? 'resto');
-  const [description] = useState<string | null>(extracted.description);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSave = name.trim().length > 0 && city.trim().length > 0 && !saving;
+  // Validation via Mapbox: server-side geocoding already ran in the extract fn.
+  // If lat/lng are non-null AND we have a name, we consider this a validated place.
+  const validated =
+    extracted.name != null &&
+    extracted.lat != null &&
+    extracted.lng != null;
 
-  const handleSave = async () => {
-    if (!user) {
-      setError('Session expirée.');
-      return;
-    }
-    if (extracted.lat == null || extracted.lng == null) {
-      setError('Adresse non géocodée. Modifie le nom ou la ville et réessaie.');
-      return;
-    }
-
+  const handleConfirm = async () => {
+    if (!user || !validated) return;
     setSaving(true);
     setError(null);
     try {
-      await getLieuxService().createLieu(user.uid, {
-        name: name.trim(),
-        city: city.trim(),
-        country: country.trim(),
-        address: address.trim(),
-        lat: extracted.lat,
-        lng: extracted.lng,
-        category,
-        description,
+      const created = await getLieuxService().createLieu(user.uid, {
+        name: extracted.name!,
+        city: extracted.city ?? '',
+        country: extracted.country ?? '',
+        address: extracted.addressCanonical ?? extracted.address ?? '',
+        lat: extracted.lat!,
+        lng: extracted.lng!,
+        category: extracted.category ?? 'autre',
+        description: extracted.description,
         sourceAuthor: extracted.sourceAuthor,
         userNotes: notes.trim() || null,
-        screenshotBase64,
+        screenshotUri,
         screenshotMediaType,
       });
-      // After save, drop back to the tabs — user lands on the currently-focused tab (typically Map or List).
-      nav.reset({ index: 0, routes: [{ name: 'Main' }] });
+      // Land the user on the Map tab with the freshly-created pin in view.
+      nav.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'Main',
+            params: { screen: 'Map', params: { focusLieuId: created.id } },
+          },
+        ],
+      });
     } catch (err) {
-      console.error(err);
-      setError("Sauvegarde échouée. Vérifie ta connexion et réessaie.");
+      console.error('[ExtractConfirmScreen] save failed', err);
+      const e = err as { message?: string; code?: string };
+      setError(`Sauvegarde échouée: ${e?.message || e?.code || 'unknown'}`);
     } finally {
       setSaving(false);
     }
   };
+
+  const handleReject = () => {
+    nav.goBack();
+  };
+
+  if (!validated) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.rejectHero}>
+            <Ionicons name="alert-circle" size={64} color={colors.error} />
+            <Text style={styles.title}>Impossible d'identifier ce lieu</Text>
+            <Text style={styles.subtitle}>
+              {extracted.name == null
+                ? "On n'a pas reconnu de recommandation de lieu dans ce screenshot."
+                : `On n'a pas pu localiser "${extracted.name}" sur la carte.`}
+            </Text>
+            <Text style={styles.subtitle}>
+              Essaie avec un autre screenshot qui montre clairement le nom et la ville.
+            </Text>
+          </View>
+          <Pressable style={styles.primaryBtn} onPress={handleReject}>
+            <Text style={styles.primaryLabel}>Essayer un autre screenshot</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -87,89 +112,76 @@ export default function ExtractConfirmScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Vérifier le lieu</Text>
-          <Text style={styles.subtitle}>Corrige si Claude s'est trompé.</Text>
-
-          <Field label="Nom" value={name} onChange={setName} placeholder="Chez Janou" />
-          <Field label="Ville" value={city} onChange={setCity} placeholder="Paris" />
-          <Field label="Pays" value={country} onChange={setCountry} placeholder="France" />
-          <Field label="Adresse" value={address} onChange={setAddress} placeholder="2 Rue Roger Verlomme, 75003" multiline />
-
-          <Text style={styles.label}>Catégorie</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => setCategory(c)}
-                style={[styles.chip, category === c && styles.chipActive]}
-              >
-                <Text style={[styles.chipLabel, category === c && styles.chipLabelActive]}>
-                  {c}
-                </Text>
-              </Pressable>
-            ))}
+          <View style={styles.header}>
+            <Ionicons name="checkmark-circle" size={28} color={colors.accent} />
+            <Text style={styles.headerTitle}>Lieu identifié</Text>
           </View>
 
-          <Field
-            label="Tes notes (facultatif)"
-            value={notes}
-            onChange={setNotes}
-            placeholder="Réserver à l'avance, y aller le vendredi soir…"
-            multiline
-          />
+          <View style={styles.card}>
+            <Text style={styles.name}>{extracted.name}</Text>
+            {extracted.category && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{extracted.category}</Text>
+              </View>
+            )}
+            <View style={styles.row}>
+              <Ionicons name="location" size={16} color={colors.textSecondary} />
+              <Text style={styles.rowText}>
+                {extracted.addressCanonical ?? extracted.address}
+              </Text>
+            </View>
+            {extracted.city && (
+              <View style={styles.row}>
+                <Ionicons name="business" size={16} color={colors.textSecondary} />
+                <Text style={styles.rowText}>
+                  {[extracted.city, extracted.country].filter(Boolean).join(', ')}
+                </Text>
+              </View>
+            )}
+            {extracted.description && (
+              <Text style={styles.description}>{extracted.description}</Text>
+            )}
+            {extracted.sourceAuthor && (
+              <Text style={styles.attribution}>Reco de @{extracted.sourceAuthor}</Text>
+            )}
+          </View>
 
-          {extracted.sourceAuthor && (
-            <Text style={styles.attribution}>Reco de @{extracted.sourceAuthor}</Text>
-          )}
+          <Text style={styles.label}>Tes notes (facultatif)</Text>
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Réserver à l'avance, y aller le vendredi soir…"
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            style={[styles.input, styles.inputMultiline]}
+          />
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
-            onPress={handleSave}
-            disabled={!canSave}
-            style={({ pressed }) => [
-              styles.saveBtn,
-              { backgroundColor: pressed ? colors.accentDim : colors.accent },
-              !canSave && { opacity: 0.4 },
-            ]}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.text} />
-            ) : (
-              <Text style={styles.saveLabel}>Enregistrer</Text>
-            )}
-          </Pressable>
+          <View style={styles.actions}>
+            <Pressable style={styles.secondaryBtn} onPress={handleReject} disabled={saving}>
+              <Text style={styles.secondaryLabel}>Rejeter</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleConfirm}
+              disabled={saving}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                { flex: 1 },
+                { backgroundColor: pressed ? colors.accentDim : colors.accent },
+                saving && { opacity: 0.5 },
+              ]}
+            >
+              {saving ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={styles.primaryLabel}>Confirmer</Text>
+              )}
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  multiline,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  multiline?: boolean;
-}) {
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
-        multiline={multiline}
-        style={[styles.input, multiline && styles.inputMultiline]}
-      />
-    </View>
   );
 }
 
@@ -180,12 +192,52 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing['3xl'],
   },
-  title: { ...type.h1, color: colors.text, fontWeight: '700' },
-  subtitle: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm, marginBottom: spacing.xl },
-  fieldGroup: { marginBottom: spacing.lg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  headerTitle: { ...type.h2, color: colors.text, fontWeight: '700' },
+  card: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
+  },
+  name: { ...type.h1, color: colors.text, fontWeight: '700' },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accentDim,
+  },
+  badgeText: { ...type.caption, color: colors.text, fontWeight: '600' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  rowText: { ...type.body, color: colors.textSecondary, flex: 1 },
+  description: {
+    ...type.body,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    lineHeight: 22,
+  },
+  attribution: {
+    ...type.caption,
+    color: colors.textTertiary,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
+  },
   label: {
     ...type.caption,
     color: colors.textSecondary,
+    marginTop: spacing.xl,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -201,36 +253,40 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   inputMultiline: { minHeight: 72, paddingTop: spacing.md, textAlignVertical: 'top' },
-  chipRow: {
+  actions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
+    gap: spacing.md,
+    marginTop: spacing.xl,
   },
-  chip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipLabel: { ...type.caption, color: colors.textSecondary },
-  chipLabelActive: { color: colors.text, fontWeight: '600' },
-  attribution: {
-    ...type.caption,
-    color: colors.textTertiary,
-    marginTop: spacing.md,
-    fontStyle: 'italic',
-  },
-  error: { ...type.caption, color: colors.error, marginTop: spacing.md, textAlign: 'center' },
-  saveBtn: {
+  primaryBtn: {
     height: 56,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.xl,
+    backgroundColor: colors.accent,
+    paddingHorizontal: spacing.xl,
   },
-  saveLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  primaryLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  secondaryBtn: {
+    height: 56,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  secondaryLabel: { ...type.body, color: colors.textSecondary },
+  rejectHero: {
+    alignItems: 'center',
+    paddingVertical: spacing['3xl'],
+    gap: spacing.lg,
+  },
+  title: { ...type.h1, color: colors.text, fontWeight: '700', textAlign: 'center' },
+  subtitle: {
+    ...type.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  error: { ...type.caption, color: colors.error, marginTop: spacing.md, textAlign: 'center' },
 });

@@ -12,12 +12,14 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db, storage } from '../auth/firebase';
+import { auth, db, storage } from '../auth/firebase';
 import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
 import { LieuxService } from './lieuxService';
 
-const FUNCTIONS_REGION = 'europe-west1';
+// Direct URL of the deployed Cloud Function — we call it via fetch to bypass
+// Firebase JS SDK's httpsCallable, which builds a Blob from the payload and
+// fails in React Native for anything > ~5MB (RN's Blob doesn't accept ArrayBuffer).
+const EXTRACT_URL = 'https://extract-7ypjacicka-ew.a.run.app';
 
 /**
  * Firebase-backed implementation of LieuxService.
@@ -53,8 +55,11 @@ export class FirebaseLieuxService implements LieuxService {
     };
     const ext = extFromMime[input.screenshotMediaType];
     const storagePath = `users/${userId}/screenshots/${lieuId}.${ext}`;
-    const bytes = base64ToUint8Array(input.screenshotBase64);
-    await uploadBytes(ref(storage, storagePath), bytes, {
+    // Firebase JS SDK v9+ on RN Hermes throws "Creating blobs from ArrayBuffer…"
+    // for both uploadBytes(Uint8Array) and uploadString(base64) — both wrap in Blob internally.
+    // fetch(uri).blob() returns a native RN Blob (BlobModule) that XHR can upload correctly.
+    const blob = await fetch(input.screenshotUri).then((r) => r.blob());
+    await uploadBytes(ref(storage, storagePath), blob, {
       contentType: input.screenshotMediaType,
     });
 
@@ -113,13 +118,23 @@ export class FirebaseLieuxService implements LieuxService {
     imageBase64: string,
     mediaType: 'image/png' | 'image/jpeg' | 'image/webp',
   ): Promise<LieuExtracted> {
-    const functions = getFunctions(undefined, FUNCTIONS_REGION);
-    const callable = httpsCallable<
-      { imageBase64: string; mediaType: string },
-      LieuExtracted
-    >(functions, 'extract');
-    const result = await callable({ imageBase64, mediaType });
-    return result.data;
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not signed in');
+    const idToken = await user.getIdToken();
+    const res = await fetch(EXTRACT_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: { imageBase64, mediaType } }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`extract HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const json = (await res.json()) as { result: LieuExtracted };
+    return json.result;
   }
 
   async getScreenshotUrl(storagePath: string): Promise<string> {
@@ -146,10 +161,3 @@ export class FirebaseLieuxService implements LieuxService {
   }
 }
 
-function base64ToUint8Array(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const len = binary.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}

@@ -186,6 +186,18 @@ export default function LieuDetailScreen() {
             <Text style={styles.mapsBtnLabel}>Ouvrir dans Plans</Text>
           </Pressable>
 
+          <Pressable
+            onPress={() =>
+              nav.navigate('Main', { screen: 'Map', params: { focusLieuId: lieu.id } })
+            }
+            style={({ pressed }) => [
+              styles.secondaryBtn,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={styles.secondaryBtnLabel}>Voir sur la carte</Text>
+          </Pressable>
+
           <Text style={styles.label}>Mes notes</Text>
           <TextInput
             value={notes}
@@ -237,6 +249,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   mapsBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  secondaryBtn: {
+    height: 56,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  secondaryBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
   label: {
     ...type.caption,
     color: colors.textSecondary,
