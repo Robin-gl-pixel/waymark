@@ -1,6 +1,27 @@
 import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
 
 /**
+ * Distance below which two pins are considered the same venue (haversine, meters).
+ * Mirrors `UploadScreen`'s upload-time dedup constant — kept identical so the
+ * "already in your collection" behaviour is consistent across upload and re-save.
+ */
+export const DUPLICATE_DISTANCE_M = 100;
+
+/**
+ * Thrown by `resaveFromNetwork` when a pin within {@link DUPLICATE_DISTANCE_M}
+ * already exists in the caller's collection. The UI catches this specifically
+ * to surface a "déjà dans ta collection" alert rather than a generic error.
+ */
+export class LieuDuplicateError extends Error {
+  readonly duplicate: Lieu;
+  constructor(duplicate: Lieu) {
+    super(`A lieu within ${DUPLICATE_DISTANCE_M}m already exists (${duplicate.id}).`);
+    this.name = 'LieuDuplicateError';
+    this.duplicate = duplicate;
+  }
+}
+
+/**
  * THE ONLY DATA SEAM.
  *
  * All screens/components MUST go through this interface — never import `firebase/*` directly.
@@ -29,6 +50,20 @@ export interface LieuxService {
 
   /** Resolve a Storage path (e.g. `sourceInstagram.screenshotStoragePath`) to a signed URL loadable by <Image>. */
   getScreenshotUrl(storagePath: string): Promise<string>;
+
+  /**
+   * Clone `sourceLieu` into the caller's own `/users/{myUid}/lieux` with
+   * attribution `savedFromUserId` / `savedFromUsername` set from `credit`
+   * (the *immediate* saver, not the original creator of the chain).
+   *
+   * The screenshot is REFERENCED — the new pin's `screenshotStoragePath`
+   * equals the source's, no Storage copy is performed.
+   *
+   * Throws {@link LieuDuplicateError} if a pin within
+   * {@link DUPLICATE_DISTANCE_M} of `sourceLieu` already exists in the
+   * caller's collection (haversine).
+   */
+  resaveFromNetwork(sourceLieu: Lieu, credit: { uid: string; username: string }): Promise<Lieu>;
 }
 
 let _instance: LieuxService | null = null;

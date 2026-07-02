@@ -1,5 +1,5 @@
 import { InMemoryLieuxService } from '../inMemoryLieuxService';
-import { LieuxService } from '../lieuxService';
+import { LieuxService, LieuDuplicateError } from '../lieuxService';
 import { LieuInput } from '../../types/Lieu';
 
 const USER = 'user-1';
@@ -23,7 +23,7 @@ function makeInput(overrides: Partial<LieuInput> = {}): LieuInput {
 }
 
 describe('LieuxService seam contract (InMemoryLieuxService)', () => {
-  let svc: LieuxService & { reset: () => void };
+  let svc: LieuxService & { reset: () => void; setCurrentUid: (uid: string | null) => void };
 
   beforeEach(() => {
     svc = new InMemoryLieuxService();
@@ -202,6 +202,119 @@ describe('LieuxService seam contract (InMemoryLieuxService)', () => {
           city: expect.any(String),
         }),
       );
+    });
+  });
+
+  describe('resaveFromNetwork (#13)', () => {
+    const OTHER = 'user-other';
+    const CREDIT = { uid: OTHER, username: 'waymark.paris.cool' };
+
+    beforeEach(() => {
+      // Impersonate the signed-in user for methods that read `auth`.
+      svc.setCurrentUid(USER);
+    });
+
+    async function seedSource(overrides: Partial<LieuInput> = {}) {
+      // Create the source pin under OTHER, then read it back so we get the
+      // real hydrated Lieu (including its generated storage path).
+      svc.setCurrentUid(OTHER);
+      const created = await svc.createLieu(
+        OTHER,
+        makeInput({
+          name: 'Le Comptoir',
+          lat: 48.85,
+          lng: 2.35,
+          sourceAuthor: '@waymark.paris.cool',
+          ...overrides,
+        }),
+      );
+      svc.setCurrentUid(USER);
+      return created;
+    }
+
+    it('creates a pin with savedFromUserId + savedFromUsername attribution', async () => {
+      const source = await seedSource();
+
+      const resaved = await svc.resaveFromNetwork(source, CREDIT);
+
+      expect(resaved.userId).toBe(USER);
+      expect(resaved.savedFromUserId).toBe(CREDIT.uid);
+      expect(resaved.savedFromUsername).toBe(CREDIT.username);
+      // Content fields are cloned verbatim.
+      expect(resaved.name).toBe(source.name);
+      expect(resaved.address).toBe(source.address);
+      expect(resaved.lat).toBe(source.lat);
+      expect(resaved.lng).toBe(source.lng);
+      expect(resaved.category).toBe(source.category);
+    });
+
+    it('references the source screenshotStoragePath — no copy', async () => {
+      const source = await seedSource();
+
+      const resaved = await svc.resaveFromNetwork(source, CREDIT);
+
+      expect(resaved.sourceInstagram.screenshotStoragePath).toBe(
+        source.sourceInstagram.screenshotStoragePath,
+      );
+      // Path still lives under the SOURCE owner's uid, not mine — that's the
+      // whole point of "reference, not copy".
+      expect(resaved.sourceInstagram.screenshotStoragePath).toContain(`users/${OTHER}/`);
+      expect(resaved.sourceInstagram.screenshotStoragePath).not.toContain(`users/${USER}/`);
+    });
+
+    it('leaves userNotes null on the re-saved pin (fresh copy)', async () => {
+      const source = await seedSource();
+      // Even if the source had notes, mine start empty.
+      await svc.updateLieu(OTHER, source.id, { userNotes: 'source-owner notes' });
+      const refreshedSource = await svc.getLieuById(OTHER, source.id);
+
+      const resaved = await svc.resaveFromNetwork(refreshedSource!, CREDIT);
+
+      expect(resaved.userNotes).toBeNull();
+    });
+
+    it('is discoverable in the caller\'s own getAllLieux + getLieuById', async () => {
+      const source = await seedSource();
+
+      const resaved = await svc.resaveFromNetwork(source, CREDIT);
+
+      const mine = await svc.getAllLieux(USER);
+      expect(mine.map((l) => l.id)).toContain(resaved.id);
+      const fetched = await svc.getLieuById(USER, resaved.id);
+      expect(fetched?.savedFromUsername).toBe(CREDIT.username);
+    });
+
+    it('throws LieuDuplicateError when a nearby pin (<100m) already exists', async () => {
+      // I already have a pin at ~5m from where the source sits — resaving should be blocked.
+      await svc.createLieu(
+        USER,
+        makeInput({ name: 'Mine already', lat: 48.85, lng: 2.35 }),
+      );
+      const source = await seedSource({ lat: 48.85005, lng: 2.35005 });
+
+      await expect(svc.resaveFromNetwork(source, CREDIT)).rejects.toBeInstanceOf(
+        LieuDuplicateError,
+      );
+    });
+
+    it('does NOT throw when the source is >100m away from every existing pin', async () => {
+      // Pin in Paris; source in Lyon — comfortably outside the dedup radius.
+      await svc.createLieu(
+        USER,
+        makeInput({ name: 'Paris pin', lat: 48.85, lng: 2.35 }),
+      );
+      const source = await seedSource({ lat: 45.76, lng: 4.83 });
+
+      await expect(svc.resaveFromNetwork(source, CREDIT)).resolves.toMatchObject({
+        savedFromUserId: CREDIT.uid,
+      });
+    });
+
+    it('throws if the impersonated current user is not set (not signed in)', async () => {
+      const source = await seedSource();
+      svc.setCurrentUid(null);
+
+      await expect(svc.resaveFromNetwork(source, CREDIT)).rejects.toThrow(/Not signed in/);
     });
   });
 });

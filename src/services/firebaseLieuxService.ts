@@ -14,7 +14,23 @@ import {
 import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '../auth/firebase';
 import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
-import { LieuxService } from './lieuxService';
+import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
+
+/**
+ * Great-circle distance in meters. Duplicated from `UploadScreen` /
+ * `SharedImageScreen` — kept as a small local helper (rather than a shared
+ * util) to preserve the seam's zero-dependency posture.
+ */
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 // Direct URL of the deployed Cloud Function — we call it via fetch to bypass
 // Firebase JS SDK's httpsCallable, which builds a Blob from the payload and
@@ -141,6 +157,58 @@ export class FirebaseLieuxService implements LieuxService {
     return getDownloadURL(ref(storage, storagePath));
   }
 
+  async resaveFromNetwork(
+    sourceLieu: Lieu,
+    credit: { uid: string; username: string },
+  ): Promise<Lieu> {
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    const myUid = me.uid;
+
+    // Dedup — mirror the UploadScreen pattern. A pin within 100m is treated
+    // as the same venue and the resave is rejected. The UI catches
+    // LieuDuplicateError to surface a friendlier "déjà dans ta collection".
+    const existing = await this.getAllLieux(myUid);
+    const dup = existing.find(
+      (l) => haversineMeters(l.lat, l.lng, sourceLieu.lat, sourceLieu.lng) < DUPLICATE_DISTANCE_M,
+    );
+    if (dup) throw new LieuDuplicateError(dup);
+
+    const lieuRef = doc(this.lieuxCol(myUid));
+    const now = serverTimestamp();
+    // NOTE: `screenshotStoragePath` is copied by REFERENCE — the same file in
+    // Storage is now referenced by two Firestore docs. This is intentional:
+    // saves are free, storage isn't, and account-delete only nukes screenshots
+    // under the deleting user's own path (best-effort). The account cascade
+    // nullifies attribution on downstream pins but does not touch the storage
+    // ref — orphaned pins would still resolve via the URL until Storage GC.
+    const data: Record<string, unknown> = {
+      userId: myUid,
+      name: sourceLieu.name,
+      city: sourceLieu.city,
+      country: sourceLieu.country,
+      address: sourceLieu.address,
+      lat: sourceLieu.lat,
+      lng: sourceLieu.lng,
+      category: sourceLieu.category,
+      description: sourceLieu.description,
+      sourceInstagram: {
+        author: sourceLieu.sourceInstagram.author,
+        screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath,
+      },
+      userNotes: null,
+      savedFromUserId: credit.uid,
+      savedFromUsername: credit.username,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(lieuRef, data);
+
+    const created = await this.getLieuById(myUid, lieuRef.id);
+    if (!created) throw new Error('Failed to read back resaved lieu');
+    return created;
+  }
+
   private hydrate(id: string, data: Record<string, unknown>): Lieu {
     return {
       id,
@@ -155,6 +223,8 @@ export class FirebaseLieuxService implements LieuxService {
       description: (data.description as string) ?? null,
       sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
       userNotes: (data.userNotes as string) ?? null,
+      savedFromUserId: (data.savedFromUserId as string | null | undefined) ?? null,
+      savedFromUsername: (data.savedFromUsername as string | null | undefined) ?? null,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
     };
