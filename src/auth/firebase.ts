@@ -1,4 +1,8 @@
 import { initializeApp } from 'firebase/app';
+// getReactNativePersistence exists at runtime in firebase/auth but is missing
+// from the published types (firebase-js-sdk#7615). Ignore the resolution
+// error — the symbol is real and works.
+// @ts-expect-error — see comment above
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
