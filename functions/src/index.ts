@@ -7,3 +7,4 @@ export { exchangeAppleCode } from './exchangeAppleCode';
 export { deleteAccount } from './deleteAccount';
 export { onReportCreated } from './reportTrigger';
 export { onFollowerCreated, onFollowerDeleted } from './followTriggers';
+export { onLieuSaved } from './saveAttribution';

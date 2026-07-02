@@ -15,9 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
-import { getLieuxService } from '../services/lieuxService';
+import { getLieuxService, LieuDuplicateError } from '../services/lieuxService';
+import { getSocialService } from '../services/socialService';
 import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
+import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'LieuDetail'>;
@@ -47,6 +49,13 @@ export default function LieuDetailScreen() {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Owner of the pin I'm viewing when it's not mine — used to power the
+  // "Sauver dans ma carte" credit + isCurated badge check.
+  const [otherOwner, setOtherOwner] = useState<UserProfile | null>(null);
+  // Profile of the saver referenced by `savedFromUserId` on MY pin — used to
+  // upgrade "via @X" to a "Waymark Curated" badge when applicable.
+  const [savedFromProfile, setSavedFromProfile] = useState<UserProfile | null>(null);
+  const [resaving, setResaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSave = useRef<string | null>(null);
 
@@ -63,11 +72,27 @@ export default function LieuDetailScreen() {
         } catch {
           setImgUri(null);
         }
+        // Resolve the owner profile in two cases:
+        //   1. Viewing someone else's pin → we need the owner's username to
+        //      pass as `credit` when the user taps "Sauver dans ma carte".
+        //   2. Viewing my own pin with a `savedFromUserId` → we need the
+        //      saver's `isCurated` flag to decide between "via @X" and the
+        //      "Waymark Curated" badge.
+        const isViewingOthers = readUid !== user?.uid;
+        try {
+          if (isViewingOthers) {
+            setOtherOwner(await getSocialService().getUserByUid(readUid));
+          } else if (fetched.savedFromUserId) {
+            setSavedFromProfile(await getSocialService().getUserByUid(fetched.savedFromUserId));
+          }
+        } catch (err) {
+          console.warn('[LieuDetail] profile fetch failed', err);
+        }
       }
     } finally {
       setLoading(false);
     }
-  }, [readUid, lieuId]);
+  }, [readUid, lieuId, user?.uid]);
 
   useEffect(() => {
     load();
@@ -123,6 +148,61 @@ export default function LieuDetailScreen() {
     if (!lieu) return;
     // maps: scheme opens Apple Maps; Google Maps app hijacks if installed and user set it as default.
     Linking.openURL(`maps://?q=${encodeURIComponent(lieu.name)}&ll=${lieu.lat},${lieu.lng}`);
+  };
+
+  const onResaveFromNetwork = async () => {
+    if (!lieu || !user || !readUid || !otherOwner) return;
+    setResaving(true);
+    try {
+      const resaved = await getLieuxService().resaveFromNetwork(lieu, {
+        uid: readUid,
+        username: otherOwner.username,
+      });
+      // Land the user on the map focused on their new pin — matches the
+      // "Voir sur la carte" pattern below and the golden path in #13.
+      nav.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'Main',
+            params: { screen: 'Map', params: { focusLieuId: resaved.id } },
+          },
+        ],
+      });
+    } catch (err) {
+      if (err instanceof LieuDuplicateError) {
+        Alert.alert(
+          'Déjà dans ta collection',
+          `"${err.duplicate.name}" est déjà enregistré chez toi.`,
+          [
+            {
+              text: 'Voir sur la carte',
+              onPress: () =>
+                nav.reset({
+                  index: 0,
+                  routes: [
+                    {
+                      name: 'Main',
+                      params: { screen: 'Map', params: { focusLieuId: err.duplicate.id } },
+                    },
+                  ],
+                }),
+            },
+            { text: 'OK', style: 'cancel' },
+          ],
+        );
+      } else {
+        console.error('[LieuDetail] resave failed', err);
+        Alert.alert('Erreur', "La sauvegarde n'a pas abouti. Réessaie dans un instant.");
+      }
+    } finally {
+      setResaving(false);
+    }
+  };
+
+  const onTapAttribution = () => {
+    if (!lieu?.savedFromUserId) return;
+    nav.navigate('UserProfile', { uid: lieu.savedFromUserId });
   };
 
   const confirmDelete = () => {
@@ -181,14 +261,56 @@ export default function LieuDetailScreen() {
             <Text style={styles.attribution}>Reco de @{lieu.sourceInstagram.author}</Text>
           )}
 
+          {/* "via @X" attribution — only on MY pins that came from a re-save.
+              Tap opens the saver's profile. `savedFromProfile.isCurated`
+              upgrades the tag to the "Waymark Curated" badge. */}
+          {isMine && lieu.savedFromUsername && (
+            <Pressable
+              onPress={onTapAttribution}
+              style={({ pressed }) => [styles.viaRow, pressed && { opacity: 0.6 }]}
+            >
+              {savedFromProfile?.isCurated ? (
+                <View style={styles.curatedBadge}>
+                  <Text style={styles.curatedLabel}>Waymark Curated</Text>
+                </View>
+              ) : (
+                <Text style={styles.viaLabel}>via @{lieu.savedFromUsername}</Text>
+              )}
+            </Pressable>
+          )}
+
+          {/* "Sauver dans ma carte" — primary CTA on a network pin (someone
+              else's collection). Dedup handled by resaveFromNetwork itself. */}
+          {!isMine && otherOwner && user && (
+            <Pressable
+              onPress={onResaveFromNetwork}
+              disabled={resaving}
+              style={({ pressed }) => [
+                styles.mapsBtn,
+                { backgroundColor: pressed ? colors.accentDim : colors.accent },
+                resaving && { opacity: 0.6 },
+              ]}
+            >
+              {resaving ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <Text style={styles.mapsBtnLabel}>Sauver dans ma carte</Text>
+              )}
+            </Pressable>
+          )}
+
           <Pressable
             onPress={openInMaps}
             style={({ pressed }) => [
-              styles.mapsBtn,
-              { backgroundColor: pressed ? colors.accentDim : colors.accent },
+              !isMine ? styles.secondaryBtn : styles.mapsBtn,
+              !isMine
+                ? pressed && { opacity: 0.7 }
+                : { backgroundColor: pressed ? colors.accentDim : colors.accent },
             ]}
           >
-            <Text style={styles.mapsBtnLabel}>Ouvrir dans Plans</Text>
+            <Text style={!isMine ? styles.secondaryBtnLabel : styles.mapsBtnLabel}>
+              Ouvrir dans Plans
+            </Text>
           </Pressable>
 
           <Pressable
@@ -249,6 +371,28 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     fontStyle: 'italic',
     marginTop: spacing.md,
+  },
+  viaRow: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  viaLabel: {
+    ...type.caption,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  curatedBadge: {
+    backgroundColor: colors.accentDim,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    alignSelf: 'flex-start',
+  },
+  curatedLabel: {
+    ...type.caption,
+    color: colors.text,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   mapsBtn: {
     height: 56,

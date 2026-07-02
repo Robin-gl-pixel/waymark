@@ -27,6 +27,15 @@ export interface Lieu {
     screenshotStoragePath: string;
   };
   userNotes: string | null;
+  /**
+   * Attribution — set when the pin was re-saved from another user's collection
+   * via `LieuxService.resaveFromNetwork` (#13). Points at the *immediate* saver,
+   * not the original creator of the chain. Nullified by the account-delete
+   * cascade if that user disappears (see functions/src/lib/socialCascade.ts).
+   * Undefined on pre-#13 pins and on pins the user uploaded themselves.
+   */
+  savedFromUserId?: string | null;
+  savedFromUsername?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -67,4 +76,11 @@ export interface LieuInput {
   userNotes: string | null;
   screenshotUri: string;
   screenshotMediaType: 'image/png' | 'image/jpeg' | 'image/webp';
+  /**
+   * Optional attribution — populated only when the input represents a re-save
+   * from another user's pin (`LieuxService.resaveFromNetwork`, #13). The
+   * standard upload path leaves both null.
+   */
+  savedFromUserId?: string | null;
+  savedFromUsername?: string | null;
 }

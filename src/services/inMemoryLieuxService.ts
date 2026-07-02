@@ -1,5 +1,17 @@
 import { Lieu, LieuInput, LieuExtracted, Timestamp } from '../types/Lieu';
-import { LieuxService } from './lieuxService';
+import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
+
+/** Great-circle distance in meters — mirror of the FirebaseLieuxService helper. */
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 /**
  * In-memory implementation of {@link LieuxService} used for unit tests.
@@ -11,8 +23,20 @@ export class InMemoryLieuxService implements LieuxService {
   /** userId -> lieuId -> Lieu */
   private readonly store = new Map<string, Map<string, Lieu>>();
 
+  /**
+   * The "signed-in user" for methods that don't take a userId parameter
+   * (e.g. `resaveFromNetwork`). Tests set this via {@link setCurrentUid}.
+   * Mirrors what `auth.currentUser?.uid` gives the Firebase impl.
+   */
+  private currentUid: string | null = null;
+
   /** Monotonic counter driving both id generation and timestamps to keep sort order deterministic. */
   private seq = 0;
+
+  /** Test helper — impersonate a signed-in user for methods that read `auth`. */
+  setCurrentUid(uid: string | null): void {
+    this.currentUid = uid;
+  }
 
   private bucket(userId: string): Map<string, Lieu> {
     let m = this.store.get(userId);
@@ -138,9 +162,53 @@ export class InMemoryLieuxService implements LieuxService {
     return `mem://${storagePath}`;
   }
 
+  async resaveFromNetwork(
+    sourceLieu: Lieu,
+    credit: { uid: string; username: string },
+  ): Promise<Lieu> {
+    const myUid = this.currentUid;
+    if (!myUid) throw new Error('Not signed in — call setCurrentUid() first');
+
+    // Dedup — same 100m haversine as UploadScreen.
+    const existing = await this.getAllLieux(myUid);
+    const dup = existing.find(
+      (l) => haversineMeters(l.lat, l.lng, sourceLieu.lat, sourceLieu.lng) < DUPLICATE_DISTANCE_M,
+    );
+    if (dup) throw new LieuDuplicateError(dup);
+
+    const id = this.nextId();
+    const ts = this.now();
+    // Storage path is REFERENCED, not copied — this is the whole point of
+    // the "save from network" flow (no duplicate uploads, no orphan blobs).
+    const lieu: Lieu = {
+      id,
+      userId: myUid,
+      name: sourceLieu.name,
+      city: sourceLieu.city,
+      country: sourceLieu.country,
+      address: sourceLieu.address,
+      lat: sourceLieu.lat,
+      lng: sourceLieu.lng,
+      category: sourceLieu.category,
+      description: sourceLieu.description,
+      sourceInstagram: {
+        author: sourceLieu.sourceInstagram.author,
+        screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath,
+      },
+      userNotes: null,
+      savedFromUserId: credit.uid,
+      savedFromUsername: credit.username,
+      createdAt: ts,
+      updatedAt: ts,
+    };
+    this.bucket(myUid).set(id, lieu);
+    return lieu;
+  }
+
   /** Test helper: wipe all state. */
   reset(): void {
     this.store.clear();
+    this.currentUid = null;
     this.seq = 0;
   }
 }
