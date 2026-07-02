@@ -1,3 +1,8 @@
+---
+title: Politique de confidentialité — Waymark
+layout: default
+---
+
 # Politique de confidentialité — Waymark
 
 **Dernière mise à jour :** 2026-07-01
