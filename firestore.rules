@@ -32,6 +32,35 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Follower / following sub-collections (#12).
+    //
+    // A follow is two symmetric writes committed as a single client-side batch:
+    //   users/{followedUid}/followers/{followerUid}  ← written BY the follower
+    //   users/{followerUid}/following/{followedUid}  ← written BY the follower
+    // The wildcard rule at the top would deny the first write (the caller isn't
+    // the owner of the parent user doc), so we need an explicit rule that lets
+    // an authenticated caller add THEMSELVES to another user's followers list.
+    //
+    // Unfollow (delete) is allowed to either party: the follower (undo my
+    // follow) or the followed user (remove an unwanted follower).
+    match /users/{userId}/followers/{followerUid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == followerUid
+                    && request.resource.data.keys().hasOnly(['createdAt']);
+      allow delete: if request.auth != null
+                    && (request.auth.uid == followerUid || request.auth.uid == userId);
+    }
+
+    // `following/{followedUid}` — owner-side write only. Symmetric to the
+    // above from the follower's perspective. The wildcard already covers this
+    // but we spell it out so the invariant is discoverable next to the
+    // followers rule.
+    match /users/{userId}/following/{followedUid} {
+      allow read: if request.auth != null;
+      allow create, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Username uniqueness lock. `usernames/{lowercase}` maps a taken handle
     // to its owner uid. Reads are open so any authenticated client can check
     // availability. Creates require the caller to own the mapping and match

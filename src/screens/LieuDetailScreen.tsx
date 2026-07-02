@@ -35,8 +35,13 @@ const CATEGORY_LABEL: Record<LieuCategory, string> = {
 
 export default function LieuDetailScreen() {
   const nav = useNavigation<Nav>();
-  const { lieuId } = useRoute<Rt>().params;
+  const { lieuId, ownerUid } = useRoute<Rt>().params;
   const { user } = useAuth();
+  // If we're viewing another user's lieu (from the network feed), fetch from
+  // that owner's collection. All edit affordances (notes, delete) below are
+  // gated behind `isMine`.
+  const readUid = ownerUid ?? user?.uid ?? null;
+  const isMine = readUid !== null && user?.uid === readUid;
   const [lieu, setLieu] = useState<Lieu | null>(null);
   const [imgUri, setImgUri] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
@@ -46,10 +51,10 @@ export default function LieuDetailScreen() {
   const pendingSave = useRef<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!readUid) return;
     try {
       const svc = getLieuxService();
-      const fetched = await svc.getLieuById(user.uid, lieuId);
+      const fetched = await svc.getLieuById(readUid, lieuId);
       setLieu(fetched);
       setNotes(fetched?.userNotes ?? '');
       if (fetched) {
@@ -62,7 +67,7 @@ export default function LieuDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user, lieuId]);
+  }, [readUid, lieuId]);
 
   useEffect(() => {
     load();
@@ -198,21 +203,25 @@ export default function LieuDetailScreen() {
             <Text style={styles.secondaryBtnLabel}>Voir sur la carte</Text>
           </Pressable>
 
-          <Text style={styles.label}>Mes notes</Text>
-          <TextInput
-            value={notes}
-            onChangeText={onNotesChange}
-            onBlur={onNotesBlur}
-            placeholder="Réserver 2 semaines avant, aller le vendredi soir, éviter en été…"
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            style={styles.notesInput}
-          />
-          {saving && <Text style={styles.saving}>Sauvegarde…</Text>}
+          {isMine && (
+            <>
+              <Text style={styles.label}>Mes notes</Text>
+              <TextInput
+                value={notes}
+                onChangeText={onNotesChange}
+                onBlur={onNotesBlur}
+                placeholder="Réserver 2 semaines avant, aller le vendredi soir, éviter en été…"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                style={styles.notesInput}
+              />
+              {saving && <Text style={styles.saving}>Sauvegarde…</Text>}
 
-          <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
-            <Text style={styles.deleteBtnLabel}>Supprimer ce lieu</Text>
-          </Pressable>
+              <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
+                <Text style={styles.deleteBtnLabel}>Supprimer ce lieu</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

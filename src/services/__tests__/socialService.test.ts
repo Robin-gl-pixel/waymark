@@ -432,3 +432,241 @@ describe('SocialService seam contract — Search (slice #11)', () => {
     expect(results).toEqual([]);
   });
 });
+
+/**
+ * Slice #12 contract tests — follow + network feed.
+ *
+ * These pin the exact behaviour the Firebase impl must mirror once the Cloud
+ * Function trigger has run (counts denormalisation) or when the trigger is
+ * skipped in the in-memory harness. The InMemorySocialService replays both
+ * writes + count deltas synchronously inside `follow()` / `unfollow()` — that
+ * matches what the Firebase impl's client sees after the trigger settles.
+ */
+
+// Common lieu builder for the feed tests. Timestamps are monotonic so we can
+// assert the merged feed sorts strictly descending.
+import type { Lieu } from '../../types/Lieu';
+import type { Timestamp } from '../../types/Lieu';
+
+function ts(ms: number): Timestamp {
+  return {
+    seconds: Math.floor(ms / 1000),
+    nanoseconds: (ms % 1000) * 1_000_000,
+    toDate: () => new Date(ms),
+    toMillis: () => ms,
+  };
+}
+
+function makeLieu(ownerUid: string, id: string, createdAtMs: number, overrides: Partial<Lieu> = {}): Lieu {
+  return {
+    id,
+    userId: ownerUid,
+    name: `Lieu ${id}`,
+    city: 'Paris',
+    country: 'France',
+    address: '1 rue test',
+    lat: 48.85,
+    lng: 2.35,
+    category: 'resto',
+    description: null,
+    sourceInstagram: { author: null, screenshotStoragePath: `users/${ownerUid}/screenshots/${id}.png` },
+    userNotes: null,
+    createdAt: ts(createdAtMs),
+    updatedAt: ts(createdAtMs),
+    ...overrides,
+  };
+}
+
+const CHARLIE = 'uid-charlie';
+const DIANA = 'uid-diana';
+
+describe('SocialService seam contract — Follow (slice #12)', () => {
+  let svc: InMemorySocialService;
+
+  beforeEach(() => {
+    svc = new InMemorySocialService();
+    seed(svc, ME, 'me');
+    seed(svc, ALICE, 'alice');
+    seed(svc, BOB, 'bob');
+    svc.setCurrentUid(ME);
+  });
+
+  it('follow(uid) creates an entry on both sides of the graph', async () => {
+    await svc.follow(ALICE);
+
+    expect((await svc.getFollowing(ME)).map((u) => u.uid)).toEqual([ALICE]);
+    expect((await svc.getFollowers(ALICE)).map((u) => u.uid)).toEqual([ME]);
+  });
+
+  it('follow(uid) increments followingCount on me + followersCount on the target', async () => {
+    await svc.follow(ALICE);
+
+    const me = await svc.getUserByUid(ME);
+    const alice = await svc.getUserByUid(ALICE);
+    expect(me?.followingCount).toBe(1);
+    expect(alice?.followersCount).toBe(1);
+  });
+
+  it('unfollow(uid) removes both entries + decrements the counts', async () => {
+    await svc.follow(ALICE);
+    await svc.unfollow(ALICE);
+
+    expect((await svc.getFollowing(ME)).map((u) => u.uid)).toEqual([]);
+    expect((await svc.getFollowers(ALICE)).map((u) => u.uid)).toEqual([]);
+
+    const me = await svc.getUserByUid(ME);
+    const alice = await svc.getUserByUid(ALICE);
+    expect(me?.followingCount).toBe(0);
+    expect(alice?.followersCount).toBe(0);
+  });
+
+  it('unfollow(uid) of a user I do not follow is a no-op (no negative counts)', async () => {
+    await svc.unfollow(ALICE);
+
+    const me = await svc.getUserByUid(ME);
+    const alice = await svc.getUserByUid(ALICE);
+    expect(me?.followingCount).toBe(0);
+    expect(alice?.followersCount).toBe(0);
+    expect((await svc.getFollowing(ME))).toEqual([]);
+  });
+
+  it('follow(self) throws', async () => {
+    await expect(svc.follow(ME)).rejects.toThrow(/yourself/i);
+  });
+
+  it('follow throws when not signed in', async () => {
+    svc.setCurrentUid(null);
+    await expect(svc.follow(ALICE)).rejects.toThrow(/signed in/i);
+  });
+
+  it('isFollowing reflects the live state', async () => {
+    expect(await svc.isFollowing(ALICE)).toBe(false);
+
+    await svc.follow(ALICE);
+    expect(await svc.isFollowing(ALICE)).toBe(true);
+
+    await svc.unfollow(ALICE);
+    expect(await svc.isFollowing(ALICE)).toBe(false);
+  });
+
+  it('isFollowing returns false when not signed in', async () => {
+    svc.setCurrentUid(null);
+    expect(await svc.isFollowing(ALICE)).toBe(false);
+  });
+});
+
+describe('SocialService seam contract — Feed (slice #12)', () => {
+  let svc: InMemorySocialService;
+
+  beforeEach(() => {
+    svc = new InMemorySocialService();
+    seed(svc, ME, 'me');
+    seed(svc, ALICE, 'alice');
+    seed(svc, BOB, 'bob');
+    seed(svc, CHARLIE, 'charlie');
+    seed(svc, DIANA, 'diana');
+    svc.setCurrentUid(ME);
+  });
+
+  it('getFeed returns pins from all followed users, sorted desc by createdAt', async () => {
+    // Interleave the pins so a naïve implementation (concat without re-sorting)
+    // would produce an out-of-order result.
+    svc.seedLieu(ALICE, makeLieu(ALICE, 'a1', 3000));
+    svc.seedLieu(BOB, makeLieu(BOB, 'b1', 2000));
+    svc.seedLieu(CHARLIE, makeLieu(CHARLIE, 'c1', 4000));
+    svc.seedLieu(ALICE, makeLieu(ALICE, 'a2', 1000));
+
+    await svc.follow(ALICE);
+    await svc.follow(BOB);
+    await svc.follow(CHARLIE);
+
+    const page = await svc.getFeed();
+    expect(page.items.map((l) => l.id)).toEqual(['c1', 'a1', 'b1', 'a2']);
+    expect(page.cursor).toBeNull();
+  });
+
+  it('getFeed with 3 followed users returns their pins desc AND excludes a 4th unfollowed user', async () => {
+    svc.seedLieu(ALICE, makeLieu(ALICE, 'a1', 5000));
+    svc.seedLieu(BOB, makeLieu(BOB, 'b1', 4000));
+    svc.seedLieu(CHARLIE, makeLieu(CHARLIE, 'c1', 3000));
+    // Diana is NOT followed — her pins must not appear.
+    svc.seedLieu(DIANA, makeLieu(DIANA, 'd1', 9000));
+
+    await svc.follow(ALICE);
+    await svc.follow(BOB);
+    await svc.follow(CHARLIE);
+
+    const page = await svc.getFeed();
+    expect(page.items.map((l) => l.userId)).toEqual([ALICE, BOB, CHARLIE]);
+    // Diana's pin is the most recent globally but must be absent.
+    expect(page.items.map((l) => l.id)).not.toContain('d1');
+  });
+
+  it('getFeed excludes pins from users with isPublic == false', async () => {
+    // Alice is public; Bob is private (defensive filter — rules would also deny).
+    svc.seedUser({
+      uid: BOB,
+      username: 'bob',
+      displayName: null,
+      email: null,
+      isPublic: false,
+      isCurated: false,
+      followersCount: 0,
+      followingCount: 0,
+      avatarUrl: null,
+      bio: null,
+      usernameChangedAt: null,
+    });
+    svc.seedLieu(ALICE, makeLieu(ALICE, 'a1', 2000));
+    svc.seedLieu(BOB, makeLieu(BOB, 'b-private', 3000));
+
+    await svc.follow(ALICE);
+    await svc.follow(BOB);
+
+    const page = await svc.getFeed();
+    expect(page.items.map((l) => l.id)).toEqual(['a1']);
+  });
+
+  it('getFeed excludes pins from blocked users', async () => {
+    svc.seedLieu(ALICE, makeLieu(ALICE, 'a1', 2000));
+    svc.seedLieu(BOB, makeLieu(BOB, 'b1', 3000));
+
+    await svc.follow(ALICE);
+    await svc.follow(BOB);
+    // Block Bob AFTER the follow — the block cascade removes the follow edge
+    // as well, so Bob's pins must fall off the feed regardless.
+    await svc.block(BOB);
+
+    const page = await svc.getFeed();
+    expect(page.items.map((l) => l.id)).toEqual(['a1']);
+  });
+
+  it('getFeed caps the page at 20 items', async () => {
+    // 25 pins from Alice — 20 stay on the first page, 5 spill.
+    for (let i = 0; i < 25; i++) {
+      svc.seedLieu(ALICE, makeLieu(ALICE, `a${i}`, 1000 + i));
+    }
+    await svc.follow(ALICE);
+
+    const page = await svc.getFeed();
+    expect(page.items).toHaveLength(20);
+    expect(page.items[0].id).toBe('a24'); // most recent
+    expect(page.cursor).not.toBeNull();
+  });
+
+  it('getFeed returns an empty page when I follow nobody', async () => {
+    // Diana pinned things but I do not follow her.
+    svc.seedLieu(DIANA, makeLieu(DIANA, 'd1', 9000));
+
+    const page = await svc.getFeed();
+    expect(page.items).toEqual([]);
+    expect(page.cursor).toBeNull();
+  });
+
+  it('getFeed returns an empty page when not signed in', async () => {
+    svc.setCurrentUid(null);
+    const page = await svc.getFeed();
+    expect(page.items).toEqual([]);
+    expect(page.cursor).toBeNull();
+  });
+});

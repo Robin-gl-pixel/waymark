@@ -13,7 +13,7 @@ export type RootStackParamList = {
     screenshotUri: string;
     screenshotMediaType: 'image/png' | 'image/jpeg' | 'image/webp';
   };
-  LieuDetail: { lieuId: string };
+  LieuDetail: { lieuId: string; ownerUid?: string };
   Onboarding: undefined;
   PickUsername: undefined;
   EditUsername: undefined;
@@ -30,6 +30,7 @@ export type RootStackParamList = {
 export type TabParamList = {
   Map: { focusLieuId?: string } | undefined;
   List: undefined;
+  Network: undefined;
   _Add: undefined; // Fake tab: button that opens Upload in the root stack.
   Settings: undefined;
 };
