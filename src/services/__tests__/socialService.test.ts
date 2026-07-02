@@ -602,6 +602,126 @@ describe('SocialService seam contract — Follow (slice #12)', () => {
   });
 });
 
+/**
+ * Slice #14 contract tests — activity feed + badges.
+ *
+ * The Cloud Function triggers write activity rows on follow (see
+ * `functions/src/followTriggers.ts`) and on re-save (see
+ * `functions/src/saveAttribution.ts`). The InMemory harness replays only the
+ * follow-side write inline (mirrors #12); for the save-side + count/read
+ * mechanics we drive the API directly here.
+ */
+describe('SocialService seam contract — Activity (slice #14)', () => {
+  let svc: InMemorySocialService;
+
+  beforeEach(() => {
+    svc = new InMemorySocialService();
+    seed(svc, ME, 'me');
+    seed(svc, ALICE, 'alice');
+    seed(svc, BOB, 'bob');
+    svc.setCurrentUid(ME);
+  });
+
+  it('getActivity returns items sorted desc by createdAt', async () => {
+    // Alice follows me (writes an activity row on my feed).
+    svc.setCurrentUid(ALICE);
+    await svc.follow(ME);
+    // Then Bob follows me — should sit ABOVE Alice's row (more recent).
+    svc.setCurrentUid(BOB);
+    await svc.follow(ME);
+
+    svc.setCurrentUid(ME);
+    const page = await svc.getActivity();
+
+    expect(page.items.map((a) => a.actorUsername)).toEqual(['bob', 'alice']);
+    // desc by createdAt millis — strictly monotonic.
+    expect(page.items[0].createdAt.toMillis()).toBeGreaterThan(
+      page.items[1].createdAt.toMillis(),
+    );
+  });
+
+  it('getActivity returns an empty page when no activity + when not signed in', async () => {
+    // No activity yet.
+    const emptyPage = await svc.getActivity();
+    expect(emptyPage.items).toEqual([]);
+    expect(emptyPage.cursor).toBeNull();
+
+    // Signed out.
+    svc.setCurrentUid(null);
+    const signedOut = await svc.getActivity();
+    expect(signedOut.items).toEqual([]);
+    expect(signedOut.cursor).toBeNull();
+  });
+
+  it('newly-written activity rows start unread', async () => {
+    svc.setCurrentUid(ALICE);
+    await svc.follow(ME);
+
+    svc.setCurrentUid(ME);
+    const page = await svc.getActivity();
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0].read).toBe(false);
+    expect(page.items[0].type).toBe('follow');
+    expect(page.items[0].actorUid).toBe(ALICE);
+  });
+
+  it('markActivityRead sets read = true on the target only', async () => {
+    svc.setCurrentUid(ALICE);
+    await svc.follow(ME);
+    svc.setCurrentUid(BOB);
+    await svc.follow(ME);
+
+    svc.setCurrentUid(ME);
+    const before = await svc.getActivity();
+    expect(before.items.every((a) => !a.read)).toBe(true);
+
+    // Only mark the first (most recent — Bob's follow) as read.
+    await svc.markActivityRead(before.items[0].id);
+
+    const after = await svc.getActivity();
+    const bobRow = after.items.find((a) => a.actorUid === BOB);
+    const aliceRow = after.items.find((a) => a.actorUid === ALICE);
+    expect(bobRow?.read).toBe(true);
+    expect(aliceRow?.read).toBe(false);
+  });
+
+  it('getUnreadActivityCount returns the correct count after marking', async () => {
+    // Three unread events on my feed.
+    svc.setCurrentUid(ALICE);
+    await svc.follow(ME);
+    svc.setCurrentUid(BOB);
+    await svc.follow(ME);
+    seed(svc, 'uid-carol', 'carol');
+    svc.setCurrentUid('uid-carol');
+    await svc.follow(ME);
+
+    svc.setCurrentUid(ME);
+    expect(await svc.getUnreadActivityCount()).toBe(3);
+
+    // Mark two as read → count drops to 1.
+    const page = await svc.getActivity();
+    await svc.markActivityRead(page.items[0].id);
+    await svc.markActivityRead(page.items[1].id);
+    expect(await svc.getUnreadActivityCount()).toBe(1);
+
+    // Mark the last → 0.
+    await svc.markActivityRead(page.items[2].id);
+    expect(await svc.getUnreadActivityCount()).toBe(0);
+  });
+
+  it('getUnreadActivityCount returns 0 when not signed in', async () => {
+    svc.setCurrentUid(null);
+    expect(await svc.getUnreadActivityCount()).toBe(0);
+  });
+
+  it('markActivityRead on an unknown id is a silent no-op', async () => {
+    // Contract: the InMemory impl swallows a missing id (matches the "clear
+    // stale badge" fire-and-forget usage from MyProfileScreen). The Firebase
+    // impl surfaces the error to the caller — the UI catches it.
+    await expect(svc.markActivityRead('does-not-exist')).resolves.toBeUndefined();
+  });
+});
+
 describe('SocialService seam contract — Feed (slice #12)', () => {
   let svc: InMemorySocialService;
 

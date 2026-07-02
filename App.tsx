@@ -76,7 +76,40 @@ function AddTabButton() {
   );
 }
 
+/**
+ * Poll the unread activity count on tab focus so the Profile-tab badge stays
+ * fresh without a persistent listener. Cheap at V1 scale (single indexed count
+ * query per focus event). Returns 0 when signed out.
+ */
+function useUnreadActivityBadge(): number | undefined {
+  const [count, setCount] = React.useState(0);
+
+  const refresh = React.useCallback(async () => {
+    try {
+      const n = await getSocialService().getUnreadActivityCount();
+      setCount(n);
+    } catch (err) {
+      // A transient read failure shouldn't flash-clear the badge — keep last known.
+      console.warn('[MainTabs] unread activity count failed', err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refresh();
+    // Re-poll on a slow interval to catch new activity while the user idles
+    // on another tab — cheap (1 indexed query / 30s).
+    const iv = setInterval(refresh, 30_000);
+    return () => clearInterval(iv);
+  }, [refresh]);
+
+  // Bottom-tabs' `tabBarBadge` treats undefined/0 as "no badge". We want the
+  // pastille visible whenever there's ≥1 unread — pass the raw count so the
+  // tab renders it (React Navigation renders numbers automatically).
+  return count > 0 ? count : undefined;
+}
+
 function MainTabs() {
+  const activityBadge = useUnreadActivityBadge();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -116,6 +149,18 @@ function MainTabs() {
         options={{
           tabBarButton: () => <AddTabButton />,
           tabBarLabel: () => null,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={MyProfileScreen}
+        options={{
+          tabBarLabel: 'Profil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle-outline" size={size} color={color} />
+          ),
+          tabBarBadge: activityBadge,
+          tabBarBadgeStyle: { backgroundColor: colors.error, color: colors.text },
         }}
       />
       <Tab.Screen
