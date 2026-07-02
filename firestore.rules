@@ -7,6 +7,20 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Username uniqueness lock. `usernames/{lowercase}` maps a taken handle
+    // to its owner uid. Reads are open so any authenticated client can check
+    // availability. Creates require the caller to own the mapping and match
+    // the client-side regex — this makes race-condition username squatting
+    // impossible even for a hand-crafted request.
+    match /usernames/{name} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid
+        && name.matches('^[a-z0-9._]{3,20}$');
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
     // Server-only: Apple Sign In refresh tokens for the revoke flow.
     // Default-deny would catch unmatched paths already; kept explicit so nobody
     // "helpfully" opens this up later without noticing the sensitivity.
