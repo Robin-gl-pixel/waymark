@@ -2,6 +2,7 @@ import {
   OAuthProvider,
   User,
   onAuthStateChanged,
+  signInAnonymously,
   signInWithCredential,
   signOut,
   updateProfile,
@@ -32,6 +33,13 @@ export class FirebaseAuthService implements AuthService {
     const result = await signInWithCredential(auth, credential);
     const user = toAuthUser(result.user);
     if (!user) throw new Error('Apple sign-in returned no user');
+    return user;
+  }
+
+  async signInAnonymouslyDev(): Promise<AuthUser> {
+    const result = await signInAnonymously(auth);
+    const user = toAuthUser(result.user);
+    if (!user) throw new Error('Anonymous sign-in returned no user');
     return user;
   }
 

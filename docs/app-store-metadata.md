@@ -58,7 +58,7 @@ HOW IT WORKS
 3. Our AI extracts the name, city, address, and category — in about 4 seconds.
 4. The place appears on your private map, with the original screenshot attached and the creator's handle saved.
 
-WHY MAPPIES, NOT THE OTHERS
+WHY WAYMARK, NOT THE OTHERS
 - Works on Stories and DMs. Every other app requires a shareable URL — which Stories and DMs don't have.
 - Built native for iPhone: Sign in with Apple, Apple MapKit, iOS Shortcut for one-tap saves.
 - Private by design. Your map, your places, your data. No feed, no follows, no social pressure.
@@ -133,7 +133,7 @@ COMMENT ÇA MARCHE
 3. Notre IA extrait le nom, la ville, l'adresse et la catégorie — en 4 secondes.
 4. Le lieu apparaît sur votre carte privée, avec le screenshot d'origine et le pseudo du créateur.
 
-POURQUOI MAPPIES, ET PAS LES AUTRES
+POURQUOI WAYMARK, ET PAS LES AUTRES
 - Fonctionne sur Stories et DMs. Les autres apps exigent une URL partageable — et Stories/DMs n'en ont pas.
 - Pensé iPhone : Sign in with Apple, MapKit natif, Raccourci iOS pour ajouter en un tap.
 - Privé par défaut. Votre carte, vos lieux, vos données. Pas de feed, pas d'abonnés.

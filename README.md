@@ -46,7 +46,7 @@ npm run build:ios:dev
 
 ## Issues
 
-Ready-for-agent : https://github.com/Robin-gl-pixel/carte/issues?q=label%3Aready-for-agent
+Ready-for-agent : https://github.com/Robin-gl-pixel/waymark/issues?q=label%3Aready-for-agent
 
 ## Stack
 

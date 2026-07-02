@@ -24,6 +24,9 @@ export interface AuthService {
   /** Complete an Apple sign-in flow using tokens obtained from AppleAuthentication. */
   signInWithApple(idToken: string, rawNonce: string): Promise<AuthUser>;
 
+  /** Dev-only bypass: anonymous Firebase sign-in so devs can hit the rest of the app when Apple is broken on sim. */
+  signInAnonymouslyDev(): Promise<AuthUser>;
+
   /** Update the display name on the current user (first-sign-in only for Apple). */
   updateDisplayName(displayName: string): Promise<void>;
 

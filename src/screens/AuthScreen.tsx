@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
@@ -71,6 +71,19 @@ export default function AuthScreen() {
     }
   };
 
+  const handleDevBypass = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      await getAuthService().signInAnonymouslyDev();
+    } catch (err) {
+      console.warn('[AuthScreen] dev bypass failed', err);
+      setError('Dev bypass échoué — active Anonymous auth dans Firebase Console.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.hero}>
@@ -85,15 +98,22 @@ export default function AuthScreen() {
         {loading ? (
           <ActivityIndicator color={colors.accent} size="large" />
         ) : (
-          appleAvailable && (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-              cornerRadius={28}
-              style={styles.appleBtn}
-              onPress={handleAppleSignIn}
-            />
-          )
+          <>
+            {appleAvailable && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={28}
+                style={styles.appleBtn}
+                onPress={handleAppleSignIn}
+              />
+            )}
+            {__DEV__ && (
+              <Pressable style={styles.devBtn} onPress={handleDevBypass}>
+                <Text style={styles.devBtnText}>Skip (dev anonymous sign-in)</Text>
+              </Pressable>
+            )}
+          </>
         )}
 
         <Text style={styles.legal}>
@@ -129,6 +149,18 @@ const styles = StyleSheet.create({
   appleBtn: {
     height: 56,
     width: '100%',
+  },
+  devBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  devBtnText: {
+    ...type.body,
+    color: colors.textSecondary,
   },
   errorText: {
     ...type.caption,
