@@ -15,6 +15,8 @@ export type RootStackParamList = {
   };
   LieuDetail: { lieuId: string };
   Onboarding: undefined;
+  PickUsername: undefined;
+  MyProfile: undefined;
 };
 
 /**

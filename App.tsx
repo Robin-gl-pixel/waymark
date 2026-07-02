@@ -34,6 +34,9 @@ import ExtractConfirmScreen from './src/screens/ExtractConfirmScreen';
 import LieuDetailScreen from './src/screens/LieuDetailScreen';
 import SharedImageScreen from './src/screens/SharedImageScreen';
 import OnboardingSlidesScreen from './src/screens/OnboardingSlidesScreen';
+import PickUsernameScreen from './src/screens/PickUsernameScreen';
+import MyProfileScreen from './src/screens/MyProfileScreen';
+import { getSocialService } from './src/services/socialService';
 import { colors } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
 
@@ -110,8 +113,34 @@ function MainTabs() {
 
 function Root() {
   const { user, loading } = useAuth();
+  const [profileLoading, setProfileLoading] = React.useState(true);
+  const [hasUsername, setHasUsername] = React.useState(false);
 
-  if (loading) {
+  const refreshProfile = React.useCallback(async () => {
+    if (!user) {
+      setHasUsername(false);
+      setProfileLoading(false);
+      return;
+    }
+    try {
+      const profile = await getSocialService().getMyProfile();
+      setHasUsername(Boolean(profile?.username));
+    } catch (err) {
+      console.warn('[Root] getMyProfile failed', err);
+      // Treat a load failure as "no profile yet" so the picker gets a chance —
+      // upsertProfile itself will surface the real error if it persists.
+      setHasUsername(false);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    setProfileLoading(true);
+    refreshProfile();
+  }, [refreshProfile]);
+
+  if (loading || (user && profileLoading)) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.accent} size="large" />
@@ -130,20 +159,32 @@ function Root() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-      <RootStack.Screen name="Upload" component={UploadScreen} options={{ title: 'Nouveau lieu' }} />
-      <RootStack.Screen
-        name="SharedImage"
-        component={SharedImageScreen}
-        options={{ title: 'Ajout depuis Partager', headerBackVisible: false, gestureEnabled: false }}
-      />
-      <RootStack.Screen name="ExtractConfirm" component={ExtractConfirmScreen} options={{ title: 'Vérifier' }} />
-      <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
-      <RootStack.Screen
-        name="Onboarding"
-        component={OnboardingSlidesScreen}
-        options={{ headerShown: false, gestureEnabled: false }}
-      />
+      {hasUsername ? (
+        <>
+          <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+          <RootStack.Screen name="Upload" component={UploadScreen} options={{ title: 'Nouveau lieu' }} />
+          <RootStack.Screen
+            name="SharedImage"
+            component={SharedImageScreen}
+            options={{ title: 'Ajout depuis Partager', headerBackVisible: false, gestureEnabled: false }}
+          />
+          <RootStack.Screen name="ExtractConfirm" component={ExtractConfirmScreen} options={{ title: 'Vérifier' }} />
+          <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
+          <RootStack.Screen name="MyProfile" component={MyProfileScreen} options={{ title: 'Profil' }} />
+          <RootStack.Screen
+            name="Onboarding"
+            component={OnboardingSlidesScreen}
+            options={{ headerShown: false, gestureEnabled: false }}
+          />
+        </>
+      ) : (
+        <RootStack.Screen
+          name="PickUsername"
+          options={{ headerShown: false, gestureEnabled: false }}
+        >
+          {() => <PickUsernameScreen onComplete={refreshProfile} />}
+        </RootStack.Screen>
+      )}
     </RootStack.Navigator>
   );
 }
