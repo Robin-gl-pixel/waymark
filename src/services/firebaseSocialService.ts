@@ -140,7 +140,24 @@ export class FirebaseSocialService implements SocialService {
     return created;
   }
 
-  async setProfileVisibility(_isPublic: boolean): Promise<void> { throw new SocialNotImplemented('setProfileVisibility'); }
+  /**
+   * Flip the current user's profile visibility.
+   *
+   * `isPublic: false` → I become invisible in search + feeds. My pins are still
+   * mine (nothing is deleted) but rules deny reads from anyone other than me,
+   * and the client-side `isPublic` filter on getFeed / searchUsers keeps
+   * private accounts out of other users' surfaces. Undoing this is symmetric —
+   * `isPublic: true` re-enables discoverability immediately.
+   */
+  async setProfileVisibility(isPublic: boolean): Promise<void> {
+    const { auth, db, doc, updateDoc, serverTimestamp } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    await updateDoc(doc(db as never, 'users', me.uid), {
+      isPublic,
+      updatedAt: serverTimestamp(),
+    });
+  }
 
   private hydrateUser(uid: string, data: Record<string, unknown>): UserProfile {
     return {

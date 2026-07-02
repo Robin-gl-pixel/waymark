@@ -72,6 +72,53 @@ describe('SocialService seam contract (profile foundation, InMemorySocialService
     });
   });
 
+  /**
+   * Slice #16 contract tests — privacy toggle. The InMemory impl pins the
+   * shape: a user's `isPublic` flips in place, `updatedAt` refreshes, and the
+   * caller must be signed in. The Firebase impl mirrors this via
+   * `updateDoc(users/{uid}, { isPublic, updatedAt })`; if either side of the
+   * contract drifts, these tests catch it.
+   */
+  describe('setProfileVisibility', () => {
+    it('sets isPublic to false and re-enables it to true', async () => {
+      const svc = makeSvc();
+      await svc.upsertProfile({ username: 'alice' });
+      // Default from upsertProfile is public.
+      expect((await svc.getMyProfile())?.isPublic).toBe(true);
+
+      await svc.setProfileVisibility(false);
+      expect((await svc.getMyProfile())?.isPublic).toBe(false);
+
+      await svc.setProfileVisibility(true);
+      expect((await svc.getMyProfile())?.isPublic).toBe(true);
+    });
+
+    it('makes a private user invisible in searchUsers', async () => {
+      const svc = makeSvc();
+      // Alice is a separate user, initially discoverable.
+      svc.setCurrentUid('uid-alice-priv');
+      await svc.upsertProfile({ username: 'alicepriv' });
+
+      // From ME's perspective, we should find her.
+      svc.setCurrentUid(ME);
+      expect((await svc.searchUsers('alicepriv')).map((u) => u.uid)).toEqual(['uid-alice-priv']);
+
+      // Alice goes private.
+      svc.setCurrentUid('uid-alice-priv');
+      await svc.setProfileVisibility(false);
+
+      // She's no longer surfaced in search.
+      svc.setCurrentUid(ME);
+      expect(await svc.searchUsers('alicepriv')).toEqual([]);
+    });
+
+    it('throws when not signed in', async () => {
+      const svc = new InMemorySocialService();
+      svc.setCurrentUid(null);
+      await expect(svc.setProfileVisibility(false)).rejects.toThrow(/signed in/i);
+    });
+  });
+
   describe('getUserByUsername', () => {
     it('returns null for an unknown username', async () => {
       const svc = makeSvc();
