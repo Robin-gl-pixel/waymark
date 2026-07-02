@@ -63,12 +63,12 @@ Then deploy: `firebase deploy --only functions`.
 
 **Why this exists:** App Store review guideline 5.1.1(v) requires apps that support Sign In With Apple to invalidate the Apple credential on account deletion. Without these secrets, `deleteAccount` still deletes the Firebase user + data, but skips the Apple revoke step (logged as a warning) — which is likely to bounce off Apple review.
 
-## 4. iOS Shortcut — publish + wire URL
+## 4. Share Extension — no manual publish
 
-- [ ] Open `docs/shortcut-setup.md` and follow the steps to build the Shortcut in Shortcuts.app on iOS
-- [ ] Once tested end-to-end, tap **Share → Copy iCloud Link**
-- [ ] Paste the URL into `src/screens/SettingsScreen.tsx` — replace the `SHORTCUT_ICLOUD_URL = 'https://www.icloud.com/shortcuts/PLACEHOLDER'` constant
-- [ ] Verify the "Installer le Shortcut" button in Settings opens the iCloud installer prompt
+The iOS Share Extension (`expo-share-intent` plugin) ships with the app bundle
+— nothing to publish separately. After `expo prebuild`, verify in Xcode that
+the extension target `Waymark Share` is present and signed with the same team
+as the main app.
 
 ## 5. Privacy policy hosting
 
@@ -93,7 +93,7 @@ Alternative — Vercel: `vercel deploy` from the repo root; the URL comes back o
 - [ ] `npx eas credentials` → set up the iOS signing bundle
 - [ ] `npm run build:ios:prod` → wait ~15 min
 - [ ] `npm run submit:ios` → upload to TestFlight
-- [ ] Add yourself as internal tester → install on device → **actually complete the golden path**: sign in, share a screenshot via the Shortcut, see the pin, tap into detail, delete account
+- [ ] Add yourself as internal tester → install on device → **actually complete the golden path**: sign in, screenshot Insta → Partager → Waymark, see the pin, tap into detail, delete account
 
 ## 7. Assets to produce manually
 
@@ -126,7 +126,7 @@ Just for your reference — these have code but need §1–§6 config to actuall
 - Map with clustering (`react-native-map-clustering`)
 - Lieu detail with debounced userNotes autosave
 - Delete account (Firestore + Storage + Auth + Apple revoke) — needs §3 secrets to fully work
-- iOS Shortcut endpoint (`extractFromShortcut`) — needs §4 URL to be reachable from iOS
+- iOS Share Extension (`expo-share-intent`) — extracts inside the app after the user taps Waymark in the share sheet
 - Manrope font family loaded via `@expo-google-fonts/manrope`
 - Privacy policy draft in `docs/privacy-policy.md` — needs §5 hosting
 - Onboarding, unit tests for the seam, golden extraction eval — track under remaining follow-ups

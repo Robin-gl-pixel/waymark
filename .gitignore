@@ -33,6 +33,8 @@ functions/lib/
 
 # Screenshots examples (kept for dev, not shipped)
 screenshots-examples/*.png
+screenshots-examples/*.jpg
+screenshots-examples/*.jpeg
 !screenshots-examples/.gitkeep
 
 # Dev debug screenshots at repo root (not shipped)

@@ -9,12 +9,13 @@
 
 ## Strategic positioning (why these words)
 
-Two positioning bets, both drawn from `docs/competitive-velocity.md`:
+Three positioning bets, drawn from `docs/competitive-velocity.md` and the /grill-me session (2026-07-02):
 
 1. **Own the word "screenshot"** in the title. Zero direct competitor (Rhyme, Plotline, Stasht, DocentPro, JoySpot, Mapstr, Postcard, Stashed) uses "screenshot" in their App Store title or subtitle today. Stasht *does* extract screenshots but positions as a "saves inbox." Claiming the word first is a defensible search + memory hook — Apple Search Ads on "screenshot map" is currently empty inventory.
-2. **Lead with Instagram Stories and DMs**, not Instagram in general. Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) *can't* extract Stories or DMs because there's no shareable URL. That gap is Waymark' only durable moat while the screenshot-vision shelf life holds (est. 6–12 months).
+2. **Lead with Instagram Stories and DMs**, not Instagram in general. Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) *can't* extract Stories or DMs because there's no shareable URL. That gap is Waymark's only durable moat while the screenshot-vision shelf life holds (est. 6–12 months).
+3. **Social layer as retention, not acquisition.** Follow your friends whose taste you trust and see the places they save — but stay silent about the social layer in the title/subtitle. The download decision is driven by the wedge (screenshot → carte), the app-open habit is driven by "what did Alice add this weekend?" This split keeps the marketing sharp while adding the Mapstr-style network effect that Rhyme/JoySpot lack.
 
-Every field below is aligned to those two bets.
+Every field below is aligned to those three bets. Title/subtitle stay wedge-focused; description reveals the social layer as a benefit.
 
 ---
 
@@ -36,13 +37,15 @@ Every field below is aligned to those two bets.
 
 ### Keywords — 100 char max, comma-separated, no spaces
 ```
-instagram,reels,stories,restaurant,bookmark,save,travel,foodie,pin,ocr,ai,voyage,carte,paris,visite
+instagram,reels,stories,restaurant,bookmark,travel,foodie,pin,ocr,ai,voyage,friends,social,paris
 ```
 99 chars. No repetition of title/subtitle words (Apple already indexes those).
 
 Notes:
 - `instagram` and `reels` are allowed brand references in the keyword field.
-- `voyage`, `carte`, `paris`, `visite` bleed French-search coverage into the US store (Robin's Paris-based network).
+- Added `friends` + `social` to capture "restaurant app friends" style discovery queries (competitive with Beli/Mapstr on those terms).
+- Dropped `save` and `visite` (lower search volume) to make room.
+- `voyage`, `paris` bleed French-search coverage into the US store (Robin's Paris-based network).
 - `ocr` and `ai` capture the "how does it work" curiosity searches.
 - Kept `restaurant` singular to avoid Apple's dedupe against `restaurants`.
 
@@ -54,15 +57,17 @@ Waymark turns every Instagram screenshot — including Stories and DMs — into 
 
 HOW IT WORKS
 1. Screenshot any place recommendation on Instagram: post, reel, or story.
-2. Share to Waymark via the iOS Share Sheet or our Shortcut.
+2. Share to Waymark via the iOS Share Sheet.
 3. Our AI extracts the name, city, address, and category — in about 4 seconds.
-4. The place appears on your private map, with the original screenshot attached and the creator's handle saved.
+4. The place lands on your map, with the original screenshot attached and the creator's handle saved.
 
 WHY WAYMARK, NOT THE OTHERS
 - Works on Stories and DMs. Every other app requires a shareable URL — which Stories and DMs don't have.
-- Built native for iPhone: Sign in with Apple, Apple MapKit, iOS Shortcut for one-tap saves.
-- Private by design. Your map, your places, your data. No feed, no follows, no social pressure.
+- Built native for iPhone: Sign in with Apple, Apple MapKit, iOS Share Extension for one-tap saves.
 - Creator handle saved with every pin, so you remember whose taste led you there.
+
+FOLLOW FRIENDS WHOSE TASTE YOU TRUST
+Waymark isn't a feed of strangers. Follow the 3 or 5 people whose recos you actually rely on. See what they save, save theirs to your own map with one tap — original saver credited. Your profile can be public or private, your call.
 
 PERFECT FOR
 - Foodies collecting restos, bars, and cafés in Paris, Lisbon, Rome, NYC, Tokyo.
@@ -73,31 +78,32 @@ Free to try. Sign in with Apple. Delete every trace of your data from Settings a
 
 Made in Paris.
 ```
-~1490 chars. Structure: hook (1 line) -> pain-relief bullets -> how-it-works numbered -> competitive differentiator -> ICP proof -> trust closer.
+~1780 chars. Structure: hook -> how-it-works -> screenshot wedge -> social benefit -> ICP -> trust closer. NB: over the 1500 target but under the 4000 App Store max — the social section is worth the space, it justifies the download for the "why not Mapstr" objection.
 
 ### What's New (v1.0.0) — ~500 char target
 ```
 Welcome to Waymark 1.0.
 
-The fastest way to turn Instagram screenshots into a personal map.
+The fastest way to turn Instagram screenshots into a personal map — and see what your friends save.
 
 This first release includes:
-- Screenshot upload from your Photos library
-- AI extraction: place name, city, address, category, creator handle
+- Screenshot upload + iOS Share Sheet extension
+- AI extraction: name, city, address, category, creator handle
 - Personal map powered by Apple MapKit
-- iOS Share Sheet + Shortcut integration
-- Sign in with Apple + iCloud sync across your iPhones
-- Full account and data deletion from Settings
+- Follow friends by @username, see their recos in a Network tab
+- Save friends' pins to your map in one tap
+- Public or private profile, your call
+- Sign in with Apple + full account/data deletion
 
 Made in Paris. Feedback welcome at hello@waymark.app.
 ```
-~485 chars.
+~540 chars.
 
 ### Promotional text — 170 char max (editable without review)
 ```
-Instagram Stories, DMs, reels — Waymark extracts places from screenshots no other app can read. Screenshot in, pin on your map out. Free to try.
+Screenshot Instagram Stories, DMs, reels → pin on your map. Follow friends. See what they save. Save theirs, in one tap. Free.
 ```
-143 chars. Change post-launch to feature new capabilities or press mentions without resubmitting.
+127 chars. Change post-launch to feature new capabilities or press mentions without resubmitting.
 
 ---
 
@@ -117,9 +123,9 @@ Instagram Stories, DMs, reels — Waymark extracts places from screenshots no ot
 
 ### Keywords — 100 char max
 ```
-instagram,reels,stories,resto,voyage,carte,pin,ocr,ia,favoris,bookmark,visite,paris,guide,foodie
+instagram,reels,stories,resto,voyage,carte,pin,ocr,ia,amis,social,bookmark,paris,guide,foodie
 ```
-95 chars. `resto` (argot FR) + `ia` (IA en français) + `favoris` = angles de recherche locaux.
+94 chars. Ajouté `amis` + `social`. `resto` (argot FR) + `ia` (IA en français) = angles de recherche locaux. Dropped `favoris` et `visite` (volume plus faible que `amis`/`social`).
 
 ### Description — ~1500 char
 ```
@@ -129,15 +135,17 @@ Waymark transforme chaque screenshot Instagram — Stories et DMs compris — en
 
 COMMENT ÇA MARCHE
 1. Screenshotez une reco de lieu sur Instagram : post, reel ou story.
-2. Partagez vers Waymark depuis le Share Sheet iOS ou notre Raccourci.
+2. Partagez vers Waymark depuis le Share Sheet iOS.
 3. Notre IA extrait le nom, la ville, l'adresse et la catégorie — en 4 secondes.
-4. Le lieu apparaît sur votre carte privée, avec le screenshot d'origine et le pseudo du créateur.
+4. Le lieu apparaît sur votre carte, avec le screenshot d'origine et le pseudo du créateur.
 
 POURQUOI WAYMARK, ET PAS LES AUTRES
 - Fonctionne sur Stories et DMs. Les autres apps exigent une URL partageable — et Stories/DMs n'en ont pas.
-- Pensé iPhone : Sign in with Apple, MapKit natif, Raccourci iOS pour ajouter en un tap.
-- Privé par défaut. Votre carte, vos lieux, vos données. Pas de feed, pas d'abonnés.
+- Pensé iPhone : Sign in with Apple, MapKit natif, Share Sheet iOS pour ajouter en un tap.
 - Le pseudo du créateur est sauvegardé pour se rappeler qui a recommandé quoi.
+
+SUIVEZ LES AMIS DONT VOUS AIMEZ LES RECOS
+Waymark n'est pas un feed d'inconnus. Suivez les 3 ou 5 personnes dont vous suivez vraiment les recos. Voyez ce qu'elles sauvegardent, sauvegardez leurs lieux dans votre carte en un tap — le créateur d'origine est crédité. Profil public ou privé, à votre convenance.
 
 FAIT POUR
 - Les foodies qui collectionnent restos, bars et cafés à Paris, Lisbonne, Rome, Tokyo.
@@ -148,25 +156,26 @@ Gratuit à essayer. Sign in with Apple. Suppression totale du compte et des donn
 
 Fait à Paris.
 ```
-~1495 chars.
+~1830 chars. Structure identique à la VF anglaise : hook -> how-it-works -> wedge screenshot -> bénéfice social -> ICP -> trust closer.
 
 ### What's New (v1.0.0) — ~500 char
 ```
 Bienvenue sur Waymark 1.0.
 
-La façon la plus rapide de transformer vos screenshots Instagram en carte personnelle.
+La façon la plus rapide de transformer vos screenshots Instagram en carte perso — et de voir ce que vos amis sauvegardent.
 
 Cette première version inclut :
-- Import de screenshots depuis la pellicule
-- Extraction IA : nom, ville, adresse, catégorie, pseudo créateur
+- Import screenshot + extension Share Sheet iOS
+- Extraction IA : nom, ville, adresse, catégorie, créateur
 - Carte perso propulsée par Apple MapKit
-- Intégration Share Sheet iOS + Raccourci
-- Sign in with Apple + sync iCloud
-- Suppression complète du compte depuis les Réglages
+- Suivez vos amis par @username, voyez leurs recos dans l'onglet Réseau
+- Sauvegardez leurs lieux dans votre carte en un tap
+- Profil public ou privé, à votre convenance
+- Sign in with Apple + suppression totale du compte
 
 Fait à Paris. Retours : hello@waymark.app.
 ```
-~490 chars.
+~570 chars.
 
 ### Promotional text — 170 char max
 ```
