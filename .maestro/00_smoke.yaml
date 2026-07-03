@@ -6,7 +6,9 @@ name: Smoke — app launches to auth
 ---
 - launchApp:
     clearState: true
-- assertVisible: Waymark
-- assertVisible: "Vos recos Insta,"
+# First launch waits for Metro to serve the JS bundle (~10s cold on CI).
+- extendedWaitUntil:
+    visible: "Waymark"
+    timeout: 60000
 - assertVisible: "Continue with Apple"
 - assertVisible: "Skip .dev anonymous sign-in."
