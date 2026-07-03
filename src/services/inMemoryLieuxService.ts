@@ -1,6 +1,7 @@
 import { Lieu, LieuInput, LieuExtracted, Timestamp } from '../types/Lieu';
 import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
 import { normalizeName } from '../lib/normalize';
+import { hydrateLieuFromRaw } from './hydrateLieu';
 
 /** Great-circle distance in meters — mirror of the FirebaseLieuxService helper. */
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -17,12 +18,16 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
 /**
  * In-memory implementation of {@link LieuxService} used for unit tests.
  *
- * Backed by a per-user `Map<lieuId, Lieu>`, so tests can lock down the seam
- * contract without touching Firebase. Not for production use.
+ * Backed by a per-user `Map<lieuId, RawDoc>` — RawDoc mirrors what Firestore
+ * stores, so the read layer exercises the same `hydrateLieuFromRaw` path as
+ * the Firebase impl. This lets tests inject legacy-shaped docs (via
+ * {@link seedRawDoc}) to verify the `photos[]` read-compat synthesis.
+ *
+ * Not for production use.
  */
 export class InMemoryLieuxService implements LieuxService {
-  /** userId -> lieuId -> Lieu */
-  private readonly store = new Map<string, Map<string, Lieu>>();
+  /** userId -> lieuId -> raw Firestore-shaped doc */
+  private readonly store = new Map<string, Map<string, Record<string, unknown>>>();
 
   /**
    * The "signed-in user" for methods that don't take a userId parameter
@@ -39,10 +44,10 @@ export class InMemoryLieuxService implements LieuxService {
     this.currentUid = uid;
   }
 
-  private bucket(userId: string): Map<string, Lieu> {
+  private bucket(userId: string): Map<string, Record<string, unknown>> {
     let m = this.store.get(userId);
     if (!m) {
-      m = new Map<string, Lieu>();
+      m = new Map<string, Record<string, unknown>>();
       this.store.set(userId, m);
     }
     return m;
@@ -51,6 +56,10 @@ export class InMemoryLieuxService implements LieuxService {
   private nextId(): string {
     this.seq += 1;
     return `mem-${this.seq.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  private randomPhotoId(): string {
+    return Math.random().toString(36).slice(2, 12).padEnd(10, '0');
   }
 
   private now(): Timestamp {
@@ -69,13 +78,17 @@ export class InMemoryLieuxService implements LieuxService {
   }
 
   async getAllLieux(userId: string): Promise<Lieu[]> {
-    const items = Array.from(this.bucket(userId).values());
+    const items = Array.from(this.bucket(userId).entries()).map(([id, data]) =>
+      hydrateLieuFromRaw(id, data),
+    );
     items.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     return items;
   }
 
   async getLieuById(userId: string, lieuId: string): Promise<Lieu | null> {
-    return this.bucket(userId).get(lieuId) ?? null;
+    const raw = this.bucket(userId).get(lieuId);
+    if (!raw) return null;
+    return hydrateLieuFromRaw(lieuId, raw);
   }
 
   async createLieu(userId: string, input: LieuInput): Promise<Lieu> {
@@ -86,10 +99,18 @@ export class InMemoryLieuxService implements LieuxService {
       'image/webp': 'webp',
     };
     const ext = extFromMime[input.screenshotMediaType];
-    const storagePath = `users/${userId}/screenshots/${id}.${ext}`;
     const ts = this.now();
-    const lieu: Lieu = {
-      id,
+    // NEW SCHEMA (parent PRD #34, slice #35): photos[] holds one insta-sourced
+    // entry on create. `sourceInstagram.screenshotStoragePath` is DELIBERATELY
+    // omitted on write — the read-compat path only synthesises photos[] when
+    // it sees a legacy doc (screenshotStoragePath present, photos absent).
+    let photos: Array<{ storagePath: string; source: 'insta'; addedAt: Timestamp }> = [];
+    if (input.screenshotUri && input.screenshotUri.length > 0) {
+      const photoId = this.randomPhotoId();
+      const storagePath = `users/${userId}/photos/${id}/${photoId}.${ext}`;
+      photos = [{ storagePath, source: 'insta', addedAt: ts }];
+    }
+    const raw: Record<string, unknown> = {
       userId,
       name: input.name,
       nameNormalized: normalizeName(input.name),
@@ -102,8 +123,8 @@ export class InMemoryLieuxService implements LieuxService {
       description: input.description,
       sourceInstagram: {
         author: input.sourceAuthor,
-        screenshotStoragePath: storagePath,
       },
+      photos,
       userNotes: input.userNotes,
       // #41 — new pins default to wishlist; visitedAt stays undefined until
       // the user flips the toggle to 'visited'.
@@ -111,8 +132,8 @@ export class InMemoryLieuxService implements LieuxService {
       createdAt: ts,
       updatedAt: ts,
     };
-    this.bucket(userId).set(id, lieu);
-    return lieu;
+    this.bucket(userId).set(id, raw);
+    return hydrateLieuFromRaw(id, raw);
   }
 
   async updateLieu(
@@ -125,7 +146,7 @@ export class InMemoryLieuxService implements LieuxService {
     if (!existing) return;
     // Only allow the whitelisted fields — mirror the seam contract even though callers are typed.
     // NOTE: `visitedAt` is intentionally NOT in this list — it's service-managed
-    // via the status invariant below.
+    // via the status invariant below (#41).
     const allowed: Array<keyof typeof patch> = [
       'name',
       'city',
@@ -134,32 +155,31 @@ export class InMemoryLieuxService implements LieuxService {
       'userNotes',
       'status',
     ];
-    const filtered: Partial<Lieu> = {};
+    const filtered: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in patch && patch[key] !== undefined) {
-        (filtered as Record<string, unknown>)[key] = patch[key];
+        filtered[key] = patch[key];
       }
     }
+    const nameNormalized =
+      filtered.name !== undefined ? normalizeName(filtered.name as string) : existing.nameNormalized;
+    const nextRaw: Record<string, unknown> = {
+      ...existing,
+      ...filtered,
+      nameNormalized,
+      updatedAt: this.now(),
+    };
     // #41 — enforce the visitedAt invariant. Transition INTO 'visited' stamps
     // visitedAt with the current time; any other status transition clears it.
     // Mirror this logic identically in FirebaseLieuxService.
-    let nextVisitedAt: Timestamp | undefined = existing.visitedAt;
     if ('status' in filtered) {
       if (filtered.status === 'visited') {
-        nextVisitedAt = this.now();
+        nextRaw.visitedAt = this.now();
       } else {
-        nextVisitedAt = undefined;
+        delete nextRaw.visitedAt;
       }
     }
-    const updated: Lieu = {
-      ...existing,
-      ...filtered,
-      nameNormalized:
-        filtered.name !== undefined ? normalizeName(filtered.name as string) : existing.nameNormalized,
-      visitedAt: nextVisitedAt,
-      updatedAt: this.now(),
-    };
-    bucket.set(lieuId, updated);
+    bucket.set(lieuId, nextRaw);
   }
 
   async deleteLieu(userId: string, lieuId: string): Promise<void> {
@@ -184,6 +204,7 @@ export class InMemoryLieuxService implements LieuxService {
       lng: 0,
       mapboxId: null,
       addressCanonical: null,
+      photoBoundingBox: null,
     };
   }
 
@@ -201,6 +222,7 @@ export class InMemoryLieuxService implements LieuxService {
       lng: 0,
       mapboxId: null,
       addressCanonical: null,
+      photoBoundingBox: null,
     };
   }
 
@@ -224,10 +246,9 @@ export class InMemoryLieuxService implements LieuxService {
 
     const id = this.nextId();
     const ts = this.now();
-    // Storage path is REFERENCED, not copied — this is the whole point of
+    // Storage paths are REFERENCED, not copied — this is the whole point of
     // the "save from network" flow (no duplicate uploads, no orphan blobs).
-    const lieu: Lieu = {
-      id,
+    const raw: Record<string, unknown> = {
       userId: myUid,
       name: sourceLieu.name,
       nameNormalized: sourceLieu.nameNormalized,
@@ -240,8 +261,18 @@ export class InMemoryLieuxService implements LieuxService {
       description: sourceLieu.description,
       sourceInstagram: {
         author: sourceLieu.sourceInstagram.author,
-        screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath,
+        // Preserve the legacy pointer only if the source still carries it
+        // (pre-migration source docs) — matches the Firebase impl so a
+        // resave during the transition doesn't lose the read-compat handle.
+        ...(sourceLieu.sourceInstagram.screenshotStoragePath
+          ? { screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath }
+          : {}),
       },
+      photos: sourceLieu.photos.map((p) => ({
+        storagePath: p.storagePath,
+        source: p.source,
+        addedAt: p.addedAt,
+      })),
       userNotes: null,
       savedFromUserId: credit.uid,
       savedFromUsername: credit.username,
@@ -252,8 +283,20 @@ export class InMemoryLieuxService implements LieuxService {
       createdAt: ts,
       updatedAt: ts,
     };
-    this.bucket(myUid).set(id, lieu);
-    return lieu;
+    this.bucket(myUid).set(id, raw);
+    return hydrateLieuFromRaw(id, raw);
+  }
+
+  /**
+   * Test helper — inject a raw Firestore-shaped doc bypassing `createLieu`.
+   *
+   * Used by the read-compat suite to simulate a pre-migration doc that only
+   * carries `sourceInstagram.screenshotStoragePath` (no `photos[]`). The
+   * hydrator's synthesis path is verified by reading the pin back through
+   * the normal seam methods.
+   */
+  seedRawDoc(userId: string, lieuId: string, raw: Record<string, unknown>): void {
+    this.bucket(userId).set(lieuId, raw);
   }
 
   /** Test helper: wipe all state. */

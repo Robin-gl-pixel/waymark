@@ -67,11 +67,15 @@ export default function LieuDetailScreen() {
       setLieu(fetched);
       setNotes(fetched?.userNotes ?? '');
       if (fetched) {
-        // Pins from Insta URL shares (no local screenshot) have an empty
-        // storagePath — skip the signed-URL resolve to avoid a noisy 404.
-        if (fetched.sourceInstagram.screenshotStoragePath) {
+        // Hero comes from `photos[0]` (parent PRD #34 — the ordered gallery
+        // model). Pins with no photos (Insta URL shares that never uploaded
+        // an image, curated pins, or pre-migration docs where the read-compat
+        // synthesis found no legacy path) fall back to the category-emoji
+        // placeholder — same behaviour as before the migration.
+        const heroPath = fetched.photos[0]?.storagePath;
+        if (heroPath) {
           try {
-            setImgUri(await svc.getScreenshotUrl(fetched.sourceInstagram.screenshotStoragePath));
+            setImgUri(await svc.getScreenshotUrl(heroPath));
           } catch {
             setImgUri(null);
           }
