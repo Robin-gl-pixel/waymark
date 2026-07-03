@@ -70,14 +70,21 @@ export class FirebaseLieuxService implements LieuxService {
       'image/webp': 'webp',
     };
     const ext = extFromMime[input.screenshotMediaType];
-    const storagePath = `users/${userId}/screenshots/${lieuId}.${ext}`;
-    // Firebase JS SDK v9+ on RN Hermes throws "Creating blobs from ArrayBuffer…"
-    // for both uploadBytes(Uint8Array) and uploadString(base64) — both wrap in Blob internally.
-    // fetch(uri).blob() returns a native RN Blob (BlobModule) that XHR can upload correctly.
-    const blob = await fetch(input.screenshotUri).then((r) => r.blob());
-    await uploadBytes(ref(storage, storagePath), blob, {
-      contentType: input.screenshotMediaType,
-    });
+    // URL-only shares from Insta (extractFromInstagramUrl) don't come with a
+    // local file — screenshotUri is empty. In that case we skip the Storage
+    // upload and leave storagePath empty ; LieuDetail / feed rows must handle
+    // the absence gracefully (no <Image> when path is falsy).
+    let storagePath = '';
+    if (input.screenshotUri && input.screenshotUri.length > 0) {
+      storagePath = `users/${userId}/screenshots/${lieuId}.${ext}`;
+      // Firebase JS SDK v9+ on RN Hermes throws "Creating blobs from ArrayBuffer…"
+      // for both uploadBytes(Uint8Array) and uploadString(base64) — both wrap in Blob internally.
+      // fetch(uri).blob() returns a native RN Blob (BlobModule) that XHR can upload correctly.
+      const blob = await fetch(input.screenshotUri).then((r) => r.blob());
+      await uploadBytes(ref(storage, storagePath), blob, {
+        contentType: input.screenshotMediaType,
+      });
+    }
 
     // 2. Write Firestore doc.
     const now = serverTimestamp();

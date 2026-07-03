@@ -67,9 +67,15 @@ export default function LieuDetailScreen() {
       setLieu(fetched);
       setNotes(fetched?.userNotes ?? '');
       if (fetched) {
-        try {
-          setImgUri(await svc.getScreenshotUrl(fetched.sourceInstagram.screenshotStoragePath));
-        } catch {
+        // Pins from Insta URL shares (no local screenshot) have an empty
+        // storagePath — skip the signed-URL resolve to avoid a noisy 404.
+        if (fetched.sourceInstagram.screenshotStoragePath) {
+          try {
+            setImgUri(await svc.getScreenshotUrl(fetched.sourceInstagram.screenshotStoragePath));
+          } catch {
+            setImgUri(null);
+          }
+        } else {
           setImgUri(null);
         }
         // Resolve the owner profile in two cases:
