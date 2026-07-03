@@ -10,5 +10,5 @@ name: Smoke — app launches to auth
 - extendedWaitUntil:
     visible: "Waymark"
     timeout: 60000
-- assertVisible: "Continue with Apple"
+# "Continue with Apple" only renders when the sim has an iCloud session — CI has none.
 - assertVisible: "Skip .dev anonymous sign-in."
