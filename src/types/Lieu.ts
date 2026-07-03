@@ -9,6 +9,31 @@ export interface Timestamp {
 }
 
 /**
+ * Where a `LieuPhoto` came from.
+ *
+ * - `insta`: derived from the Instagram screenshot / OG image / video keyframe
+ *   the user shared into the app (the pin's origin photo).
+ * - `user`: a photo the user attached themselves post-hoc from camera roll /
+ *   camera via the gallery edit UI (parent PRD #34). Not written by this
+ *   slice, but the discriminator is defined here so downstream slices can
+ *   append without touching the type.
+ */
+export type LieuPhotoSource = 'insta' | 'user';
+
+/**
+ * One image attached to a `Lieu`. Stored as an entry in `Lieu.photos[]`.
+ *
+ * `storagePath` points at Firebase Storage: `users/{uid}/photos/{lieuId}/{photoId}.jpg`
+ * for pins created after the photos[] migration; for re-saved pins it may
+ * point at another user's path (reference copy — see `resaveFromNetwork`).
+ */
+export interface LieuPhoto {
+  storagePath: string;
+  source: LieuPhotoSource;
+  addedAt: Timestamp;
+}
+
+/**
  * A persisted place in Waymark. Lives at `/users/{uid}/lieux/{lieuId}`.
  */
 export interface Lieu {
@@ -32,8 +57,26 @@ export interface Lieu {
   description: string | null;
   sourceInstagram: {
     author: string | null;
-    screenshotStoragePath: string;
+    /**
+     * @deprecated Pre-migration single-screenshot pointer. New pins written
+     * after the `photos[]` migration (parent #34 / slice #35) do NOT set this
+     * field — the seam's read layer synthesises a single-element `photos[]`
+     * from it when reading legacy docs. Kept in the type only to preserve
+     * the read-compat path; never write on new pins.
+     */
+    screenshotStoragePath?: string;
   };
+  /**
+   * Ordered list of images attached to the pin. `photos[0]` is the canonical
+   * hero (used by `LieuDetailScreen`, `ListScreen`, map callouts). Capped at
+   * 10 entries at the service layer (parent PRD #34).
+   *
+   * Pre-migration docs may not have this field on disk — the seam's read
+   * layer synthesises a single-element array from
+   * `sourceInstagram.screenshotStoragePath` on read, so consumers always see
+   * a populated `photos` on a hydrated `Lieu`.
+   */
+  photos: LieuPhoto[];
   userNotes: string | null;
   /**
    * Attribution — set when the pin was re-saved from another user's collection
@@ -46,6 +89,19 @@ export interface Lieu {
   savedFromUsername?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+/**
+ * Normalized (0..1) bounding box of the actual venue/food/scene photo region
+ * inside an Instagram screenshot, excluding IG UI chrome. Used by the client
+ * to crop the screenshot before uploading so the hero on the resulting pin is
+ * just the food/venue photo, not the whole IG UI. See #36.
+ */
+export interface PhotoBoundingBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 /**
@@ -65,6 +121,13 @@ export interface LieuExtracted {
   lng: number | null;
   mapboxId: string | null;
   addressCanonical: string | null;
+  /**
+   * Normalized (0..1) bbox of the actual photo region in the screenshot, or
+   * `null` if Claude couldn't identify a clean region or the region failed
+   * server-side sanity checks (aspect ratio ∉ [0.4, 2.5] or area ∉ [25%, 90%]).
+   * When null, the client uploads the screenshot uncropped.
+   */
+  photoBoundingBox: PhotoBoundingBox | null;
 }
 
 /**

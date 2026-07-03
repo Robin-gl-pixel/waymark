@@ -16,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
+import { applyPhotoCrop } from '../lib/screenshotCrop';
 import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
@@ -80,6 +81,18 @@ export default function UploadScreen() {
       const base64 = manipulated.base64!;
       const extracted = await getLieuxService().extractFromScreenshot(base64, 'image/jpeg');
 
+      // If the vision model identified a clean photo region (Instagram chrome
+      // excluded), crop the screenshot to that region before upload so the pin
+      // hero is just the food/venue photo. Null bbox → upload as-is (URL and
+      // video-keyframe paths hit their own ingestion screen and never reach
+      // this code, but a null here from a screenshot with no cleanly-detected
+      // chrome should also fall back gracefully).
+      const cropped = await applyPhotoCrop(
+        { uri: manipulated.uri, width: manipulated.width, height: manipulated.height },
+        extracted.photoBoundingBox,
+        { manipulateAsync: ImageManipulator.manipulateAsync, SaveFormatJPEG: ImageManipulator.SaveFormat.JPEG },
+      );
+
       // Duplicate check: if the extracted coords land within DUPLICATE_DISTANCE_M
       // of an existing lieu, don't create a second one — send the user to the
       // existing pin instead. Skips when the extraction has no coords (Mapbox
@@ -116,7 +129,7 @@ export default function UploadScreen() {
 
       nav.navigate('ExtractConfirm', {
         extracted,
-        screenshotUri: manipulated.uri,
+        screenshotUri: cropped.uri,
         screenshotMediaType: 'image/jpeg',
       });
     } catch (err) {

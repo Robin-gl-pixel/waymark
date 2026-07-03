@@ -1,100 +1,83 @@
+import type { LieuCategory } from '../types/Lieu';
+
 /**
- * Waymark v8 design tokens — "L'atlas numéroté" direction.
+ * Waymark visual tokens — v8 "atlas numéroté" refonte (issue #45).
  *
- * Paper-white ground (`#FBFAF6`) + confident ink outlines + 7 punchy category
- * colors. Typography is a three-role system: heavy grotesque black uppercase
- * for display, italic serif for tastemaker moments, monospace for numbers /
- * addresses / meta.
+ * Ground is warm off-white paper, ink is near-black, and the seven category
+ * tokens are the punchy per-Lieu accents that carry the map's identity.
  *
- * The visual spec of record is `docs/design/waymark-v8.html`. Any token
- * decision that isn't obvious from this file should be traced back there.
- *
- * NOTE — this file is the sibling artefact of design refonte slice #45
- * (Foundation). Slice #50 (final sweep) also lands the same shape to keep
- * every screen buildable during the wave-2 rollout; the two PRs will merge-
- * conflict on this file and the resolution takes #45's version (which owns
- * additional shared components under `src/components/` — StatusToggle,
- * BadgeText, CategoryPin, ProfileLocked).
+ * The legacy semantic aliases (`bg` / `text` / `accent` / `border` etc.) are
+ * repointed at the new palette so every screen still compiles unchanged —
+ * wave 2 will migrate screens one at a time. Do NOT reintroduce the old
+ * near-black / coral tokens here.
  */
-
-/** LieuCategory keys mirrored here so `categoryColor()` stays exhaustive. */
-export type LieuCategoryKey =
-  | 'resto'
-  | 'bar'
-  | 'cafe'
-  | 'activite'
-  | 'musee'
-  | 'hotel'
-  | 'autre';
-
 export const colors = {
-  // Ground + type
-  paper: '#FBFAF6', // warm off-white — every screen background
-  ink: '#14100A', // near-black — primary type, outlines, tab bar
-  graphite: '#4A4132', // warm dark taupe — secondary text, meta labels
-  hair: 'rgba(20, 16, 10, 0.13)', // hairline dividers
+  // Base — the entire "paper" ground system
+  paper: '#FBFAF6',
+  ink: '#14100A',
+  graphite: '#4A4132',
+  hair: 'rgba(20, 16, 10, 0.13)',
 
-  // 7-category punchy palette (matches CSS custom properties in v8 mockup)
+  // Category system — one saturated hue per LieuCategory value.
+  // Resolve through `categoryColor()` — never hardcode a hex outside this file.
   catResto: '#E5253C', // vermillon
-  catBar: '#98C43B', // chartreuse
+  catBar: '#98C43B', // chartreuse électrique
   catCafe: '#FF8A63', // corail
-  catActivite: '#002FA7', // Klein blue
-  catMusee: '#F5A623', // safran
+  catActivite: '#002FA7', // Klein
+  catMusee: '#F5A623', // safran vif
   catHotel: '#B93E9C', // magenta
   catAutre: '#4E5763', // ardoise
 
-  // Semantic aliases — keep the rest of the app compiling while wave 2 slices
-  // migrate individual screens. `accent` = the primary CTA (cerise/vermillon).
-  bg: '#FBFAF6', // paper
-  bgElevated: '#F3F0EA', // paper-2 (very slight tint)
-  text: '#14100A', // ink
-  textSecondary: '#4A4132', // graphite
-  textTertiary: 'rgba(20, 16, 10, 0.55)', // dimmer graphite for hint / disabled
-  border: 'rgba(20, 16, 10, 0.13)', // hair
-  accent: '#E5253C', // catResto — primary CTA color
-  accentDim: '#B31D30', // catResto pressed
-  error: '#B31D30', // vermillon foncé — reserved for destructive actions
+  // Semantic aliases
+  bg: '#FBFAF6', // = paper
+  text: '#14100A', // = ink
+  textSecondary: '#4A4132', // = graphite
+  accent: '#E5253C', // = catResto — cerise/vermillon = primary CTA
+
+  // Legacy compat aliases — screens still consume these until wave 2 migrates
+  // them off. Remove in a follow-up slice once every consumer is gone.
+  bgElevated: '#F3EFE4',
+  accentDim: '#B91E30',
+  textTertiary: 'rgba(20, 16, 10, 0.5)',
+  border: 'rgba(20, 16, 10, 0.13)', // = hair
+  error: '#E5253C',
 } as const;
 
 /**
- * Map a LieuCategory value to its color token. Consumers must go through here
- * rather than picking a hex — a palette tweak then propagates in one PR.
+ * Category → color lookup. Consumers MUST resolve through this helper so a
+ * palette shuffle stays a one-file change. Never inline the hex.
  */
-export function categoryColor(category: LieuCategoryKey | string | null | undefined): string {
-  switch (category) {
-    case 'resto':
-      return colors.catResto;
-    case 'bar':
-      return colors.catBar;
-    case 'cafe':
-      return colors.catCafe;
-    case 'activite':
-      return colors.catActivite;
-    case 'musee':
-      return colors.catMusee;
-    case 'hotel':
-      return colors.catHotel;
-    case 'autre':
-    default:
-      return colors.catAutre;
-  }
+const CATEGORY_COLOR: Record<LieuCategory, string> = {
+  resto: colors.catResto,
+  bar: colors.catBar,
+  café: colors.catCafe,
+  activité: colors.catActivite,
+  musée: colors.catMusee,
+  hôtel: colors.catHotel,
+  autre: colors.catAutre,
+};
+
+export function categoryColor(category: LieuCategory): string {
+  return CATEGORY_COLOR[category];
 }
 
 /**
- * Deterministic avatar palette — reshuffled around the v8 direction. Consumed
- * by `src/utils/avatar.ts`; each username hashes to exactly one index. Order
- * matters — do not reshuffle without regenerating any cached palette choices.
- * Adding new colors at the END is safe (nobody's index shifts down).
+ * Deterministic avatar palette — 8 muted-vivid hues that stay distinct at a
+ * glance in a scrolling list. Consumed by `src/utils/avatar.ts`; each username
+ * hashes to exactly one index.
+ *
+ * Order matters — do not reshuffle without regenerating any cached palette
+ * choices. Adding new colors at the END is safe (nobody's index shifts down).
  */
 export const avatarPalette = [
-  '#E5253C', // catResto (vermillon)
-  '#F5A623', // catMusee (safran)
-  '#98C43B', // catBar (chartreuse)
+  '#E5253C', // vermillon (Waymark accent)
+  '#F5A462', // amber
+  '#E8C547', // gold
+  '#7FB77E', // sage
   '#4FB8B6', // teal
-  '#002FA7', // catActivite (Klein)
-  '#B93E9C', // catHotel (magenta)
-  '#FF8A63', // catCafe (corail)
-  '#4E5763', // catAutre (ardoise)
+  '#5B8DEF', // sky
+  '#9C6EEE', // lavender
+  '#E86AA8', // rose
 ] as const;
 
 export const spacing = {
@@ -109,37 +92,44 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 4,
-  md: 8,
-  lg: 12,
+  sm: 8,
+  md: 12,
+  lg: 16,
   pill: 9999,
 } as const;
 
 /**
- * Three-role type system.
- *
- * - `display` — heavy grotesque black uppercase (Balenciaga/MSCHF). System
- *   fallback while we defer the custom-font decision to a follow-up.
- * - `bodySerifItalic` — italic serif for tastemaker moments (venue quotes,
- *   friend notes, profile bios). Georgia italic is a solid iOS fallback.
- * - `mono` — monospaced for numbers, addresses, dates, meta. `ui-monospace`
- *   maps to SF Mono on iOS at no cost.
+ * Three-role type system — grotesque display, italic serif tastemaker,
+ * monospaced meta. System fallbacks for now (Archivo Black / EB Garamond
+ * Italic / JetBrains Mono are the intended real faces once loaded via
+ * expo-font in a later slice). Manrope is gone.
  */
 export const fonts = {
-  display: 'System', // paired with fontWeight: '900' + textTransform: 'uppercase'
-  bodySerifItalic: 'Georgia', // paired with fontStyle: 'italic'
-  mono: 'Menlo', // ui-monospace equivalent that RN reliably resolves on iOS
+  display: 'System',
+  bodySerifItalic: 'Georgia',
+  mono: 'Courier',
+
+  // Legacy aliases — every screen still imports these until wave 2 replaces
+  // the type roles. All repointed to System so no Manrope reference remains.
+  regular: 'System',
+  medium: 'System',
+  semibold: 'System',
+  bold: 'System',
+  extrabold: 'System',
 } as const;
 
 export const type = {
+  // Legacy roles — retained so existing screens compile and render on paper
+  // ground. Wave 2 replaces these consumers with the three-role system below.
   display: {
+    fontSize: 48,
+    lineHeight: 52,
+    letterSpacing: -0.96,
     fontFamily: fonts.display,
-    fontSize: 40,
-    lineHeight: 42,
-    letterSpacing: -1.6,
     fontWeight: '900' as const,
     textTransform: 'uppercase' as const,
   },
+  // Larger display role used by wave-2 auth/upload/extract screens (slice #50).
   displayLg: {
     fontFamily: fonts.display,
     fontSize: 56,
@@ -148,39 +138,29 @@ export const type = {
     fontWeight: '900' as const,
     textTransform: 'uppercase' as const,
   },
-  h1: {
+  h1: { fontSize: 32, lineHeight: 38, fontFamily: fonts.display, fontWeight: '900' as const },
+  h2: { fontSize: 24, lineHeight: 30, fontFamily: fonts.display, fontWeight: '900' as const },
+  h3: { fontSize: 18, lineHeight: 24, fontFamily: fonts.display, fontWeight: '700' as const },
+  body: { fontSize: 16, lineHeight: 22, fontFamily: fonts.display, fontWeight: '400' as const },
+  bodyBold: {
     fontFamily: fonts.display,
-    fontSize: 30,
-    lineHeight: 32,
-    letterSpacing: -1.05,
-    fontWeight: '900' as const,
-    textTransform: 'uppercase' as const,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700' as const,
   },
-  h2: {
-    fontFamily: fonts.display,
-    fontSize: 22,
+  caption: { fontSize: 13, lineHeight: 18, fontFamily: fonts.display, fontWeight: '500' as const },
+  micro: { fontSize: 11, lineHeight: 14, fontFamily: fonts.display, fontWeight: '500' as const },
+
+  // v8 three-role system — every new component (BadgeText, CategoryPin,
+  // StatusToggle, ProfileLocked) consumes these.
+  serifItalic: {
+    fontFamily: fonts.bodySerifItalic,
+    fontStyle: 'italic' as const,
+    fontSize: 18,
     lineHeight: 24,
-    letterSpacing: -0.66,
-    fontWeight: '900' as const,
-    textTransform: 'uppercase' as const,
   },
-  h3: {
-    fontFamily: fonts.display,
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: -0.32,
-    fontWeight: '800' as const,
-  },
-  sectionEyebrow: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    lineHeight: 14,
-    letterSpacing: 2.2,
-    textTransform: 'uppercase' as const,
-    fontWeight: '600' as const,
-  },
-  body: { fontFamily: fonts.display, fontSize: 15, lineHeight: 22, fontWeight: '400' as const },
-  bodyBold: { fontFamily: fonts.display, fontSize: 15, lineHeight: 22, fontWeight: '700' as const },
+  // Slightly smaller serif italic used by wave-2 screens for tastemaker copy
+  // (slice #50). Kept alongside `serifItalic` for typographic contrast.
   serif: {
     fontFamily: fonts.bodySerifItalic,
     fontStyle: 'italic' as const,
@@ -189,11 +169,12 @@ export const type = {
   },
   mono: {
     fontFamily: fonts.mono,
-    fontSize: 13,
-    lineHeight: 18,
-    letterSpacing: 1.5,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 2.4, // ~0.2em at 12px — archival log feel
     textTransform: 'uppercase' as const,
   },
+  // Compact mono for eyebrows / meta labels ("Nº 01", timestamps).
   monoSm: {
     fontFamily: fonts.mono,
     fontSize: 11,
@@ -201,13 +182,14 @@ export const type = {
     letterSpacing: 1.5,
     textTransform: 'uppercase' as const,
   },
-  caption: { fontFamily: fonts.mono, fontSize: 12, lineHeight: 16, letterSpacing: 0.6 },
-  micro: {
+  // Mono uppercase eyebrow used by the section headers in the wave-2 screens.
+  sectionEyebrow: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 14,
-    letterSpacing: 1.2,
+    letterSpacing: 2.2,
     textTransform: 'uppercase' as const,
+    fontWeight: '600' as const,
   },
 } as const;
 
