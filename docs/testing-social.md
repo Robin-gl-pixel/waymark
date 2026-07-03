@@ -77,28 +77,44 @@ Two test accounts are helpful — either:
 
 ## Local dev setup for testing
 
-### Env: use the emulator by default in dev
+### Quickstart — run the whole stack locally
 
-Once the emulator config is in `firebase.json`, point the app at it in dev:
-
-```typescript
-// src/auth/firebase.ts (add near the top of file, after firebase init)
-if (__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR === '1') {
-  connectFirestoreEmulator(db, 'localhost', 8080);
-  connectAuthEmulator(auth, 'http://localhost:9099');
-  connectFunctionsEmulator(functions, 'localhost', 5001);
-}
-```
-
-Then run with:
+Three terminals, in order:
 
 ```bash
-EXPO_PUBLIC_USE_EMULATOR=1 npm start
+# 1) Start the Firebase Emulator Suite (auth + firestore + functions + storage)
+npm run emulator:start
+
+# 2) Seed 10 fake users + ~30 fake pins + follow edges into the emulator
+npm run emulator:seed
+
+# 3) Start Expo pointing the app at the emulator
+npm run dev:emulator
 ```
 
-### Seed test data quickly
+Emulator UI: http://localhost:4000. Log in with any seeded email
+(`alice@waymark.test`, `bob@waymark.test`, …) — set a password from the
+emulator UI's Auth tab if the Apple/anonymous flow isn't available in your dev
+build.
 
-The `scripts/seed-curated-accounts.ts` script also works against the emulator when `FIRESTORE_EMULATOR_HOST=localhost:8080 npx tsx scripts/seed-curated-accounts.ts` is used.
+### How the emulator wiring works
+
+- `firebase.json` declares ports for auth (9099), firestore (8080), functions
+  (5001), storage (9199), and the UI (4000).
+- `src/auth/firebase.ts` calls `connectAuthEmulator` / `connectFirestoreEmulator`
+  / `connectStorageEmulator` **only** when `__DEV__` and
+  `EXPO_PUBLIC_USE_EMULATOR=1`. Any other build talks to prod as before.
+- `scripts/seed-emulator.ts` uses `firebase-admin` with
+  `FIRESTORE_EMULATOR_HOST` / `FIREBASE_AUTH_EMULATOR_HOST` set. It refuses to
+  run if those env vars don't point at localhost, so it cannot accidentally
+  seed prod. Idempotent — safe to re-run.
+
+### Seed real curated accounts (prod, not emulator)
+
+`scripts/seed-curated-accounts.ts` still writes to prod — use it once before
+launch. It also works against the emulator if you export
+`FIRESTORE_EMULATOR_HOST=localhost:8080` in the same shell, but prefer
+`npm run emulator:seed` for local dev (richer fixture set).
 
 ---
 

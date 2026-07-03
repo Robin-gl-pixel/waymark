@@ -13,7 +13,10 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "android": "expo run:android",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "emulator:start": "firebase emulators:start --only auth,firestore,functions,storage",
+    "emulator:seed": "FIRESTORE_EMULATOR_HOST=localhost:8080 FIREBASE_AUTH_EMULATOR_HOST=localhost:9099 tsx scripts/seed-emulator.ts",
+    "dev:emulator": "EXPO_PUBLIC_USE_EMULATOR=1 expo start"
   },
   "dependencies": {
     "@expo-google-fonts/manrope": "^0.4.2",

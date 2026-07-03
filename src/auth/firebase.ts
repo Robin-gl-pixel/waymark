@@ -3,9 +3,9 @@ import { initializeApp } from 'firebase/app';
 // from the published types (firebase-js-sdk#7615). Ignore the resolution
 // error — the symbol is real and works.
 // @ts-expect-error — see comment above
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeAuth, getReactNativePersistence, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -30,3 +30,15 @@ export const auth = initializeAuth(app, {
 });
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Local dev only: point Auth / Firestore / Storage at the Firebase Emulator
+// Suite when `EXPO_PUBLIC_USE_EMULATOR=1` is set (see `npm run dev:emulator`).
+// Without the env var, the app talks to prod as before — zero impact on
+// non-dev builds or teammates who haven't opted in.
+if (__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR === '1') {
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, 'localhost', 8080);
+  connectStorageEmulator(storage, 'localhost', 9199);
+  // eslint-disable-next-line no-console
+  console.info('[firebase] connected to LOCAL emulators (auth:9099, firestore:8080, storage:9199)');
+}
