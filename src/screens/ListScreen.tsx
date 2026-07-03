@@ -103,12 +103,23 @@ export default function ListScreen() {
 function LieuRow({ lieu, onPress }: { lieu: Lieu; onPress: () => void }) {
   const [thumbUri, setThumbUri] = useState<string | null>(null);
 
+  // Hero = `photos[0].storagePath` (#35). If the gallery is empty (user
+  // deleted every photo via #38), fall back to `sourceInstagram.screenshotStoragePath`
+  // for pre-migration docs written before the field existed — otherwise leave
+  // the thumb null so the category-emoji placeholder renders.
+  const heroPath =
+    lieu.photos?.[0]?.storagePath || lieu.sourceInstagram.screenshotStoragePath || '';
+
   useEffect(() => {
+    if (!heroPath) {
+      setThumbUri(null);
+      return;
+    }
     getLieuxService()
-      .getScreenshotUrl(lieu.sourceInstagram.screenshotStoragePath)
+      .getScreenshotUrl(heroPath)
       .then(setThumbUri)
       .catch(() => setThumbUri(null));
-  }, [lieu.sourceInstagram.screenshotStoragePath]);
+  }, [heroPath]);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>

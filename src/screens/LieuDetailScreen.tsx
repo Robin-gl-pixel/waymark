@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,27 @@ import {
   Linking,
   TextInput,
   Alert,
+  Dimensions,
+  Modal,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../auth/AuthContext';
-import { getLieuxService, LieuDuplicateError } from '../services/lieuxService';
+import {
+  getLieuxService,
+  LieuDuplicateError,
+  MAX_PHOTOS_PER_LIEU,
+  PhotoCapReachedError,
+} from '../services/lieuxService';
 import { getSocialService } from '../services/socialService';
 import { colors, spacing, type, radius } from '../theme';
-import type { Lieu, LieuCategory } from '../types/Lieu';
+import type { Lieu, LieuCategory, LieuPhoto } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
 
@@ -35,6 +47,39 @@ const CATEGORY_LABEL: Record<LieuCategory, string> = {
   autre: '📍 Autre',
 };
 
+// Android needs this opt-in flag before LayoutAnimation.configureNext works.
+// iOS enables it by default. Idempotent — safe to call multiple times.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+/**
+ * Resolve every `photos[]` entry to a signed URL, in order. Missing / broken
+ * blobs are dropped from the map — callers can render a placeholder for the
+ * missing slot. Returned map is keyed by `storagePath`.
+ */
+async function resolvePhotoUrls(
+  photos: LieuPhoto[],
+): Promise<Record<string, string>> {
+  const svc = getLieuxService();
+  const entries = await Promise.all(
+    photos.map(async (p) => {
+      if (!p.storagePath) return null;
+      try {
+        const url = await svc.getScreenshotUrl(p.storagePath);
+        return [p.storagePath, url] as const;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const out: Record<string, string> = {};
+  for (const e of entries) {
+    if (e) out[e[0]] = e[1];
+  }
+  return out;
+}
+
 export default function LieuDetailScreen() {
   const nav = useNavigation<Nav>();
   const { lieuId, ownerUid } = useRoute<Rt>().params;
@@ -45,7 +90,7 @@ export default function LieuDetailScreen() {
   const readUid = ownerUid ?? user?.uid ?? null;
   const isMine = readUid !== null && user?.uid === readUid;
   const [lieu, setLieu] = useState<Lieu | null>(null);
-  const [imgUri, setImgUri] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,6 +103,11 @@ export default function LieuDetailScreen() {
   const [resaving, setResaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSave = useRef<string | null>(null);
+  // Gallery state — edit mode toggles the reorder/delete affordances; lightbox
+  // index null means the lightbox is closed.
+  const [editMode, setEditMode] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const load = useCallback(async () => {
     if (!readUid) return;
@@ -67,17 +117,11 @@ export default function LieuDetailScreen() {
       setLieu(fetched);
       setNotes(fetched?.userNotes ?? '');
       if (fetched) {
-        // Pins from Insta URL shares (no local screenshot) have an empty
-        // storagePath — skip the signed-URL resolve to avoid a noisy 404.
-        if (fetched.sourceInstagram.screenshotStoragePath) {
-          try {
-            setImgUri(await svc.getScreenshotUrl(fetched.sourceInstagram.screenshotStoragePath));
-          } catch {
-            setImgUri(null);
-          }
-        } else {
-          setImgUri(null);
-        }
+        // Resolve every gallery photo's signed URL — the readPhotos synthesis
+        // in FirebaseLieuxService guarantees `photos[]` is populated even for
+        // pre-migration docs, so we don't need a fallback to
+        // `sourceInstagram.screenshotStoragePath` here.
+        setPhotoUrls(await resolvePhotoUrls(fetched.photos));
         // Resolve the owner profile in two cases:
         //   1. Viewing someone else's pin → we need the owner's username to
         //      pass as `credit` when the user taps "Sauver dans ma carte".
@@ -235,6 +279,173 @@ export default function LieuDetailScreen() {
     );
   };
 
+  // Optimistically write `nextPhotos` into local state, then commit. On error,
+  // reload from the server to get the source-of-truth ordering back.
+  const applyPhotoMutation = useCallback(
+    async (nextPhotos: LieuPhoto[], commit: () => Promise<void>) => {
+      if (!lieu) return;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setLieu({ ...lieu, photos: nextPhotos });
+      try {
+        await commit();
+      } catch (err) {
+        console.error('[LieuDetail] photo mutation failed', err);
+        Alert.alert('Erreur', "L'opération n'a pas pu être enregistrée.");
+        // Reload to reconcile — the local optimistic state may have drifted.
+        load();
+      }
+    },
+    [lieu, load],
+  );
+
+  const onDeletePhoto = (photo: LieuPhoto) => {
+    if (!lieu || !user) return;
+    Alert.alert(
+      'Supprimer cette photo ?',
+      lieu.photos.length === 1
+        ? 'Il ne restera aucune photo — un emoji sera affiché à la place.'
+        : 'Cette photo sera retirée de la galerie.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            const nextPhotos = lieu.photos.filter(
+              (p) => p.storagePath !== photo.storagePath,
+            );
+            await applyPhotoMutation(nextPhotos, () =>
+              getLieuxService().removePhoto(user.uid, lieu.id, photo.storagePath),
+            );
+          },
+        },
+      ],
+    );
+  };
+
+  // Reorder helper — moves the photo at `fromIndex` to `toIndex` and persists.
+  // We split "drag reorder" into two discrete affordances (see acceptance
+  // criteria in #38): a left arrow (toward index 0) and a right arrow. A
+  // photo can be promoted to hero by tapping the arrow that ends at slot 0.
+  // This preserves the user outcome ("any position can become hero") without
+  // requiring react-native-gesture-handler + reanimated (both would be new
+  // dependencies — CLAUDE.md discourages new deps without a real reason).
+  const onMovePhoto = useCallback(
+    async (fromIndex: number, direction: -1 | 1) => {
+      if (!lieu || !user) return;
+      const toIndex = fromIndex + direction;
+      if (toIndex < 0 || toIndex >= lieu.photos.length) return;
+      const nextPhotos = [...lieu.photos];
+      const [moved] = nextPhotos.splice(fromIndex, 1);
+      nextPhotos.splice(toIndex, 0, moved);
+      await applyPhotoMutation(nextPhotos, () =>
+        getLieuxService().reorderPhotos(
+          user.uid,
+          lieu.id,
+          nextPhotos.map((p) => p.storagePath),
+        ),
+      );
+    },
+    [lieu, user, applyPhotoMutation],
+  );
+
+  const onAddPhoto = () => {
+    if (!lieu || !user) return;
+    if (lieu.photos.length >= MAX_PHOTOS_PER_LIEU) {
+      Alert.alert(
+        'Galerie pleine',
+        `${MAX_PHOTOS_PER_LIEU} photos max par lieu. Supprime-en une pour en ajouter une nouvelle.`,
+      );
+      return;
+    }
+    // Ask user: camera or library. Small ActionSheet-style Alert.
+    Alert.alert('Ajouter une photo', undefined, [
+      {
+        text: 'Prendre une photo',
+        onPress: () => launchPickerAndAdd('camera'),
+      },
+      {
+        text: "Choisir depuis l'album",
+        onPress: () => launchPickerAndAdd('library'),
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
+  const launchPickerAndAdd = async (source: 'camera' | 'library') => {
+    if (!lieu || !user) return;
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Autorise l'accès à l'appareil photo pour prendre une photo.");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          allowsEditing: false,
+          quality: 0.9,
+          base64: false,
+        });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert("Autorise l'accès aux photos pour choisir une image.");
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          allowsMultipleSelection: false,
+          selectionLimit: 1,
+          quality: 0.9,
+          base64: false,
+        });
+      }
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+
+      setUploadingPhoto(true);
+      // Resize + JPEG-encode for upload size only — no crop. This is the
+      // whole point of `source: 'user'`: their photo, their aesthetic
+      // (see #34 US11 + the "skip the crop pipeline" line in #38).
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1568 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      const added = await getLieuxService().addPhoto(
+        user.uid,
+        lieu.id,
+        manipulated.uri,
+        'user',
+      );
+      // Merge the new photo into local state + resolve its URL so the strip
+      // updates instantly. `LayoutAnimation` gives the append a subtle fade.
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const nextPhotos = [...lieu.photos, added];
+      setLieu({ ...lieu, photos: nextPhotos });
+      try {
+        const url = await getLieuxService().getScreenshotUrl(added.storagePath);
+        setPhotoUrls((prev) => ({ ...prev, [added.storagePath]: url }));
+      } catch (err) {
+        console.warn('[LieuDetail] failed to resolve added photo url', err);
+      }
+    } catch (err) {
+      if (err instanceof PhotoCapReachedError) {
+        Alert.alert('Galerie pleine', `${MAX_PHOTOS_PER_LIEU} photos max par lieu.`);
+      } else {
+        console.error('[LieuDetail] add photo failed', err);
+        Alert.alert('Erreur', "L'ajout a échoué. Réessaie dans un instant.");
+      }
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const canEditPhotos = isMine && !!lieu;
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -251,10 +462,66 @@ export default function LieuDetailScreen() {
     );
   }
 
+  const heroPhoto: LieuPhoto | undefined = lieu.photos[0];
+  const heroUri = heroPhoto ? photoUrls[heroPhoto.storagePath] ?? null : null;
+  const tailPhotos: LieuPhoto[] = lieu.photos.slice(1);
+  const canAddMore = lieu.photos.length < MAX_PHOTOS_PER_LIEU;
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {imgUri && <Image source={{ uri: imgUri }} style={styles.hero} resizeMode="cover" />}
+        {/* Hero — always renders photos[0]. In edit mode, an overlay lets the
+            user delete or demote the hero. Tap opens the lightbox at index 0. */}
+        <View style={styles.heroContainer} testID="lieu-hero">
+          {heroUri ? (
+            <Pressable
+              onPress={() => setLightboxIndex(0)}
+              style={styles.heroPressable}
+              testID="lieu-hero-press"
+            >
+              <Image source={{ uri: heroUri }} style={styles.hero} resizeMode="cover" />
+            </Pressable>
+          ) : (
+            <View style={[styles.hero, styles.heroPlaceholder]}>
+              <Text style={styles.heroPlaceholderEmoji}>
+                {CATEGORY_LABEL[lieu.category].split(' ')[0]}
+              </Text>
+            </View>
+          )}
+          {/* Edit affordance — pencil in the top-right of the hero. Owner only. */}
+          {canEditPhotos && (
+            <Pressable
+              onPress={() => setEditMode((v) => !v)}
+              style={styles.editHeroBtn}
+              testID="lieu-edit-toggle"
+              accessibilityLabel={editMode ? 'Terminer les modifications' : 'Modifier les photos'}
+            >
+              <Text style={styles.editHeroBtnLabel}>{editMode ? 'OK' : '✎'}</Text>
+            </Pressable>
+          )}
+          {editMode && heroPhoto && (
+            <View style={styles.heroEditOverlay}>
+              <Pressable
+                onPress={() => onDeletePhoto(heroPhoto)}
+                style={styles.heroDeleteBtn}
+                testID="lieu-hero-delete"
+                accessibilityLabel="Supprimer la photo hero"
+              >
+                <Text style={styles.deleteX}>×</Text>
+              </Pressable>
+              {lieu.photos.length > 1 && (
+                <Pressable
+                  onPress={() => onMovePhoto(0, 1)}
+                  style={styles.heroDemoteBtn}
+                  testID="lieu-hero-demote"
+                  accessibilityLabel="Rétrograder cette photo"
+                >
+                  <Text style={styles.moveArrow}>→</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </View>
 
         <View style={styles.body}>
           <Text style={styles.categoryTag}>{CATEGORY_LABEL[lieu.category]}</Text>
@@ -330,7 +597,101 @@ export default function LieuDetailScreen() {
           >
             <Text style={styles.secondaryBtnLabel}>Voir sur la carte</Text>
           </Pressable>
+        </View>
 
+        {/* Gallery strip — photos[1..] as horizontal thumbnails. When in edit
+            mode, each tile gets a delete X + move arrows, and a "+ Ajouter"
+            tile appears at the tail (hidden at the 10-photo cap). */}
+        {(tailPhotos.length > 0 || (editMode && canAddMore)) && (
+          <View style={styles.stripSection} testID="lieu-strip">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.stripContent}
+            >
+              {tailPhotos.map((photo, tailIndex) => {
+                const galleryIndex = tailIndex + 1; // index in lieu.photos
+                const url = photoUrls[photo.storagePath] ?? null;
+                return (
+                  <View
+                    key={photo.storagePath}
+                    style={styles.tile}
+                    testID={`lieu-tile-${galleryIndex}`}
+                  >
+                    <Pressable
+                      onPress={() => setLightboxIndex(galleryIndex)}
+                      disabled={editMode}
+                      style={styles.tilePressable}
+                    >
+                      {url ? (
+                        <Image
+                          source={{ uri: url }}
+                          style={styles.tileImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.tileImage, styles.tilePlaceholder]}>
+                          <Text style={styles.tilePlaceholderEmoji}>·</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                    {editMode && (
+                      <>
+                        <Pressable
+                          onPress={() => onDeletePhoto(photo)}
+                          style={styles.tileDeleteBtn}
+                          testID={`lieu-tile-delete-${galleryIndex}`}
+                        >
+                          <Text style={styles.deleteX}>×</Text>
+                        </Pressable>
+                        <View style={styles.tileArrowsRow}>
+                          <Pressable
+                            onPress={() => onMovePhoto(galleryIndex, -1)}
+                            style={styles.tileArrowBtn}
+                            testID={`lieu-tile-up-${galleryIndex}`}
+                            accessibilityLabel="Monter cette photo"
+                          >
+                            <Text style={styles.moveArrow}>←</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => onMovePhoto(galleryIndex, 1)}
+                            disabled={galleryIndex === lieu.photos.length - 1}
+                            style={[
+                              styles.tileArrowBtn,
+                              galleryIndex === lieu.photos.length - 1 && styles.tileArrowDisabled,
+                            ]}
+                            testID={`lieu-tile-down-${galleryIndex}`}
+                            accessibilityLabel="Descendre cette photo"
+                          >
+                            <Text style={styles.moveArrow}>→</Text>
+                          </Pressable>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                );
+              })}
+              {/* "+ Ajouter" tile — only in edit mode, hidden at the cap. */}
+              {editMode && canAddMore && (
+                <Pressable
+                  onPress={onAddPhoto}
+                  style={[styles.tile, styles.addTile]}
+                  disabled={uploadingPhoto}
+                  testID="lieu-add-photo"
+                  accessibilityLabel="Ajouter une photo"
+                >
+                  {uploadingPhoto ? (
+                    <ActivityIndicator color={colors.accent} />
+                  ) : (
+                    <Text style={styles.addTileLabel}>+</Text>
+                  )}
+                </Pressable>
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.body}>
           {isMine && (
             <>
               <Text style={styles.label}>Mes notes</Text>
@@ -352,15 +713,206 @@ export default function LieuDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Lightbox
+        photos={lieu.photos}
+        urls={photoUrls}
+        openIndex={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
     </SafeAreaView>
+  );
+}
+
+/**
+ * Full-screen pager over the pin's gallery. Uses a paged horizontal
+ * ScrollView — native swipe left/right, no gesture-handler dependency needed.
+ * Rendered inside a Modal so it overlays even the SafeArea insets.
+ */
+function Lightbox({
+  photos,
+  urls,
+  openIndex,
+  onClose,
+}: {
+  photos: LieuPhoto[];
+  urls: Record<string, string>;
+  openIndex: number | null;
+  onClose: () => void;
+}) {
+  const width = Dimensions.get('window').width;
+  const height = Dimensions.get('window').height;
+  const scrollRef = useRef<ScrollView>(null);
+  const visible = openIndex !== null;
+
+  // Snap to the requested starting page whenever the lightbox opens.
+  useEffect(() => {
+    if (visible && openIndex !== null && scrollRef.current) {
+      // A short timeout ensures the child ScrollView has laid out at `width`
+      // before we ask it to scroll — otherwise the initial `x: 0` would win.
+      const t = setTimeout(() => {
+        scrollRef.current?.scrollTo({ x: openIndex * width, y: 0, animated: false });
+      }, 0);
+      return () => clearTimeout(t);
+    }
+  }, [visible, openIndex, width]);
+
+  const pages = useMemo(
+    () =>
+      photos.map((p) => ({
+        key: p.storagePath,
+        uri: urls[p.storagePath] ?? null,
+      })),
+    [photos, urls],
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={false}
+      animationType="fade"
+      onRequestClose={onClose}
+      testID="lieu-lightbox"
+    >
+      <View style={styles.lightboxRoot}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+        >
+          {pages.map((page) => (
+            <View
+              key={page.key}
+              style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
+            >
+              {page.uri ? (
+                <Image
+                  source={{ uri: page.uri }}
+                  style={{ width, height }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <ActivityIndicator color={colors.text} />
+              )}
+            </View>
+          ))}
+        </ScrollView>
+        <Pressable
+          onPress={onClose}
+          style={styles.lightboxClose}
+          testID="lieu-lightbox-close"
+          accessibilityLabel="Fermer"
+        >
+          <Text style={styles.lightboxCloseLabel}>×</Text>
+        </Pressable>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingBottom: spacing['3xl'] },
+  heroContainer: { width: '100%', height: 320, backgroundColor: colors.bgElevated },
+  heroPressable: { width: '100%', height: '100%' },
   hero: { width: '100%', height: 320, backgroundColor: colors.bgElevated },
+  heroPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroPlaceholderEmoji: { fontSize: 72 },
+  editHeroBtn: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editHeroBtnLabel: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  heroEditOverlay: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  heroDeleteBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroDemoteBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   body: { paddingHorizontal: spacing['2xl'], paddingTop: spacing.xl },
+  stripSection: { marginTop: spacing.xl },
+  stripContent: {
+    paddingHorizontal: spacing['2xl'],
+    gap: spacing.sm,
+  },
+  tile: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgElevated,
+    overflow: 'visible',
+  },
+  tilePressable: { width: 80, height: 80, borderRadius: radius.md, overflow: 'hidden' },
+  tileImage: { width: 80, height: 80, borderRadius: radius.md },
+  tilePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  tilePlaceholderEmoji: { color: colors.textTertiary, fontSize: 24 },
+  tileDeleteBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  deleteX: { color: colors.text, fontSize: 16, lineHeight: 18, fontWeight: '700' },
+  tileArrowsRow: {
+    position: 'absolute',
+    bottom: -6,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tileArrowBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileArrowDisabled: { opacity: 0.3 },
+  moveArrow: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  addTile: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  addTileLabel: { color: colors.accent, fontSize: 32, fontWeight: '300' },
   categoryTag: {
     ...type.caption,
     color: colors.accent,
@@ -450,4 +1002,20 @@ const styles = StyleSheet.create({
   },
   deleteBtnLabel: { ...type.h3, color: colors.error, fontWeight: '600' },
   notFound: { ...type.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing['3xl'] },
+  lightboxRoot: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  lightboxClose: {
+    position: 'absolute',
+    top: spacing['3xl'],
+    right: spacing.xl,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightboxCloseLabel: { color: colors.text, fontSize: 24, fontWeight: '700' },
 });

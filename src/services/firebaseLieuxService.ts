@@ -5,6 +5,7 @@ import {
   getDocs,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -13,8 +14,14 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '../auth/firebase';
-import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
-import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
+import { Lieu, LieuInput, LieuExtracted, LieuPhoto } from '../types/Lieu';
+import {
+  LieuxService,
+  LieuDuplicateError,
+  DUPLICATE_DISTANCE_M,
+  MAX_PHOTOS_PER_LIEU,
+  PhotoCapReachedError,
+} from './lieuxService';
 import { normalizeName } from '../lib/normalize';
 
 /**
@@ -249,6 +256,167 @@ export class FirebaseLieuxService implements LieuxService {
     return created;
   }
 
+  async addPhoto(
+    userId: string,
+    lieuId: string,
+    imageUri: string,
+    source: 'user',
+  ): Promise<LieuPhoto> {
+    // Cap check BEFORE the Storage upload — we don't want to burn an upload
+    // just to reject the write. Read the current doc via getDoc (not a
+    // transaction) since the cap is a soft invariant enforced client-side; a
+    // race between two concurrent adds is exceedingly unlikely on a personal
+    // gallery and would at worst produce an 11th photo, not corrupt state.
+    const lieuRef = doc(this.lieuxCol(userId), lieuId);
+    const snap = await getDoc(lieuRef);
+    if (!snap.exists()) {
+      throw new Error(`Lieu ${lieuId} not found for user ${userId}`);
+    }
+    const current = this.readPhotos(snap.data());
+    if (current.length >= MAX_PHOTOS_PER_LIEU) {
+      throw new PhotoCapReachedError(lieuId);
+    }
+
+    // Random storage segment. Firestore auto-ids are 20 chars a-zA-Z0-9 — use
+    // the same shape via a fresh doc ref under the same lieux collection just
+    // to get an id, without actually writing that doc.
+    const photoId = doc(this.lieuxCol(userId)).id;
+    const storagePath = `users/${userId}/photos/${lieuId}/${photoId}.jpg`;
+
+    const blob = await fetch(imageUri).then((r) => r.blob());
+    await uploadBytes(ref(storage, storagePath), blob, {
+      contentType: 'image/jpeg',
+    });
+
+    // Read a fresh copy inside the transaction to avoid stomping a concurrent
+    // reorder/delete. Both read + write happen atomically.
+    let created: LieuPhoto | null = null;
+    await runTransaction(db, async (tx) => {
+      const fresh = await tx.get(lieuRef);
+      if (!fresh.exists()) {
+        throw new Error(`Lieu ${lieuId} vanished between read and write`);
+      }
+      const freshPhotos = this.readPhotos(fresh.data());
+      if (freshPhotos.length >= MAX_PHOTOS_PER_LIEU) {
+        throw new PhotoCapReachedError(lieuId);
+      }
+      const photo: LieuPhoto = {
+        storagePath,
+        source,
+        addedAt: Timestamp.now(),
+      };
+      tx.update(lieuRef, {
+        photos: [...freshPhotos, photo],
+        updatedAt: serverTimestamp(),
+      });
+      created = photo;
+    }).catch(async (err) => {
+      // Roll back the Storage upload if the Firestore transaction fails —
+      // otherwise we'd leave an orphaned blob.
+      try {
+        await deleteObject(ref(storage, storagePath));
+      } catch (cleanupErr) {
+        console.warn('[addPhoto] rollback delete failed', cleanupErr);
+      }
+      throw err;
+    });
+    if (!created) throw new Error('addPhoto: transaction did not commit');
+    return created;
+  }
+
+  async removePhoto(
+    userId: string,
+    lieuId: string,
+    storagePath: string,
+  ): Promise<void> {
+    const lieuRef = doc(this.lieuxCol(userId), lieuId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(lieuRef);
+      if (!snap.exists()) return;
+      const current = this.readPhotos(snap.data());
+      const next = current.filter((p) => p.storagePath !== storagePath);
+      if (next.length === current.length) return; // path not in gallery
+      tx.update(lieuRef, {
+        photos: next,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    // Best-effort Storage cleanup after the Firestore write commits. If the
+    // blob was already gone (e.g. deleted by a prior partial failure), this
+    // silently no-ops.
+    try {
+      await deleteObject(ref(storage, storagePath));
+    } catch (err) {
+      console.warn('[removePhoto] storage cleanup failed', err);
+    }
+  }
+
+  async reorderPhotos(
+    userId: string,
+    lieuId: string,
+    orderedStoragePaths: string[],
+  ): Promise<void> {
+    const lieuRef = doc(this.lieuxCol(userId), lieuId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(lieuRef);
+      if (!snap.exists()) {
+        throw new Error(`Lieu ${lieuId} not found for user ${userId}`);
+      }
+      const current = this.readPhotos(snap.data());
+      if (orderedStoragePaths.length !== current.length) {
+        throw new Error(
+          `reorderPhotos: expected ${current.length} paths, got ${orderedStoragePaths.length}`,
+        );
+      }
+      const nextSet = new Set(orderedStoragePaths);
+      if (nextSet.size !== orderedStoragePaths.length) {
+        throw new Error('reorderPhotos: duplicate storagePath in input');
+      }
+      const byPath = new Map(current.map((p) => [p.storagePath, p]));
+      const reordered: LieuPhoto[] = [];
+      for (const path of orderedStoragePaths) {
+        const found = byPath.get(path);
+        if (!found) {
+          throw new Error(`reorderPhotos: unknown storagePath ${path}`);
+        }
+        reordered.push(found);
+      }
+      tx.update(lieuRef, {
+        photos: reordered,
+        updatedAt: serverTimestamp(),
+      });
+    });
+  }
+
+  /**
+   * Normalize the `photos` field off a raw Firestore doc — handles both the
+   * new shape (array of {@link LieuPhoto}) and the pre-#35 shape (missing
+   * field, single `sourceInstagram.screenshotStoragePath`). Never writes back.
+   */
+  private readPhotos(data: Record<string, unknown>): LieuPhoto[] {
+    const raw = data.photos;
+    if (Array.isArray(raw)) {
+      // Cast is safe because the shape is enforced by our own writes; if a
+      // migration bug corrupts a doc, downstream code will surface it.
+      return raw as LieuPhoto[];
+    }
+    // Read-compat: synthesize a single-element gallery from the deprecated
+    // field if present. This is a read-only synthesis — no Firestore write.
+    const src = data.sourceInstagram as Lieu['sourceInstagram'] | undefined;
+    if (src?.screenshotStoragePath) {
+      const addedAt =
+        (data.createdAt as Timestamp | undefined) ?? Timestamp.now();
+      return [
+        {
+          storagePath: src.screenshotStoragePath,
+          source: 'insta',
+          addedAt,
+        },
+      ];
+    }
+    return [];
+  }
+
   private hydrate(id: string, data: Record<string, unknown>): Lieu {
     return {
       id,
@@ -266,6 +434,7 @@ export class FirebaseLieuxService implements LieuxService {
       lng: data.lng as number,
       category: data.category as Lieu['category'],
       description: (data.description as string) ?? null,
+      photos: this.readPhotos(data),
       sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
       userNotes: (data.userNotes as string) ?? null,
       savedFromUserId: (data.savedFromUserId as string | null | undefined) ?? null,

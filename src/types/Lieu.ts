@@ -9,6 +9,24 @@ export interface Timestamp {
 }
 
 /**
+ * One photo attached to a `Lieu`. The gallery is an ordered list of these,
+ * capped at 10 items — `photos[0]` is the hero shown on `LieuDetailScreen`
+ * and everywhere else the pin's photo appears.
+ *
+ * Introduced by wave 1 (#35) as part of the photo cleanup + galerie multi-photo
+ * PRD (#34). This slice (#38) adds the edit UI (add / delete / reorder /
+ * lightbox) and the `LieuxService` mutation methods.
+ */
+export type LieuPhoto = {
+  /** Full Storage path (e.g. `users/{uid}/photos/{lieuId}/{photoId}.jpg`). */
+  storagePath: string;
+  /** Where the photo came from — `'insta'` for the original screenshot, `'user'` for camera-roll/camera adds. */
+  source: 'insta' | 'user';
+  /** When this specific photo entered the gallery. */
+  addedAt: Timestamp;
+};
+
+/**
  * A persisted place in Waymark. Lives at `/users/{uid}/lieux/{lieuId}`.
  */
 export interface Lieu {
@@ -30,8 +48,25 @@ export interface Lieu {
   lng: number;
   category: LieuCategory;
   description: string | null;
+  /**
+   * Ordered gallery for this pin, hard-capped at 10 items. `photos[0]` is the
+   * hero displayed on `LieuDetailScreen`, `ListScreen`, and every other
+   * surface where the pin's photo appears. Introduced by #35; mutations live
+   * on `LieuxService` (`addPhoto` / `removePhoto` / `reorderPhotos`, #38).
+   *
+   * For pre-migration docs read via `getLieuById` / `getAllLieux`, a
+   * single-element array is synthesized in memory from
+   * `sourceInstagram.screenshotStoragePath` — see #35.
+   */
+  photos: LieuPhoto[];
   sourceInstagram: {
     author: string | null;
+    /**
+     * @deprecated Only read for pre-migration docs — never written on new
+     * pins. New pins persist their hero via `photos[0].storagePath`. Kept as
+     * a required field on this type for read-compat until the backfill
+     * (#34) migrates every doc; then removable.
+     */
     screenshotStoragePath: string;
   };
   userNotes: string | null;

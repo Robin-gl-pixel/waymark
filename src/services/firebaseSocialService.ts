@@ -559,6 +559,26 @@ export const FEED_PER_USER_LIMIT = 20;
  * plumbing an owner override through the lieux service.
  */
 function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>): Lieu {
+  // Local mirror of `FirebaseLieuxService.readPhotos` — kept inline so this
+  // file stays self-contained (no import of the sibling service).
+  const rawPhotos = data.photos;
+  let photos: Lieu['photos'];
+  if (Array.isArray(rawPhotos)) {
+    photos = rawPhotos as Lieu['photos'];
+  } else {
+    const src = data.sourceInstagram as Lieu['sourceInstagram'] | undefined;
+    photos = src?.screenshotStoragePath
+      ? [
+          {
+            storagePath: src.screenshotStoragePath,
+            source: 'insta',
+            // Reuse the doc's createdAt for the synthesized entry — a
+            // pre-migration doc always has createdAt (older than photos[]).
+            addedAt: data.createdAt as Timestamp,
+          },
+        ]
+      : [];
+  }
   return {
     id,
     userId: (data.userId as string) ?? ownerUid,
@@ -572,6 +592,7 @@ function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>
     lng: data.lng as number,
     category: data.category as Lieu['category'],
     description: (data.description as string) ?? null,
+    photos,
     sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
     userNotes: (data.userNotes as string) ?? null,
     createdAt: data.createdAt as Timestamp,

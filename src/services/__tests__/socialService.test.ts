@@ -517,6 +517,15 @@ function makeLieu(ownerUid: string, id: string, createdAtMs: number, overrides: 
     lng: 2.35,
     category: 'resto',
     description: null,
+    // photos[] is required post-#35; keep a single-element gallery matching
+    // the deprecated sourceInstagram.screenshotStoragePath.
+    photos: [
+      {
+        storagePath: `users/${ownerUid}/screenshots/${id}.png`,
+        source: 'insta',
+        addedAt: ts(createdAtMs),
+      },
+    ],
     sourceInstagram: { author: null, screenshotStoragePath: `users/${ownerUid}/screenshots/${id}.png` },
     userNotes: null,
     createdAt: ts(createdAtMs),
