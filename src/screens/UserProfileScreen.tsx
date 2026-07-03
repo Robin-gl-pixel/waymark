@@ -28,6 +28,7 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import ProfileLocked from '../components/ProfileLocked';
 import { SkeletonBlock } from '../components/SkeletonRow';
+import { statusBadgeIcon, statusBadgeLabel } from '../lib/statusBadge';
 import { resolveProfileViewMode } from './UserProfileScreen.viewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'UserProfile'>;
@@ -520,15 +521,30 @@ function ListPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) 
 }
 
 function ListRow({ item, onPress }: { item: Lieu; onPress: () => void }) {
+  // #42 — friend-facing badge, immediately after the name so the icon sits in
+  // the eye-scan lane of the list. Absent when status is null or the pin
+  // predates #41 (undefined field on the doc).
+  const badge = statusBadgeIcon(item.status);
+  const badgeA11y = statusBadgeLabel(item.status);
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
     >
       <View style={styles.rowBody}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {item.name.toUpperCase()}
-        </Text>
+        <View style={styles.rowTitleLine}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {item.name.toUpperCase()}
+          </Text>
+          {badge !== null && (
+            <Text
+              style={styles.rowBadge}
+              accessibilityLabel={badgeA11y ?? undefined}
+            >
+              {badge}
+            </Text>
+          )}
+        </View>
         <Text style={styles.rowMeta} numberOfLines={1}>
           {item.city}
         </Text>
@@ -711,11 +727,23 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.hair,
   },
   rowBody: { flex: 1 },
+  // #42 — the title line hosts the pin name and (optionally) the friend badge.
+  // Row layout so the badge tucks in just after the name; `flex: 1` on the
+  // name lets the badge stay pinned to its natural width while the name
+  // truncates.
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   rowTitle: {
     ...type.h3,
     color: colors.ink,
     textTransform: 'uppercase',
     letterSpacing: -0.3,
+    flexShrink: 1,
+  },
+  // Discreet, monochrome badge — colour would fight the category color pin.
+  rowBadge: {
+    ...type.body,
+    color: colors.graphite,
+    fontWeight: '600',
   },
   rowMeta: {
     ...type.mono,

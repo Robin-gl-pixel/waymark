@@ -39,7 +39,12 @@ import UserProfileScreen from './src/screens/UserProfileScreen';
 import SearchUsersScreen from './src/screens/SearchUsersScreen';
 import ReportScreen from './src/screens/ReportScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
+import SocialMigrationModal from './src/components/SocialMigrationModal';
 import { getSocialService } from './src/services/socialService';
+import {
+  hasSeenSocialMigrationModal,
+  markSocialMigrationModalSeen,
+} from './src/utils/socialMigrationFlag';
 import { colors, fonts } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
 import { resolveRootRoute } from './src/screens/rootGate';
@@ -198,6 +203,11 @@ function Root() {
   const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState(false);
   const [seededFollowLoading, setSeededFollowLoading] = React.useState(true);
   const [hasSeededFollowed, setHasSeededFollowed] = React.useState(false);
+  // Migration-modal state (GitHub #43). We hydrate lazily on auth so signed-out
+  // users never hit AsyncStorage for a flag that only matters post-auth.
+  // `null` means "not checked yet" — we intentionally don't gate the loading
+  // spinner on this; the modal simply appears once the read resolves.
+  const [socialMigrationSeen, setSocialMigrationSeen] = React.useState<boolean | null>(null);
 
   const refreshProfile = React.useCallback(async () => {
     if (!user) {
@@ -278,6 +288,24 @@ function Root() {
     setHasSeededFollowed(true);
   }, []);
 
+  const refreshSocialMigration = React.useCallback(async () => {
+    if (!user) {
+      // Reset when signed out so a sign-in re-checks the flag rather than
+      // reusing a stale value from a previous session.
+      setSocialMigrationSeen(null);
+      return;
+    }
+    const seen = await hasSeenSocialMigrationModal();
+    setSocialMigrationSeen(seen);
+  }, [user]);
+
+  const acknowledgeSocialMigration = React.useCallback(async () => {
+    // Persist BEFORE hiding so a mid-write crash still records the ack; the
+    // modal state flips to `true` on completion so the overlay disappears.
+    await markSocialMigrationModalSeen();
+    setSocialMigrationSeen(true);
+  }, []);
+
   React.useEffect(() => {
     setProfileLoading(true);
     setOnboardingLoading(true);
@@ -285,7 +313,8 @@ function Root() {
     refreshProfile();
     refreshOnboarding();
     refreshSeededFollow();
-  }, [refreshProfile, refreshOnboarding, refreshSeededFollow]);
+    refreshSocialMigration();
+  }, [refreshProfile, refreshOnboarding, refreshSeededFollow, refreshSocialMigration]);
 
   const route = resolveRootRoute({
     authLoading: loading,
@@ -309,7 +338,26 @@ function Root() {
 
   if (route === 'auth') return <AuthScreen />;
 
+  // Anonymous / dev-bypass users skip the whole social onboarding — they can't
+  // upsertProfile without hitting Firestore permissions anyway, and the whole
+  // point of the "Skip (dev anonymous sign-in)" button is to reach the map
+  // fast without setting up a real account. resolveRootRoute() already sends
+  // them straight to 'main'; here we reuse the same flag to hide the
+  // social-migration modal from them too.
+  const bypassSocialOnboarding = Boolean(user?.isAnonymous);
+
+  // Show the social-migration modal ONLY after the user has cleared auth and
+  // onboarding (matches acceptance: "not on the auth screen — only after the
+  // user is authenticated and past onboarding"). Anonymous dev-bypass users
+  // also skip it — the social copy doesn't apply to them.
+  const showSocialMigrationModal =
+    !bypassSocialOnboarding &&
+    hasUsername &&
+    hasSeededFollowed &&
+    socialMigrationSeen === false;
+
   return (
+    <>
     <RootStack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
@@ -359,6 +407,11 @@ function Root() {
         </RootStack.Screen>
       )}
     </RootStack.Navigator>
+    <SocialMigrationModal
+      visible={showSocialMigrationModal}
+      onAcknowledge={acknowledgeSocialMigration}
+    />
+    </>
   );
 }
 
