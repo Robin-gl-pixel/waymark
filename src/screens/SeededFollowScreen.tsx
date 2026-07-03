@@ -18,6 +18,7 @@ import type { Timestamp } from '../types/Lieu';
 import Avatar from '../components/Avatar';
 import EmptyState from '../components/EmptyState';
 import { SkeletonRow } from '../components/SkeletonRow';
+import { pickBatchFollowTargets, runBatchFollow } from './seededFollowHelpers';
 
 /**
  * Post-signup seeded follow (GitHub #17).
@@ -109,19 +110,11 @@ export default function SeededFollowScreen({ onComplete }: Props) {
       return;
     }
     setSubmitting(true);
-    const svc = getSocialService();
-    const toFollow = state.users.filter((u) => selected[u.uid]);
-    // Parallel follow — a single failure is logged but doesn't block the flow.
-    // The user will still land on Main; they can manually follow later.
-    await Promise.all(
-      toFollow.map(async (u) => {
-        try {
-          await svc.follow(u.uid);
-        } catch (err) {
-          console.warn('[SeededFollow] follow failed for', u.uid, err);
-        }
-      }),
-    );
+    // Batch write follows through the SocialService seam. `runBatchFollow`
+    // swallows per-target failures so a single permission-denied doesn't trap
+    // the user on this screen; they'll land on Main and can follow manually.
+    const targets = pickBatchFollowTargets(state.users, selected);
+    await runBatchFollow(getSocialService(), targets);
     onComplete();
   }, [onComplete, selected, state, submitting]);
 

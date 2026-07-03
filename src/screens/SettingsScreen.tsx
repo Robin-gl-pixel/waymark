@@ -203,17 +203,6 @@ export default function SettingsScreen() {
 
         <View style={{ flex: 1 }} />
 
-        {/* REMOVE-ME (#17): temporary dev button to preview OnboardingSlidesScreen
-            without wiring the auth flow. Delete once the flow lands in #10. */}
-        {__DEV__ && (
-          <Pressable
-            onPress={() => nav.navigate('Onboarding')}
-            style={styles.devBtn}
-          >
-            <Text style={styles.devLabel}>Voir Onboarding (dev)</Text>
-          </Pressable>
-        )}
-
         <Pressable onPress={logout} style={styles.logoutBtn}>
           <Text style={styles.logoutLabel}>Se déconnecter</Text>
         </Pressable>
@@ -342,15 +331,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
-  devBtn: {
-    height: 44,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.hair,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  devLabel: { ...type.caption, color: colors.graphite },
 });

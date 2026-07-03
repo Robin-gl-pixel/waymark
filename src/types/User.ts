@@ -27,7 +27,7 @@ export interface UserProfile {
    * Shortcut Settings screen and rotated via `regenerateShortcutToken`.
    * `null` when the user hasn't opened Settings → Shortcut yet.
    */
-  shortcutToken: string | null;
+  shortcutToken?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
