@@ -115,6 +115,9 @@ jobs:
           xcrun simctl boot "$SIM_ID"
           xcrun simctl bootstatus "$SIM_ID" -b
 
+      - name: Prebuild ios/ (Expo generates the native project on demand)
+        run: npx expo prebuild --platform ios --no-install --clean
+
       - name: Install CocoaPods deps
         run: pod install
         working-directory: ios
