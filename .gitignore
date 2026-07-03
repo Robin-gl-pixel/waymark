@@ -49,3 +49,4 @@ secrets/
 
 # Setup scratchpad — Claude writes manual-action steps here
 NEXT-STEPS.md
+.claude/worktrees/

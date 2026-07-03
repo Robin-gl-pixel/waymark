@@ -255,6 +255,12 @@ function Root() {
 
   if (!user) return <AuthScreen />;
 
+  // Anonymous / dev-bypass users skip the whole social onboarding — they can't
+  // upsertProfile without hitting Firestore permissions anyway, and the whole
+  // point of the "Skip (dev anonymous sign-in)" button is to reach the map
+  // fast without setting up a real account.
+  const bypassSocialOnboarding = user.isAnonymous;
+
   return (
     <RootStack.Navigator
       screenOptions={{
@@ -264,7 +270,7 @@ function Root() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      {hasUsername && hasSeededFollowed ? (
+      {bypassSocialOnboarding || (hasUsername && hasSeededFollowed) ? (
         <>
           <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <RootStack.Screen name="Upload" component={UploadScreen} options={{ title: 'Nouveau lieu' }} />

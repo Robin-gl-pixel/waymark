@@ -15,7 +15,7 @@ const FUNCTIONS_REGION = 'europe-west1';
 
 function toAuthUser(u: User | null): AuthUser | null {
   if (!u) return null;
-  return { uid: u.uid, email: u.email, displayName: u.displayName };
+  return { uid: u.uid, email: u.email, displayName: u.displayName, isAnonymous: u.isAnonymous };
 }
 
 export class FirebaseAuthService implements AuthService {
