@@ -51,7 +51,7 @@ export default function UploadScreen() {
 
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      setError("Autorise l'accès aux photos pour choisir un screenshot.");
+      setError("Autorise l'accès aux photos pour piocher un screenshot.");
       return;
     }
 
@@ -104,8 +104,8 @@ export default function UploadScreen() {
         );
         if (dup) {
           Alert.alert(
-            'Déjà dans ta collection',
-            `"${dup.name}" a déjà été enregistré.`,
+            'Déjà chez toi',
+            `"${dup.name}" est déjà sur ta carte.`,
             [
               {
                 text: 'Voir sur la carte',
@@ -136,7 +136,7 @@ export default function UploadScreen() {
       console.error('[UploadScreen] extract failed', err);
       const e = err as { code?: string; message?: string; details?: unknown };
       const detail = e?.message || e?.code || 'unknown';
-      setError(`Extraction échouée: ${detail}`);
+      setError(`Extraction foirée : ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -145,27 +145,28 @@ export default function UploadScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Ajouter un lieu</Text>
-        <Text style={styles.subtitle}>Depuis un screenshot Instagram.</Text>
+        <Text style={styles.eyebrow}>Nº · nouveau lieu</Text>
+        <Text style={styles.title}>Ajouter</Text>
+        <Text style={styles.subtitle}>« Depuis un screenshot Insta. »</Text>
 
         <Pressable
           onPress={pickAndExtract}
           disabled={loading}
           style={({ pressed }) => [
             styles.pickBtn,
-            { backgroundColor: pressed ? colors.accentDim : colors.accent },
+            { backgroundColor: pressed ? colors.accentDim : colors.catResto },
             loading && { opacity: 0.6 },
           ]}
         >
           {loading ? (
-            <ActivityIndicator color={colors.text} />
+            <ActivityIndicator color={colors.paper} />
           ) : (
             <Text style={styles.pickLabel}>Choisir un screenshot</Text>
           )}
         </Pressable>
 
         {loading && (
-          <Text style={styles.hint}>Extraction en cours (~3-5s) — Claude analyse ton screenshot…</Text>
+          <Text style={styles.hint}>Extraction en cours (~3-5s) — analyse en cours…</Text>
         )}
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -178,29 +179,32 @@ export default function UploadScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   scroll: {
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing.xl,
     paddingBottom: spacing['3xl'],
   },
-  title: { ...type.h1, color: colors.text, fontWeight: '700' },
-  subtitle: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm },
+  eyebrow: { ...type.monoSm, color: colors.graphite, marginBottom: spacing.sm },
+  title: { ...type.displayLg, color: colors.ink },
+  subtitle: { ...type.serif, color: colors.graphite, marginTop: spacing.sm },
   pickBtn: {
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing['2xl'],
   },
-  pickLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
-  hint: { ...type.caption, color: colors.textTertiary, textAlign: 'center', marginTop: spacing.md },
+  pickLabel: { ...type.mono, color: colors.paper, fontWeight: '700' },
+  hint: { ...type.caption, color: colors.graphite, textAlign: 'center', marginTop: spacing.md },
   error: { ...type.caption, color: colors.error, marginTop: spacing.md, textAlign: 'center' },
   preview: {
     height: 320,
     width: '100%',
     marginTop: spacing.xl,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.hair,
   },
 });

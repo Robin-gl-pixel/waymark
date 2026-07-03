@@ -8,21 +8,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   NavigationContainer,
-  DarkTheme,
+  DefaultTheme,
   useNavigation,
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  useFonts,
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
@@ -55,9 +47,9 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const theme = {
-  ...DarkTheme,
+  ...DefaultTheme,
   colors: {
-    ...DarkTheme.colors,
+    ...DefaultTheme.colors,
     background: colors.bg,
     card: colors.bg,
     text: colors.text,
@@ -354,30 +346,17 @@ function ShareIntentRouter({ navRef }: { navRef: NavRef }) {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-  });
+  // v8 refonte adopts a three-role system-font stack (grotesque black uppercase
+  // / italic serif / mono). System-ui, Georgia and SF Mono all ship with iOS —
+  // no `useFonts` gate needed at boot.
   const navRef = useNavigationContainerRef();
-
-  if (!fontsLoaded) {
-    // Match the pre-auth splash so the transition is invisible.
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
-  }
 
   return (
     <ShareIntentProvider options={{ scheme: 'waymark' }}>
       <SafeAreaProvider>
         <NavigationContainer theme={theme} ref={navRef}>
           <AuthProvider>
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
             <ShareIntentRouter navRef={navRef} />
             <Root />
           </AuthProvider>

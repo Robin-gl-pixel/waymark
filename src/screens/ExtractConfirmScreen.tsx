@@ -16,7 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
-import { colors, spacing, type, radius } from '../theme';
+import { colors, spacing, type, radius, categoryColor } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ExtractConfirm'>;
@@ -71,7 +71,7 @@ export default function ExtractConfirmScreen() {
     } catch (err) {
       console.error('[ExtractConfirmScreen] save failed', err);
       const e = err as { message?: string; code?: string };
-      setError(`Sauvegarde échouée: ${e?.message || e?.code || 'unknown'}`);
+      setError(`Sauvegarde foirée : ${e?.message || e?.code || 'unknown'}`);
     } finally {
       setSaving(false);
     }
@@ -86,24 +86,27 @@ export default function ExtractConfirmScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.rejectHero}>
-            <Ionicons name="alert-circle" size={64} color={colors.error} />
-            <Text style={styles.title}>Impossible d'identifier ce lieu</Text>
+            <Ionicons name="alert-circle-outline" size={56} color={colors.error} />
+            <Text style={styles.eyebrow}>Nº 000 · impossible</Text>
+            <Text style={styles.title}>On voit pas le lieu</Text>
             <Text style={styles.subtitle}>
               {extracted.name == null
-                ? "On n'a pas reconnu de recommandation de lieu dans ce screenshot."
-                : `On n'a pas pu localiser "${extracted.name}" sur la carte.`}
+                ? "On a pas repéré de reco de lieu là-dedans."
+                : `On a pas pu poser "${extracted.name}" sur la carte.`}
             </Text>
             <Text style={styles.subtitle}>
-              Essaie avec un autre screenshot qui montre clairement le nom et la ville.
+              Essaie un autre screenshot qui montre bien le nom et la ville.
             </Text>
           </View>
           <Pressable style={styles.primaryBtn} onPress={handleReject}>
-            <Text style={styles.primaryLabel}>Essayer un autre screenshot</Text>
+            <Text style={styles.primaryLabel}>Essayer un autre</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
     );
   }
+
+  const catColor = categoryColor(extracted.category ?? 'autre');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -112,37 +115,35 @@ export default function ExtractConfirmScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Ionicons name="checkmark-circle" size={28} color={colors.accent} />
-            <Text style={styles.headerTitle}>Lieu identifié</Text>
-          </View>
+          <Text style={styles.eyebrow}>Nº · lieu identifié</Text>
 
           <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.catDot, { backgroundColor: catColor }]} />
+              {extracted.category && (
+                <Text style={[styles.catLabel, { color: catColor }]}>{extracted.category}</Text>
+              )}
+            </View>
             <Text style={styles.name}>{extracted.name}</Text>
-            {extracted.category && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{extracted.category}</Text>
-              </View>
-            )}
             <View style={styles.row}>
-              <Ionicons name="location" size={16} color={colors.textSecondary} />
+              <Ionicons name="location-outline" size={14} color={colors.graphite} />
               <Text style={styles.rowText}>
                 {extracted.addressCanonical ?? extracted.address}
               </Text>
             </View>
             {extracted.city && (
               <View style={styles.row}>
-                <Ionicons name="business" size={16} color={colors.textSecondary} />
+                <Ionicons name="business-outline" size={14} color={colors.graphite} />
                 <Text style={styles.rowText}>
                   {[extracted.city, extracted.country].filter(Boolean).join(', ')}
                 </Text>
               </View>
             )}
             {extracted.description && (
-              <Text style={styles.description}>{extracted.description}</Text>
+              <Text style={styles.description}>« {extracted.description} »</Text>
             )}
             {extracted.sourceAuthor && (
-              <Text style={styles.attribution}>Reco de @{extracted.sourceAuthor}</Text>
+              <Text style={styles.attribution}>@{extracted.sourceAuthor}</Text>
             )}
           </View>
 
@@ -150,8 +151,8 @@ export default function ExtractConfirmScreen() {
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Réserver à l'avance, y aller le vendredi soir…"
-            placeholderTextColor={colors.textTertiary}
+            placeholder="Réserver, y aller le vendredi soir, viser la banquette du fond…"
+            placeholderTextColor={colors.graphite}
             multiline
             style={[styles.input, styles.inputMultiline]}
           />
@@ -168,12 +169,12 @@ export default function ExtractConfirmScreen() {
               style={({ pressed }) => [
                 styles.primaryBtn,
                 { flex: 1 },
-                { backgroundColor: pressed ? colors.accentDim : colors.accent },
+                { backgroundColor: pressed ? colors.accentDim : colors.catResto },
                 saving && { opacity: 0.5 },
               ]}
             >
               {saving ? (
-                <ActivityIndicator color={colors.text} />
+                <ActivityIndicator color={colors.paper} />
               ) : (
                 <Text style={styles.primaryLabel}>Confirmer</Text>
               )}
@@ -186,71 +187,71 @@ export default function ExtractConfirmScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   scroll: {
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing.xl,
     paddingBottom: spacing['3xl'],
   },
-  header: {
+  eyebrow: {
+    ...type.monoSm,
+    color: colors.graphite,
+    marginBottom: spacing.lg,
+  },
+  card: {
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.hair,
+    gap: spacing.md,
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.xl,
   },
-  headerTitle: { ...type.h2, color: colors.text, fontWeight: '700' },
-  card: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.md,
+  catDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
   },
-  name: { ...type.h1, color: colors.text, fontWeight: '700' },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accentDim,
+  catLabel: {
+    ...type.monoSm,
+    fontWeight: '700',
   },
-  badgeText: { ...type.caption, color: colors.text, fontWeight: '600' },
+  name: { ...type.h1, color: colors.ink },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  rowText: { ...type.body, color: colors.textSecondary, flex: 1 },
+  rowText: { ...type.mono, color: colors.graphite, flex: 1, textTransform: 'none', letterSpacing: 0.4 },
   description: {
-    ...type.body,
-    color: colors.textSecondary,
+    ...type.serif,
+    color: colors.ink,
     marginTop: spacing.sm,
-    lineHeight: 22,
   },
   attribution: {
-    ...type.caption,
-    color: colors.textTertiary,
-    fontStyle: 'italic',
+    ...type.monoSm,
+    color: colors.graphite,
     marginTop: spacing.sm,
   },
   label: {
-    ...type.caption,
-    color: colors.textSecondary,
+    ...type.monoSm,
+    color: colors.graphite,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   input: {
     ...type.body,
-    color: colors.text,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
+    color: colors.ink,
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hair,
   },
   inputMultiline: { minHeight: 72, paddingTop: spacing.md, textAlignVertical: 'top' },
   actions: {
@@ -260,32 +261,32 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: colors.catResto,
     paddingHorizontal: spacing.xl,
   },
-  primaryLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  primaryLabel: { ...type.mono, color: colors.paper, fontWeight: '700' },
   secondaryBtn: {
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.ink,
   },
-  secondaryLabel: { ...type.body, color: colors.textSecondary },
+  secondaryLabel: { ...type.mono, color: colors.ink, fontWeight: '700' },
   rejectHero: {
     alignItems: 'center',
     paddingVertical: spacing['3xl'],
     gap: spacing.lg,
   },
-  title: { ...type.h1, color: colors.text, fontWeight: '700', textAlign: 'center' },
+  title: { ...type.h1, color: colors.ink, textAlign: 'center' },
   subtitle: {
-    ...type.body,
-    color: colors.textSecondary,
+    ...type.serif,
+    color: colors.graphite,
     textAlign: 'center',
   },
   error: { ...type.caption, color: colors.error, marginTop: spacing.md, textAlign: 'center' },

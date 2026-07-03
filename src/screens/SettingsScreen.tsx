@@ -52,7 +52,7 @@ export default function SettingsScreen() {
     } catch (err) {
       console.warn('[Settings] setProfileVisibility failed', err);
       setIsPublic(previous);
-      Alert.alert('Erreur', 'Impossible de mettre à jour la visibilité. Réessaie.');
+      Alert.alert('Aïe', 'Visibilité pas mise à jour. Réessaie.');
     }
   };
 
@@ -68,11 +68,11 @@ export default function SettingsScreen() {
     }
     const pinsLine =
       pinCount > 0
-        ? `Tes ${pinCount} pin${pinCount > 1 ? 's' : ''} seront perdu${pinCount > 1 ? 's' : ''}. `
+        ? `Tes ${pinCount} pin${pinCount > 1 ? 's' : ''} sautent avec. `
         : '';
     Alert.alert(
       'Supprimer ton compte ?',
-      `${pinsLine}Toutes tes données (lieux, screenshots, compte) seront supprimées définitivement. Cette action est irréversible.`,
+      `${pinsLine}Toutes tes données (lieux, screenshots, compte) s'envolent définitivement. Zéro retour possible.`,
       [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Supprimer mon compte', style: 'destructive', onPress: performDelete },
@@ -97,12 +97,12 @@ export default function SettingsScreen() {
       await getAuthService().deleteAccount();
       Alert.alert(
         'Compte supprimé',
-        'Toutes tes données ont été effacées. À bientôt.',
+        'Toutes tes données ont été effacées. À la prochaine.',
         [{ text: 'OK', onPress: () => { logout().catch(console.error); } }],
       );
     } catch (err) {
       console.error(err);
-      Alert.alert('Erreur', 'Suppression échouée. Réessaie.');
+      Alert.alert('Aïe', 'Suppression foirée. Réessaie.');
       setDeleting(false);
     }
   };
@@ -110,19 +110,20 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        <Text style={styles.eyebrow}>Nº 07</Text>
         <Text style={styles.title}>Réglages</Text>
 
         {user?.isAnonymous ? (
           <View style={styles.anonCard}>
-            <Text style={styles.anonTitle}>Mode démo (compte anonyme)</Text>
+            <Text style={styles.anonTitle}>Mode démo</Text>
             <Text style={styles.anonBody}>
-              Tes lieux ne sont pas sauvegardés côté cloud. Crée un vrai compte avec Apple pour les retrouver + activer la partie sociale (follow, feed, save from network).
+              Tes lieux ne sont pas sauvegardés côté cloud. Fais un vrai compte Apple pour les retrouver + débloquer la partie sociale (follow, feed, save from network).
             </Text>
             <Pressable
               onPress={() => {
                 Alert.alert(
                   'Créer un vrai compte',
-                  'Tu vas être déconnecté de la démo. Les lieux ajoutés en mode démo seront perdus. Se reconnecter avec Apple pour créer un vrai compte.',
+                  "T'es déconnecté de la démo. Les lieux ajoutés en mode démo sautent. Reconnecte-toi avec Apple pour ouvrir un vrai compte.",
                   [
                     { text: 'Annuler', style: 'cancel' },
                     {
@@ -145,14 +146,16 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        <Text style={styles.sectionEyebrow}>Nº 01</Text>
         <Text style={styles.sectionTitle}>Ajout depuis Partager</Text>
         <Text style={styles.sectionBody}>
-          Depuis Photos, Instagram ou n'importe quelle app, tape Partager et choisis Waymark dans la
-          grille — l'extraction se lance automatiquement, aucune configuration.
+          Photos, Instagram, n'importe quelle app : tape Partager, choisis Waymark dans la grille — l'extraction se lance, tu touches à rien.
         </Text>
 
         {!user?.isAnonymous && (
           <>
+            <Text style={styles.sectionEyebrow}>Nº 02</Text>
+            <Text style={styles.sectionTitle}>Compte</Text>
             <View style={styles.actionGroup}>
               <Pressable
                 onPress={() => nav.navigate('EditUsername')}
@@ -166,7 +169,7 @@ export default function SettingsScreen() {
                 onPress={inviteFriend}
                 style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
               >
-                <Text style={styles.actionLabel}>Inviter un ami</Text>
+                <Text style={styles.actionLabel}>Inviter un pote</Text>
                 <Text style={styles.actionChevron}>›</Text>
               </Pressable>
               <View style={styles.actionDivider} />
@@ -176,16 +179,16 @@ export default function SettingsScreen() {
                   value={isPublic ?? true}
                   onValueChange={toggleVisibility}
                   disabled={isPublic === null}
-                  trackColor={{ true: colors.accent, false: colors.border }}
-                  thumbColor={colors.text}
-                  ios_backgroundColor={colors.border}
+                  trackColor={{ true: colors.catResto, false: colors.hair }}
+                  thumbColor={colors.paper}
+                  ios_backgroundColor={colors.hair}
                 />
               </View>
             </View>
             <Text style={styles.visibilityHint}>
               {isPublic === false
-                ? 'En privé, tes lieux sont invisibles aux autres.'
-                : 'Quand ton profil est public, les autres users voient tes lieux dans leur feed et sur ton profil.'}
+                ? 'En privé, tes lieux sont invisibles pour les autres.'
+                : 'Profil public = les autres voient tes lieux dans leur feed et sur ton profil.'}
             </Text>
           </>
         )}
@@ -220,90 +223,94 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  anonCard: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    padding: spacing.xl,
-    marginTop: spacing.xl,
-  },
-  anonTitle: {
-    ...type.h3,
-    color: colors.accent,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  anonBody: {
-    ...type.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-    lineHeight: 22,
-  },
-  anonBtn: {
-    height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  anonBtnLabel: {
-    ...type.body,
-    color: colors.bg,
-    fontWeight: '700',
-  },
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   scroll: {
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing['2xl'],
     paddingBottom: spacing.xl,
     minHeight: '100%',
   },
-  title: { ...type.h1, color: colors.text, fontWeight: '700' },
+  eyebrow: { ...type.monoSm, color: colors.graphite, marginBottom: spacing.sm },
+  title: { ...type.h1, color: colors.ink, marginBottom: spacing.md },
+  anonCard: {
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.catResto,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+  },
+  anonTitle: {
+    ...type.h3,
+    color: colors.catResto,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+  },
+  anonBody: {
+    ...type.serif,
+    color: colors.graphite,
+    marginBottom: spacing.lg,
+  },
+  anonBtn: {
+    height: 48,
+    borderRadius: radius.sm,
+    backgroundColor: colors.catResto,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anonBtnLabel: {
+    ...type.mono,
+    color: colors.paper,
+    fontWeight: '700',
+  },
   card: {
     marginTop: spacing.xl,
     padding: spacing.lg,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
+    backgroundColor: colors.paper,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hair,
   },
   cardLabel: {
-    ...type.caption,
-    color: colors.textSecondary,
+    ...type.monoSm,
+    color: colors.graphite,
     marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  cardValue: { ...type.h3, color: colors.text, fontWeight: '600' },
-  sectionTitle: { ...type.h2, color: colors.text, fontWeight: '700', marginTop: spacing.xl },
-  sectionBody: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm },
+  cardValue: { ...type.h3, color: colors.ink, textTransform: 'uppercase' },
+  sectionEyebrow: {
+    ...type.monoSm,
+    color: colors.graphite,
+    marginTop: spacing['2xl'],
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: { ...type.h2, color: colors.ink, marginBottom: spacing.sm },
+  sectionBody: { ...type.serif, color: colors.graphite, marginTop: spacing.xs },
   logoutBtn: {
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing['3xl'],
     marginBottom: spacing.md,
   },
-  logoutLabel: { ...type.h3, color: colors.text },
+  logoutLabel: { ...type.mono, color: colors.ink, fontWeight: '700' },
   deleteBtn: {
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteLabel: { ...type.h3, color: colors.error, fontWeight: '600' },
+  deleteLabel: { ...type.mono, color: colors.error, fontWeight: '700' },
   actionGroup: {
-    marginTop: spacing['2xl'],
-    borderRadius: radius.md,
+    marginTop: spacing.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgElevated,
+    borderColor: colors.hair,
+    backgroundColor: colors.paper,
     overflow: 'hidden',
   },
   actionRow: {
@@ -314,28 +321,28 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   actionRowPressed: { opacity: 0.7 },
-  actionLabel: { ...type.body, color: colors.text, fontWeight: '600' },
-  actionChevron: { ...type.h3, color: colors.textTertiary },
+  actionLabel: { ...type.body, color: colors.ink, fontWeight: '600' },
+  actionChevron: { ...type.h3, color: colors.graphite },
   actionDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
+    backgroundColor: colors.hair,
     marginHorizontal: spacing.lg,
   },
   visibilityHint: {
     ...type.caption,
-    color: colors.textSecondary,
+    color: colors.graphite,
     marginTop: spacing.sm,
     paddingHorizontal: spacing.xs,
   },
   devBtn: {
     height: 44,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: colors.border,
+    borderColor: colors.hair,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  devLabel: { ...type.caption, color: colors.textTertiary },
+  devLabel: { ...type.caption, color: colors.graphite },
 });
