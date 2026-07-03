@@ -215,6 +215,26 @@ export default function LieuDetailScreen() {
     nav.navigate('UserProfile', { uid: lieu.savedFromUserId });
   };
 
+  // #41 — toggle the pin's status. Tapping the currently-active toggle clears
+  // the status back to null (undo without indirection). Tapping any other
+  // toggle sets that status. The service takes care of the visitedAt invariant.
+  const onToggleStatus = async (target: 'wishlist' | 'visited') => {
+    if (!user || !lieu || !isMine) return;
+    const next: 'wishlist' | 'visited' | null = lieu.status === target ? null : target;
+    // Optimistic update — mirror the immediate feel of userNotes autosave.
+    // If the persistent write fails, we log and leave the UI in the last-good
+    // state on the next `load()`; not gating the tap on the network keeps the
+    // toggle indistinguishable from local state.
+    setLieu({ ...lieu, status: next });
+    try {
+      await getLieuxService().updateLieu(user.uid, lieu.id, { status: next });
+    } catch (err) {
+      console.error('[LieuDetail] status update failed', err);
+      // Roll back the optimistic change so the UI reflects reality.
+      setLieu(lieu);
+    }
+  };
+
   const confirmDelete = () => {
     if (!lieu || !user) return;
     Alert.alert(
@@ -264,6 +284,55 @@ export default function LieuDetailScreen() {
           <Text style={styles.categoryTag}>{CATEGORY_LABEL[lieu.category]}</Text>
           <Text style={styles.name}>{lieu.name}</Text>
           <Text style={styles.address}>{lieu.address}</Text>
+
+          {/* #41 — owner-only status toggles. Sits directly under the address
+              per the design symmetry decision in #39 (badge for followers
+              lands in the same spot in the follow-up slice). Tapping the
+              active toggle clears status back to null. */}
+          {isMine && (
+            <View style={styles.statusRow} accessibilityRole="tablist">
+              <Pressable
+                onPress={() => onToggleStatus('wishlist')}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: lieu.status === 'wishlist' }}
+                accessibilityLabel="Envie"
+                style={({ pressed }) => [
+                  styles.statusToggle,
+                  lieu.status === 'wishlist' && styles.statusToggleActive,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusToggleLabel,
+                    lieu.status === 'wishlist' && styles.statusToggleLabelActive,
+                  ]}
+                >
+                  ♡ Envie
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => onToggleStatus('visited')}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: lieu.status === 'visited' }}
+                accessibilityLabel="Déjà allé"
+                style={({ pressed }) => [
+                  styles.statusToggle,
+                  lieu.status === 'visited' && styles.statusToggleActive,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusToggleLabel,
+                    lieu.status === 'visited' && styles.statusToggleLabelActive,
+                  ]}
+                >
+                  ✓ Déjà allé
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
           {lieu.description && <Text style={styles.description}>{lieu.description}</Text>}
 
@@ -375,6 +444,32 @@ const styles = StyleSheet.create({
   },
   name: { ...type.h1, color: colors.text, fontWeight: '700' },
   address: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm },
+  // #41 — segmented status toggles, owner-only. Sits directly under the address.
+  statusRow: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  statusToggle: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+  },
+  statusToggleActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  statusToggleLabel: {
+    ...type.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  statusToggleLabelActive: {
+    color: colors.text,
+  },
   description: { ...type.body, color: colors.text, marginTop: spacing.lg, lineHeight: 24 },
   attribution: {
     ...type.caption,

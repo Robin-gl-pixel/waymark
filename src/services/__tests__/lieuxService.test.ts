@@ -203,6 +203,65 @@ describe('LieuxService seam contract (InMemoryLieuxService)', () => {
     });
   });
 
+  // #41 — status field (wishlist/visited/null) and the visitedAt invariant.
+  describe('status + visitedAt (#41)', () => {
+    it('createLieu initializes status = "wishlist" and no visitedAt', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      expect(created.status).toBe('wishlist');
+      expect(created.visitedAt).toBeUndefined();
+    });
+
+    it('updateLieu({ status: "visited" }) stamps visitedAt with a Timestamp', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      await svc.updateLieu(USER, created.id, { status: 'visited' });
+
+      const after = await svc.getLieuById(USER, created.id);
+      expect(after!.status).toBe('visited');
+      expect(after!.visitedAt).toBeDefined();
+      // Shape-check: must be a Timestamp (has toMillis) rather than raw Date.
+      expect(typeof after!.visitedAt!.toMillis()).toBe('number');
+      // And must be a recent-ish time — sanity check that we didn't accidentally
+      // freeze it at 0 or some stub value.
+      expect(after!.visitedAt!.toMillis()).toBeGreaterThan(0);
+    });
+
+    it('updateLieu({ status: "wishlist" }) clears visitedAt when previously visited', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      await svc.updateLieu(USER, created.id, { status: 'visited' });
+      const afterVisit = await svc.getLieuById(USER, created.id);
+      expect(afterVisit!.visitedAt).toBeDefined();
+
+      await svc.updateLieu(USER, created.id, { status: 'wishlist' });
+      const afterUndo = await svc.getLieuById(USER, created.id);
+      expect(afterUndo!.status).toBe('wishlist');
+      expect(afterUndo!.visitedAt).toBeUndefined();
+    });
+
+    it('updateLieu({ status: null }) clears both status and visitedAt', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      await svc.updateLieu(USER, created.id, { status: 'visited' });
+
+      await svc.updateLieu(USER, created.id, { status: null });
+      const after = await svc.getLieuById(USER, created.id);
+      expect(after!.status).toBeNull();
+      expect(after!.visitedAt).toBeUndefined();
+    });
+
+    it('unrelated patches (e.g. userNotes) leave status and visitedAt untouched', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      await svc.updateLieu(USER, created.id, { status: 'visited' });
+      const afterVisit = await svc.getLieuById(USER, created.id);
+      const stampedAt = afterVisit!.visitedAt!.toMillis();
+
+      await svc.updateLieu(USER, created.id, { userNotes: 'a note' });
+      const afterNote = await svc.getLieuById(USER, created.id);
+      expect(afterNote!.status).toBe('visited');
+      expect(afterNote!.visitedAt).toBeDefined();
+      expect(afterNote!.visitedAt!.toMillis()).toBe(stampedAt);
+      expect(afterNote!.userNotes).toBe('a note');
+    });
+  });
+
   describe('deleteLieu', () => {
     it('removes the lieu; subsequent getLieuById returns null', async () => {
       const created = await svc.createLieu(USER, makeInput());
@@ -327,6 +386,21 @@ describe('LieuxService seam contract (InMemoryLieuxService)', () => {
       const resaved = await svc.resaveFromNetwork(refreshedSource!, CREDIT);
 
       expect(resaved.userNotes).toBeNull();
+    });
+
+    // #41 — status expresses MY relation to the place, not the source's.
+    it('initializes status = "wishlist" on the re-saved pin regardless of source status', async () => {
+      const source = await seedSource();
+      // Flip the source pin to 'visited' — the resave must still land as wishlist.
+      await svc.updateLieu(OTHER, source.id, { status: 'visited' });
+      const refreshedSource = await svc.getLieuById(OTHER, source.id);
+      expect(refreshedSource!.status).toBe('visited');
+      expect(refreshedSource!.visitedAt).toBeDefined();
+
+      const resaved = await svc.resaveFromNetwork(refreshedSource!, CREDIT);
+
+      expect(resaved.status).toBe('wishlist');
+      expect(resaved.visitedAt).toBeUndefined();
     });
 
     it('is discoverable in the caller\'s own getAllLieux + getLieuById', async () => {

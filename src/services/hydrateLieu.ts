@@ -74,6 +74,13 @@ export function hydrateLieuFromRaw(id: string, data: Record<string, unknown>): L
     userNotes: (data.userNotes as string) ?? null,
     savedFromUserId: (data.savedFromUserId as string | null | undefined) ?? null,
     savedFromUsername: (data.savedFromUsername as string | null | undefined) ?? null,
+    // #41 — pre-existing pins have no `status` field on their Firestore doc;
+    // surface them as `null` (unclassified) at the seam. No backfill needed.
+    status: (data.status as Lieu['status'] | undefined) ?? null,
+    // Firestore stores the cleared invariant as null (see
+    // FirebaseLieuxService.updateLieu). Both null and missing collapse to
+    // `undefined` on the hydrated Lieu.
+    visitedAt: (data.visitedAt as Timestamp | null | undefined) ?? undefined,
     createdAt: data.createdAt as Timestamp,
     updatedAt: data.updatedAt as Timestamp,
   };

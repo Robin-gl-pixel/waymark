@@ -528,6 +528,10 @@ function makeLieu(ownerUid: string, id: string, createdAtMs: number, overrides: 
       },
     ],
     userNotes: null,
+    // #41 — Lieu requires an explicit status field. Default the fixture to
+    // `null` (unclassified) so pre-#41 test cases don't accidentally exercise
+    // wishlist-specific behaviour; individual tests can override via `overrides`.
+    status: null,
     createdAt: ts(createdAtMs),
     updatedAt: ts(createdAtMs),
     ...overrides,

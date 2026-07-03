@@ -126,6 +126,9 @@ export class InMemoryLieuxService implements LieuxService {
       },
       photos,
       userNotes: input.userNotes,
+      // #41 — new pins default to wishlist; visitedAt stays undefined until
+      // the user flips the toggle to 'visited'.
+      status: 'wishlist',
       createdAt: ts,
       updatedAt: ts,
     };
@@ -136,13 +139,22 @@ export class InMemoryLieuxService implements LieuxService {
   async updateLieu(
     userId: string,
     lieuId: string,
-    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes'>>,
+    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes' | 'status'>>,
   ): Promise<void> {
     const bucket = this.bucket(userId);
     const existing = bucket.get(lieuId);
     if (!existing) return;
     // Only allow the whitelisted fields — mirror the seam contract even though callers are typed.
-    const allowed: Array<keyof typeof patch> = ['name', 'city', 'address', 'category', 'userNotes'];
+    // NOTE: `visitedAt` is intentionally NOT in this list — it's service-managed
+    // via the status invariant below (#41).
+    const allowed: Array<keyof typeof patch> = [
+      'name',
+      'city',
+      'address',
+      'category',
+      'userNotes',
+      'status',
+    ];
     const filtered: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in patch && patch[key] !== undefined) {
@@ -151,12 +163,23 @@ export class InMemoryLieuxService implements LieuxService {
     }
     const nameNormalized =
       filtered.name !== undefined ? normalizeName(filtered.name as string) : existing.nameNormalized;
-    bucket.set(lieuId, {
+    const nextRaw: Record<string, unknown> = {
       ...existing,
       ...filtered,
       nameNormalized,
       updatedAt: this.now(),
-    });
+    };
+    // #41 — enforce the visitedAt invariant. Transition INTO 'visited' stamps
+    // visitedAt with the current time; any other status transition clears it.
+    // Mirror this logic identically in FirebaseLieuxService.
+    if ('status' in filtered) {
+      if (filtered.status === 'visited') {
+        nextRaw.visitedAt = this.now();
+      } else {
+        delete nextRaw.visitedAt;
+      }
+    }
+    bucket.set(lieuId, nextRaw);
   }
 
   async deleteLieu(userId: string, lieuId: string): Promise<void> {
@@ -253,6 +276,10 @@ export class InMemoryLieuxService implements LieuxService {
       userNotes: null,
       savedFromUserId: credit.uid,
       savedFromUsername: credit.username,
+      // #41 — status is about MY relation to the place, not the source's.
+      // Fresh resaves always land in my wishlist regardless of what the
+      // source pin was tagged as.
+      status: 'wishlist',
       createdAt: ts,
       updatedAt: ts,
     };
