@@ -91,8 +91,14 @@ export default function PickUsernameScreen({ onComplete }: Props) {
       await getSocialService().upsertProfile({ username: normalized });
       onComplete();
     } catch (err) {
+      // Log the raw error so dev can see the Firebase error code in the console.
+      // Without this we'd fall back to the generic "Erreur. Réessaie." for
+      // every unmapped case, hiding the real cause (permission-denied is by
+      // far the most common — deployment of firestore.rules pending).
+      console.error('[PickUsername] upsertProfile failed', err);
       const msg = (err as Error | null)?.message ?? 'Erreur inconnue';
-      setSubmitError(mapErrorToFrench(msg));
+      const code = (err as { code?: string } | null)?.code ?? '';
+      setSubmitError(mapErrorToFrench(msg, code));
       setSubmitting(false);
     }
   };
@@ -170,13 +176,23 @@ function StatusLine({ availability, error }: { availability: Availability; error
   }
 }
 
-function mapErrorToFrench(msg: string): string {
+function mapErrorToFrench(msg: string, code: string = ''): string {
   if (msg.includes('Username already taken')) return 'Ce pseudo est déjà pris.';
   if (msg.includes('Invalid username format')) return 'Format invalide.';
   if (msg.includes('reserved')) return 'Ce nom est réservé.';
   if (msg.includes('cooldown')) return 'Tu ne peux pas changer de pseudo aussi souvent.';
   if (msg.includes('Not signed in')) return 'Connexion perdue. Reconnecte-toi.';
-  return 'Erreur. Réessaie.';
+  // Firestore permission-denied is the #1 unmapped cause — usually because
+  // firestore.rules haven't been deployed yet on a fresh Firebase project.
+  if (code === 'permission-denied' || msg.toLowerCase().includes('permission')) {
+    return __DEV__
+      ? 'Permission Firestore refusée. Déploie les règles : firebase deploy --only firestore:rules'
+      : 'Problème de connexion. Réessaie dans un instant.';
+  }
+  if (msg.toLowerCase().includes('network') || code === 'unavailable') {
+    return 'Pas de connexion. Vérifie ta connexion internet.';
+  }
+  return __DEV__ ? `Erreur : ${msg.slice(0, 100)}` : 'Erreur. Réessaie.';
 }
 
 const styles = StyleSheet.create({
