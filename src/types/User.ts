@@ -20,6 +20,14 @@ export interface UserProfile {
   avatarUrl: string | null;             // V2 (V1: null everywhere)
   bio: string | null;                   // V2 (V1: null everywhere)
   usernameChangedAt: Timestamp | null;  // for the 30-day cooldown on renames
+  /**
+   * Personal secret used by the iOS Shortcut integration (#7) to authenticate
+   * a call to the `extractFromShortcut` Cloud Function without a Firebase ID
+   * token. 32-byte hex (64 chars) — minted lazily on first visit to the
+   * Shortcut Settings screen and rotated via `regenerateShortcutToken`.
+   * `null` when the user hasn't opened Settings → Shortcut yet.
+   */
+  shortcutToken: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

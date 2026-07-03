@@ -44,6 +44,26 @@ export interface SocialService {
   upsertProfile(input: ProfileInput): Promise<UserProfile>;
   setProfileVisibility(isPublic: boolean): Promise<void>;
 
+  // --- iOS Shortcut token (#7) ---
+  /**
+   * Return the current user's Shortcut auth token, minting one on first call.
+   *
+   * The token is 32 bytes of CSPRNG output rendered as lowercase hex (64
+   * chars). It's persisted on `/users/{uid}.shortcutToken`. Subsequent calls
+   * return the same token — the Settings screen relies on this to render a
+   * stable "copy me" value across renders. Use {@link regenerateShortcutToken}
+   * to rotate.
+   */
+  getOrCreateShortcutToken(): Promise<string>;
+
+  /**
+   * Rotate the Shortcut auth token — mint a fresh 32-byte hex, overwrite
+   * `/users/{uid}.shortcutToken`, return the new value. Any previously
+   * configured Shortcut on the user's iCloud stops working until they paste
+   * the new token in.
+   */
+  regenerateShortcutToken(): Promise<string>;
+
   // --- Search ---
   /** Exact-match on username in V1 (no fuzzy). Max 20 results. */
   searchUsers(query: string): Promise<UserProfile[]>;

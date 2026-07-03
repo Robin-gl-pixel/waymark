@@ -7,7 +7,7 @@ import type {
   ActivityPage,
 } from '../types/User';
 import type { SocialService, FeedPage } from './socialService';
-import { RESERVED_USERNAMES, USERNAME_REGEX, USERNAME_CHANGE_COOLDOWN_MS } from './firebaseSocialService';
+import { RESERVED_USERNAMES, USERNAME_REGEX, USERNAME_CHANGE_COOLDOWN_MS, SHORTCUT_TOKEN_HEX_LENGTH } from './firebaseSocialService';
 
 /**
  * In-memory implementation used by contract tests + as a stub in Storybook / dev.
@@ -33,11 +33,18 @@ export class InMemorySocialService implements SocialService {
   }
 
   /** Pre-populate a user (for test fixtures — bypasses upsertProfile validation). */
-  seedUser(user: Omit<UserProfile, 'createdAt' | 'updatedAt'> & Partial<Pick<UserProfile, 'createdAt' | 'updatedAt'>>): UserProfile {
+  seedUser(
+    user: Omit<UserProfile, 'createdAt' | 'updatedAt' | 'shortcutToken'>
+      & Partial<Pick<UserProfile, 'createdAt' | 'updatedAt' | 'shortcutToken'>>,
+  ): UserProfile {
     const ts = this.stamp();
     const full: UserProfile = {
       createdAt: ts,
       updatedAt: ts,
+      // Default to `null` when a seed doesn't specify a token — matches the
+      // real-world "profile created via upsertProfile, Shortcut screen not yet
+      // opened" state that ~every non-#7 test wants.
+      shortcutToken: null,
       ...user,
     } as UserProfile;
     this.users.set(user.uid, full);
@@ -119,6 +126,7 @@ export class InMemorySocialService implements SocialService {
           avatarUrl: null,
           bio: null,
           usernameChangedAt: null,
+          shortcutToken: null,
           createdAt: ts,
           updatedAt: ts,
         };
@@ -132,6 +140,52 @@ export class InMemorySocialService implements SocialService {
     const u = this.users.get(this.currentUid);
     if (!u) throw new Error('No profile');
     this.users.set(this.currentUid, { ...u, isPublic, updatedAt: this.stamp() });
+  }
+
+  // -------------------------------------------------------------------------
+  // Shortcut token (#7)
+  //
+  // We use a deterministic-but-uniformly-distributed PRNG for tests (no
+  // reliance on `crypto` in the Jest env — expo-crypto is a native module).
+  // The Firebase impl swaps this out for expo-crypto's real CSPRNG; only the
+  // shape (64 hex chars) is under test at the seam.
+  // -------------------------------------------------------------------------
+
+  async getOrCreateShortcutToken(): Promise<string> {
+    if (!this.currentUid) throw new Error('Not signed in');
+    const u = this.users.get(this.currentUid);
+    if (!u) throw new Error('No profile');
+    if (u.shortcutToken && u.shortcutToken.length === SHORTCUT_TOKEN_HEX_LENGTH) {
+      return u.shortcutToken;
+    }
+    const token = this.mintToken();
+    this.users.set(this.currentUid, { ...u, shortcutToken: token, updatedAt: this.stamp() });
+    return token;
+  }
+
+  async regenerateShortcutToken(): Promise<string> {
+    if (!this.currentUid) throw new Error('Not signed in');
+    const u = this.users.get(this.currentUid);
+    if (!u) throw new Error('No profile');
+    const token = this.mintToken();
+    this.users.set(this.currentUid, { ...u, shortcutToken: token, updatedAt: this.stamp() });
+    return token;
+  }
+
+  private mintToken(): string {
+    let hex = '';
+    for (let i = 0; i < SHORTCUT_TOKEN_HEX_LENGTH; i++) {
+      hex += Math.floor(this.rand() * 16).toString(16);
+    }
+    return hex;
+  }
+
+  private rand(): number {
+    // Non-crypto PRNG — good enough for tests to observe two consecutive
+    // calls returning distinct tokens. `Math.random()` would also do; kept
+    // as a stable seed so a future contract test can pin an expected value.
+    this.clock++;
+    return ((this.clock * 9301 + 49297) % 233280) / 233280;
   }
 
   // -------------------------------------------------------------------------

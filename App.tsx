@@ -39,6 +39,7 @@ import UserProfileScreen from './src/screens/UserProfileScreen';
 import SearchUsersScreen from './src/screens/SearchUsersScreen';
 import ReportScreen from './src/screens/ReportScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
+import ShortcutSetupScreen from './src/screens/ShortcutSetupScreen';
 import { getSocialService } from './src/services/socialService';
 import { colors, fonts } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
@@ -292,6 +293,7 @@ function Root() {
           <RootStack.Screen name="SearchUsers" component={SearchUsersScreen} options={{ title: 'Rechercher' }} />
           <RootStack.Screen name="Report" component={ReportScreen} options={{ title: 'Signaler' }} />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: 'Comptes bloqués' }} />
+          <RootStack.Screen name="ShortcutSetup" component={ShortcutSetupScreen} options={{ title: 'Shortcut iOS' }} />
           <RootStack.Screen
             name="Onboarding"
             component={OnboardingSlidesScreen}

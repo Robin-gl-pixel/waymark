@@ -851,3 +851,63 @@ describe('SocialService seam contract — Feed (slice #12)', () => {
     expect(page.cursor).toBeNull();
   });
 });
+
+/**
+ * Slice #7 contract tests — iOS Shortcut token.
+ *
+ * The seam mints one 32-byte hex token per user on first read from Settings,
+ * exposes a stable value on every subsequent read, and rotates on demand.
+ * Both the InMemory and Firebase impls must honour these invariants —
+ * these tests pin the InMemory side; a rules test in `firestore-tests/`
+ * would cover the Firebase side's persistence semantics.
+ */
+describe('SocialService seam contract (iOS Shortcut token, slice #7)', () => {
+  const ME = 'uid-me';
+
+  let svc: InMemorySocialService;
+  beforeEach(async () => {
+    svc = new InMemorySocialService();
+    svc.setCurrentUid(ME);
+    await svc.upsertProfile({ username: 'shortcutter' });
+  });
+
+  it('getOrCreateShortcutToken mints a 64-char hex token on first call', async () => {
+    // Fresh profile starts with a null token — surfaced via getMyProfile.
+    expect((await svc.getMyProfile())?.shortcutToken).toBeNull();
+
+    const token = await svc.getOrCreateShortcutToken();
+    expect(token).toMatch(/^[0-9a-f]{64}$/);
+    // Persisted on the profile so subsequent renders can read it.
+    expect((await svc.getMyProfile())?.shortcutToken).toBe(token);
+  });
+
+  it('getOrCreateShortcutToken returns the same token on subsequent calls', async () => {
+    const first = await svc.getOrCreateShortcutToken();
+    const second = await svc.getOrCreateShortcutToken();
+    expect(second).toBe(first);
+  });
+
+  it('regenerateShortcutToken replaces the current token with a new hex value', async () => {
+    const original = await svc.getOrCreateShortcutToken();
+    const rotated = await svc.regenerateShortcutToken();
+    expect(rotated).toMatch(/^[0-9a-f]{64}$/);
+    expect(rotated).not.toBe(original);
+    // After rotation, the read side reflects the new token.
+    expect(await svc.getOrCreateShortcutToken()).toBe(rotated);
+    expect((await svc.getMyProfile())?.shortcutToken).toBe(rotated);
+  });
+
+  it('rejects when not signed in', async () => {
+    svc.setCurrentUid(null);
+    await expect(svc.getOrCreateShortcutToken()).rejects.toThrow(/signed in/i);
+    await expect(svc.regenerateShortcutToken()).rejects.toThrow(/signed in/i);
+  });
+
+  it('rejects when the profile has not been created yet (no upsertProfile)', async () => {
+    const raw = new InMemorySocialService();
+    raw.setCurrentUid(ME);
+    // No upsertProfile — the user is signed in but has no profile doc.
+    await expect(raw.getOrCreateShortcutToken()).rejects.toThrow(/profile/i);
+    await expect(raw.regenerateShortcutToken()).rejects.toThrow(/profile/i);
+  });
+});

@@ -173,6 +173,14 @@ export default function SettingsScreen() {
                 <Text style={styles.actionChevron}>›</Text>
               </Pressable>
               <View style={styles.actionDivider} />
+              <Pressable
+                onPress={() => nav.navigate('ShortcutSetup')}
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+              >
+                <Text style={styles.actionLabel}>Configurer le Shortcut</Text>
+                <Text style={styles.actionChevron}>›</Text>
+              </Pressable>
+              <View style={styles.actionDivider} />
               <View style={styles.actionRow}>
                 <Text style={styles.actionLabel}>Profil public</Text>
                 <Switch

@@ -23,6 +23,7 @@ export type RootStackParamList = {
   SearchUsers: undefined;
   Report: { targetUid: string; targetLieuId?: string };
   BlockedUsers: undefined;
+  ShortcutSetup: undefined;
 };
 
 /**
