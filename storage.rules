@@ -2,15 +2,16 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Screenshots live under a user-scoped path — only that user can read/write.
-    // DEPRECATED path — kept for read-compat with pre-#35 pins. New pins use
-    // `users/{uid}/photos/{lieuId}/{photoId}.jpg` (see rule below).
+    // Legacy pre-migration path: single screenshot per pin. Kept for read
+    // compatibility with pins created before the photos[] migration
+    // (parent PRD #34 / slice #35). New pins write under `photos/…` instead.
     match /users/{userId}/screenshots/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Multi-photo gallery per pin (#35 + #38). One user, one lieuId per
-    // folder, arbitrary photoId as the leaf. Same owner-only invariant.
+    // Gallery photos, post-migration layout:
+    //   users/{uid}/photos/{lieuId}/{photoId}.jpg
+    // Owner-scoped read/write, matching the screenshots rule above.
     match /users/{userId}/photos/{lieuId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

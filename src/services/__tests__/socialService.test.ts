@@ -517,16 +517,16 @@ function makeLieu(ownerUid: string, id: string, createdAtMs: number, overrides: 
     lng: 2.35,
     category: 'resto',
     description: null,
-    // photos[] is required post-#35; keep a single-element gallery matching
-    // the deprecated sourceInstagram.screenshotStoragePath.
+    // New photos[] schema (parent PRD #34 / slice #35). `screenshotStoragePath`
+    // is omitted here — this fixture represents a post-migration doc.
+    sourceInstagram: { author: null },
     photos: [
       {
-        storagePath: `users/${ownerUid}/screenshots/${id}.png`,
+        storagePath: `users/${ownerUid}/photos/${id}/hero.jpg`,
         source: 'insta',
         addedAt: ts(createdAtMs),
       },
     ],
-    sourceInstagram: { author: null, screenshotStoragePath: `users/${ownerUid}/screenshots/${id}.png` },
     userNotes: null,
     createdAt: ts(createdAtMs),
     updatedAt: ts(createdAtMs),

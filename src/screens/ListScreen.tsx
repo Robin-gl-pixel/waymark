@@ -102,11 +102,11 @@ export default function ListScreen() {
 
 function LieuRow({ lieu, onPress }: { lieu: Lieu; onPress: () => void }) {
   const [thumbUri, setThumbUri] = useState<string | null>(null);
-
-  // Hero = `photos[0].storagePath` (#35). If the gallery is empty (user
-  // deleted every photo via #38), fall back to `sourceInstagram.screenshotStoragePath`
-  // for pre-migration docs written before the field existed — otherwise leave
-  // the thumb null so the category-emoji placeholder renders.
+  // Hero = `photos[0].storagePath` (#35, parent PRD #34). Legacy pins are
+  // transparently normalised on read via the seam's synthesis path; the
+  // `sourceInstagram.screenshotStoragePath` fallback is defensive belt-and-
+  // braces in case the gallery ends up empty for a doc the hydrator missed.
+  // If nothing resolves, the category-emoji placeholder renders.
   const heroPath =
     lieu.photos?.[0]?.storagePath || lieu.sourceInstagram.screenshotStoragePath || '';
 

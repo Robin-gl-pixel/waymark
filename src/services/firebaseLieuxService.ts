@@ -8,9 +8,9 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   deleteDoc,
-  Timestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from '../auth/firebase';
@@ -23,6 +23,7 @@ import {
   PhotoCapReachedError,
 } from './lieuxService';
 import { normalizeName } from '../lib/normalize';
+import { hydrateLieuFromRaw } from './hydrateLieu';
 
 /**
  * Great-circle distance in meters. Duplicated from `UploadScreen` /
@@ -80,11 +81,15 @@ export class FirebaseLieuxService implements LieuxService {
     const ext = extFromMime[input.screenshotMediaType];
     // URL-only shares from Insta (extractFromInstagramUrl) don't come with a
     // local file — screenshotUri is empty. In that case we skip the Storage
-    // upload and leave storagePath empty ; LieuDetail / feed rows must handle
-    // the absence gracefully (no <Image> when path is falsy).
+    // upload and write an empty `photos: []` ; LieuDetail / feed rows must
+    // handle the absence gracefully (no <Image> when photos is empty).
     let storagePath = '';
     if (input.screenshotUri && input.screenshotUri.length > 0) {
-      storagePath = `users/${userId}/screenshots/${lieuId}.${ext}`;
+      // New layout (parent PRD #34): `users/{uid}/photos/{lieuId}/{photoId}.{ext}`.
+      // `photoId` is a random string so a future gallery-add slice can co-locate
+      // additional photos under the same folder without collisions.
+      const photoId = randomPhotoId();
+      storagePath = `users/${userId}/photos/${lieuId}/${photoId}.${ext}`;
       // Firebase JS SDK v9+ on RN Hermes throws "Creating blobs from ArrayBuffer…"
       // for both uploadBytes(Uint8Array) and uploadString(base64) — both wrap in Blob internally.
       // fetch(uri).blob() returns a native RN Blob (BlobModule) that XHR can upload correctly.
@@ -95,7 +100,20 @@ export class FirebaseLieuxService implements LieuxService {
     }
 
     // 2. Write Firestore doc.
+    // NEW SCHEMA (parent PRD #34, slice #35): `photos: [{ storagePath, source, addedAt }]`.
+    // We DO NOT write `sourceInstagram.screenshotStoragePath` on new pins —
+    // the read layer synthesises `photos[]` from it only for legacy docs.
     const now = serverTimestamp();
+    const photos =
+      storagePath.length > 0
+        ? [
+            {
+              storagePath,
+              source: 'insta' as const,
+              addedAt: now,
+            },
+          ]
+        : [];
     const data = {
       userId,
       name: input.name,
@@ -109,8 +127,8 @@ export class FirebaseLieuxService implements LieuxService {
       description: input.description,
       sourceInstagram: {
         author: input.sourceAuthor,
-        screenshotStoragePath: storagePath,
       },
+      photos,
       userNotes: input.userNotes,
       createdAt: now,
       updatedAt: now,
@@ -139,10 +157,25 @@ export class FirebaseLieuxService implements LieuxService {
     const lieu = await this.getLieuById(userId, lieuId);
     if (!lieu) return;
     // Best-effort Storage cleanup; Firestore delete is authoritative.
-    try {
-      await deleteObject(ref(storage, lieu.sourceInstagram.screenshotStoragePath));
-    } catch (err) {
-      console.warn('[deleteLieu] storage cleanup failed', err);
+    // Iterate `photos[]` (post-migration) AND the legacy
+    // `sourceInstagram.screenshotStoragePath` (still present on pre-migration
+    // docs) so a delete during the transition leaves no orphans behind.
+    const pathsToDelete = new Set<string>();
+    for (const p of lieu.photos) {
+      if (p.storagePath && p.storagePath.startsWith(`users/${userId}/`)) {
+        pathsToDelete.add(p.storagePath);
+      }
+    }
+    const legacy = lieu.sourceInstagram.screenshotStoragePath;
+    if (legacy && legacy.startsWith(`users/${userId}/`)) {
+      pathsToDelete.add(legacy);
+    }
+    for (const p of pathsToDelete) {
+      try {
+        await deleteObject(ref(storage, p));
+      } catch (err) {
+        console.warn('[deleteLieu] storage cleanup failed', p, err);
+      }
     }
     await deleteDoc(doc(this.lieuxCol(userId), lieuId));
   }
@@ -222,12 +255,13 @@ export class FirebaseLieuxService implements LieuxService {
 
     const lieuRef = doc(this.lieuxCol(myUid));
     const now = serverTimestamp();
-    // NOTE: `screenshotStoragePath` is copied by REFERENCE — the same file in
-    // Storage is now referenced by two Firestore docs. This is intentional:
-    // saves are free, storage isn't, and account-delete only nukes screenshots
-    // under the deleting user's own path (best-effort). The account cascade
-    // nullifies attribution on downstream pins but does not touch the storage
-    // ref — orphaned pins would still resolve via the URL until Storage GC.
+    // NOTE: `photos[]` is copied by REFERENCE — the same Storage objects are
+    // now referenced by two Firestore docs. This is intentional: saves are
+    // free, storage isn't, and account-delete only nukes photos under the
+    // deleting user's own path (best-effort — see `deleteLieu`). The account
+    // cascade nullifies attribution on downstream pins but does not touch the
+    // storage refs — orphaned pins would still resolve via the URL until
+    // Storage GC.
     const data: Record<string, unknown> = {
       userId: myUid,
       name: sourceLieu.name,
@@ -240,9 +274,21 @@ export class FirebaseLieuxService implements LieuxService {
       category: sourceLieu.category,
       description: sourceLieu.description,
       sourceInstagram: {
+        // Provenance metadata survives even if the origin photo is later
+        // deleted from the gallery (parent PRD #34 user story #13). We
+        // preserve the deprecated legacy screenshot path only when it's
+        // present on the source (pre-migration source docs), so the new pin
+        // still renders even before the backfill has re-shaped the source.
         author: sourceLieu.sourceInstagram.author,
-        screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath,
+        ...(sourceLieu.sourceInstagram.screenshotStoragePath
+          ? { screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath }
+          : {}),
       },
+      photos: sourceLieu.photos.map((p) => ({
+        storagePath: p.storagePath,
+        source: p.source,
+        addedAt: p.addedAt,
+      })),
       userNotes: null,
       savedFromUserId: credit.uid,
       savedFromUsername: credit.username,
@@ -389,59 +435,31 @@ export class FirebaseLieuxService implements LieuxService {
   }
 
   /**
-   * Normalize the `photos` field off a raw Firestore doc — handles both the
+   * Normalize the `photos` field off a raw Firestore doc. Handles both the
    * new shape (array of {@link LieuPhoto}) and the pre-#35 shape (missing
    * field, single `sourceInstagram.screenshotStoragePath`). Never writes back.
+   *
+   * Kept as a small helper on the class because the add/remove/reorder
+   * transactions read fresh Firestore data mid-transaction and only need the
+   * photos array — running the full `hydrateLieuFromRaw` there would be
+   * wasteful.
    */
   private readPhotos(data: Record<string, unknown>): LieuPhoto[] {
-    const raw = data.photos;
-    if (Array.isArray(raw)) {
-      // Cast is safe because the shape is enforced by our own writes; if a
-      // migration bug corrupts a doc, downstream code will surface it.
-      return raw as LieuPhoto[];
-    }
-    // Read-compat: synthesize a single-element gallery from the deprecated
-    // field if present. This is a read-only synthesis — no Firestore write.
-    const src = data.sourceInstagram as Lieu['sourceInstagram'] | undefined;
-    if (src?.screenshotStoragePath) {
-      const addedAt =
-        (data.createdAt as Timestamp | undefined) ?? Timestamp.now();
-      return [
-        {
-          storagePath: src.screenshotStoragePath,
-          source: 'insta',
-          addedAt,
-        },
-      ];
-    }
-    return [];
+    return hydrateLieuFromRaw('', data).photos;
   }
 
   private hydrate(id: string, data: Record<string, unknown>): Lieu {
-    return {
-      id,
-      userId: data.userId as string,
-      name: data.name as string,
-      // Fallback for pre-migration docs that don't have the field yet — the
-      // backfill script will fill them in, but a client read shouldn't crash
-      // in the meantime.
-      nameNormalized:
-        (data.nameNormalized as string | undefined) ?? normalizeName(data.name as string),
-      city: data.city as string,
-      country: data.country as string,
-      address: data.address as string,
-      lat: data.lat as number,
-      lng: data.lng as number,
-      category: data.category as Lieu['category'],
-      description: (data.description as string) ?? null,
-      photos: this.readPhotos(data),
-      sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
-      userNotes: (data.userNotes as string) ?? null,
-      savedFromUserId: (data.savedFromUserId as string | null | undefined) ?? null,
-      savedFromUsername: (data.savedFromUsername as string | null | undefined) ?? null,
-      createdAt: data.createdAt as Timestamp,
-      updatedAt: data.updatedAt as Timestamp,
-    };
+    return hydrateLieuFromRaw(id, data);
   }
+}
+
+/**
+ * 10-char base36 random string used as the storage `photoId`. Matches the
+ * `users/{uid}/photos/{lieuId}/{photoId}.jpg` layout from parent PRD #34.
+ * Collision-free within a pin's folder is enough — pins are already scoped
+ * by lieuId, so ~60 bits of entropy is overkill in practice.
+ */
+function randomPhotoId(): string {
+  return Math.random().toString(36).slice(2, 12).padEnd(10, '0');
 }
 

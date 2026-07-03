@@ -118,7 +118,7 @@ export default function LieuDetailScreen() {
       setNotes(fetched?.userNotes ?? '');
       if (fetched) {
         // Resolve every gallery photo's signed URL — the readPhotos synthesis
-        // in FirebaseLieuxService guarantees `photos[]` is populated even for
+        // in the seam's hydrator guarantees `photos[]` is populated even for
         // pre-migration docs, so we don't need a fallback to
         // `sourceInstagram.screenshotStoragePath` here.
         setPhotoUrls(await resolvePhotoUrls(fetched.photos));
