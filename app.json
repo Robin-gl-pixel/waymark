@@ -21,7 +21,9 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDevelopmentRegion": "fr",
-        "CFBundleLocalizations": ["fr"],
+        "CFBundleLocalizations": [
+          "fr"
+        ],
         "NSPhotoLibraryUsageDescription": "Waymark utilise tes screenshots Instagram pour extraire automatiquement les lieux recommandés.",
         "NSLocationWhenInUseUsageDescription": "Waymark utilise ta position pour te montrer les lieux enregistrés autour de toi.",
         "NSCameraUsageDescription": "Waymark peut utiliser l'appareil photo pour capturer directement un post Instagram à extraire."
@@ -64,6 +66,9 @@
       "eas": {
         "projectId": "TO-BE-FILLED-BY-EAS-INIT"
       }
+    },
+    "android": {
+      "package": "com.robinhesse.waymark"
     }
   }
 }
