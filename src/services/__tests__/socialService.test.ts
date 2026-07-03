@@ -517,7 +517,16 @@ function makeLieu(ownerUid: string, id: string, createdAtMs: number, overrides: 
     lng: 2.35,
     category: 'resto',
     description: null,
-    sourceInstagram: { author: null, screenshotStoragePath: `users/${ownerUid}/screenshots/${id}.png` },
+    // New photos[] schema (parent PRD #34 / slice #35). `screenshotStoragePath`
+    // is omitted here — this fixture represents a post-migration doc.
+    sourceInstagram: { author: null },
+    photos: [
+      {
+        storagePath: `users/${ownerUid}/photos/${id}/hero.jpg`,
+        source: 'insta',
+        addedAt: ts(createdAtMs),
+      },
+    ],
     userNotes: null,
     createdAt: ts(createdAtMs),
     updatedAt: ts(createdAtMs),
