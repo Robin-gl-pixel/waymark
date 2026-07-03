@@ -145,6 +145,22 @@ jobs:
           xcrun simctl install ${{ steps.sim.outputs.sim_id }} ios/build/Build/Products/Debug-iphonesimulator/Waymark.app
           xcrun simctl addmedia ${{ steps.sim.outputs.sim_id }} screenshots-examples/scr1.png
 
+      - name: Start Metro bundler in background
+        # Debug builds fetch the JS bundle from Metro at runtime — without it
+        # the app renders "No script URL provided" and every assertion fails.
+        run: |
+          nohup npx expo start --dev-client > /tmp/metro.log 2>&1 &
+          echo "Metro PID: $!"
+          # Wait for Metro to be ready (up to 60s)
+          for i in {1..30}; do
+            if curl -sf http://localhost:8081/status > /dev/null; then
+              echo "Metro is up after ${i}×2s"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:8081/status && echo "OK" || (echo "Metro not ready" && tail -20 /tmp/metro.log && exit 1)
+
       - name: Run Maestro tests
         run: maestro test .maestro/00_smoke.yaml .maestro/10_golden_path.yaml
 
