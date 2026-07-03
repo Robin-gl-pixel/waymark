@@ -66,8 +66,30 @@ export default function SharedImageScreen() {
   const isVideo = !!firstFile && isVideoFile(firstFile) && !isImageFile(firstFile);
   const previewUri = firstFile?.path ?? null;
 
+  // When Instagram shares a reel/post, it typically hands us a URL — not a
+  // file. Detect the URL-only case so we can show an actionable error instead
+  // of hanging on an infinite spinner.
+  const hasShareableUrl = !!(
+    shareIntent?.webUrl ||
+    (shareIntent?.text && /^https?:\/\//i.test(shareIntent.text.trim()))
+  );
+  const isUrlOnly = !firstFile && hasShareableUrl;
+
   useEffect(() => {
-    if (!user || !firstFile || consumed.current) return;
+    if (!user || consumed.current) return;
+
+    // URL-only share (Instagram reel URL, no video file) → early error.
+    // We can't extract from a URL without scraping Instagram which violates
+    // their TOS. Guide the user to screenshot instead.
+    if (isUrlOnly) {
+      consumed.current = true;
+      setError(
+        "Instagram partage un lien, pas la vidéo. Fais un screenshot du reel puis partage la photo à Waymark.",
+      );
+      return;
+    }
+
+    if (!firstFile) return;
     consumed.current = true;
 
     (async () => {
@@ -153,7 +175,7 @@ export default function SharedImageScreen() {
         setError(`Extraction échouée: ${e?.message || e?.code || 'unknown'}`);
       }
     })();
-  }, [user, firstFile, isVideo, shareIntent?.text, nav, resetShareIntent]);
+  }, [user, firstFile, isVideo, isUrlOnly, shareIntent?.text, nav, resetShareIntent]);
 
   const cancel = () => {
     resetShareIntent();
