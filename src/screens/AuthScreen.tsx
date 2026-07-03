@@ -62,9 +62,31 @@ export default function AuthScreen() {
           .catch((err) => console.warn('[AuthScreen] exchangeAppleCode failed', err));
       }
     } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      if (code !== 'ERR_REQUEST_CANCELED') {
-        setError('Connexion Apple échouée. Réessayez.');
+      const code = (err as { code?: string } | null)?.code ?? '';
+      const msg = (err as { message?: string } | null)?.message ?? '';
+      // ERR_REQUEST_CANCELED = user tapped Cancel on the Apple sheet; not an error.
+      if (code === 'ERR_REQUEST_CANCELED') {
+        setLoading(false);
+        return;
+      }
+      console.error('[AuthScreen] Apple sign-in failed', { code, msg, err });
+      // Actionable messages for the most common failure modes.
+      if (code === 'auth/operation-not-allowed' || msg.includes('operation-not-allowed')) {
+        setError(__DEV__
+          ? 'Apple provider non activé. Firebase Console → Authentication → Sign-in method → Apple.'
+          : 'Connexion Apple non disponible. Réessaie plus tard.');
+      } else if (code === 'auth/invalid-credential' || msg.includes('invalid')) {
+        setError(__DEV__
+          ? `Token Apple refusé par Firebase. code=${code}`
+          : 'Connexion Apple échouée. Réessaie.');
+      } else if (code === 'auth/network-request-failed' || msg.toLowerCase().includes('network')) {
+        setError('Pas de connexion internet. Vérifie et réessaie.');
+      } else if (msg.includes('Pas de token Apple')) {
+        setError('Apple n\'a pas renvoyé de token. Réessaie ou vérifie iCloud dans Réglages.');
+      } else {
+        setError(__DEV__
+          ? `Erreur Apple : ${code || msg.slice(0, 80) || 'inconnue'}`
+          : 'Connexion Apple échouée. Réessaie.');
       }
     } finally {
       setLoading(false);
