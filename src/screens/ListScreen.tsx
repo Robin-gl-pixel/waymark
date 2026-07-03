@@ -1,35 +1,44 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  AccessibilityInfo,
+  Animated,
+  Easing,
   FlatList,
-  RefreshControl,
   Pressable,
-  ActivityIndicator,
-  Image,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
+import BadgeText from '../components/BadgeText';
+import CategoryPin from '../components/CategoryPin';
 import { getLieuxService } from '../services/lieuxService';
-import { colors, spacing, type, radius } from '../theme';
-import type { Lieu, LieuCategory } from '../types/Lieu';
+import { colors, fonts, spacing, type } from '../theme';
+import type { Lieu } from '../types/Lieu';
 import type { RootStackParamList } from '../navigation';
+import {
+  buildMetaPrefix,
+  formatEntryNumber,
+  resolvePinStatus,
+} from './listScreenHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const CATEGORY_EMOJI: Record<LieuCategory, string> = {
-  resto: '🍽️',
-  bar: '🍸',
-  café: '☕',
-  activité: '🎨',
-  musée: '🏛️',
-  hôtel: '🏨',
-  autre: '📍',
-};
-
+/**
+ * "Ta collection" — the numbered atlas view. Every save is one entry
+ * `Nº 0XX` in reverse-chronological order, with a mono meta line ending
+ * on an inline `<BadgeText />` when the pin has been tagged wishlist or
+ * visited. Design refonte 4/6 (issue #48) — the row template comes from
+ * `docs/design/waymark-v8.html` phone 03 · Liste.
+ *
+ * Motion: the header count animates a rolling transition (~450ms, single
+ * fire) whenever the total grows while this screen stays mounted. Respects
+ * `AccessibilityInfo.isReduceMotionEnabled()`.
+ */
 export default function ListScreen() {
   const { user } = useAuth();
   const nav = useNavigation<Nav>();
@@ -37,6 +46,26 @@ export default function ListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((v) => {
+        if (mounted) setReduceMotion(v);
+      })
+      .catch(() => {
+        /* fall back to reduce-motion off — animation is short and low-cost */
+      });
+    const sub = AccessibilityInfo.addEventListener?.(
+      'reduceMotionChanged',
+      (v) => mounted && setReduceMotion(v),
+    );
+    return () => {
+      mounted = false;
+      sub?.remove?.();
+    };
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -46,7 +75,7 @@ export default function ListScreen() {
       setError(null);
     } catch (err) {
       console.error(err);
-      setError('Chargement échoué.');
+      setError('Chargement raté.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -64,19 +93,14 @@ export default function ListScreen() {
     load();
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing['3xl'] }} />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Mes lieux</Text>
-        <Text style={styles.count}>{lieux.length} pin{lieux.length > 1 ? 's' : ''}</Text>
+        <Text style={styles.eyebrow}>Ta collection</Text>
+        <View style={styles.titleRow}>
+          <CountRoll count={lieux.length} reduceMotion={reduceMotion} />
+          <Text style={styles.titleWord}> entrées</Text>
+        </View>
       </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -85,87 +109,229 @@ export default function ListScreen() {
         data={lieux}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Aucun lieu pour l'instant</Text>
-            <Text style={styles.emptyBody}>Ajoute ton premier screenshot Insta.</Text>
-          </View>
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.ink}
+          />
         }
-        renderItem={({ item }) => (
-          <LieuRow lieu={item} onPress={() => nav.navigate('LieuDetail', { lieuId: item.id })} />
+        ListEmptyComponent={
+          loading ? null : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Rien encore</Text>
+              <Text style={styles.emptyBody}>
+                Balance ton premier screenshot Insta — ça atterrit ici en Nº 001.
+              </Text>
+            </View>
+          )
+        }
+        renderItem={({ item, index }) => (
+          <LieuRow
+            lieu={item}
+            entryNumber={formatEntryNumber(index, lieux.length)}
+            onPress={() => nav.navigate('LieuDetail', { lieuId: item.id })}
+          />
         )}
       />
     </SafeAreaView>
   );
 }
 
-function LieuRow({ lieu, onPress }: { lieu: Lieu; onPress: () => void }) {
-  const [thumbUri, setThumbUri] = useState<string | null>(null);
+/**
+ * Rolling counter for the header title. On mount and whenever the count
+ * shrinks (delete, initial load) it snaps; on an increase it slides the
+ * previous number up out of frame while the new one slides in from below,
+ * over ~450ms. Skipped entirely when reduce-motion is on.
+ *
+ * The two Text nodes stay mounted the whole time — animating a translateY
+ * on a single Animated.View keeps this cheap and native-driver-friendly.
+ */
+function CountRoll({
+  count,
+  reduceMotion,
+}: {
+  count: number;
+  reduceMotion: boolean;
+}) {
+  const [displayed, setDisplayed] = useState(count);
+  const [previous, setPrevious] = useState(count);
+  const translateY = useRef(new Animated.Value(0)).current;
+  const lineHeight = titleStyle.lineHeight;
 
   useEffect(() => {
-    getLieuxService()
-      .getScreenshotUrl(lieu.sourceInstagram.screenshotStoragePath)
-      .then(setThumbUri)
-      .catch(() => setThumbUri(null));
-  }, [lieu.sourceInstagram.screenshotStoragePath]);
+    if (count === displayed) return;
+    if (reduceMotion || count < displayed) {
+      // No animation — snap. Also snap on decrement (delete) so we never
+      // roll backwards.
+      setPrevious(count);
+      setDisplayed(count);
+      translateY.setValue(0);
+      return;
+    }
+    // The stack renders <previous> on top, <count> below. Slide it up by
+    // one line-height so <count> lands in the visible window.
+    setPrevious(displayed);
+    translateY.setValue(0);
+    Animated.timing(translateY, {
+      toValue: -lineHeight,
+      duration: 450,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      setDisplayed(count);
+      setPrevious(count);
+      translateY.setValue(0);
+    });
+  }, [count, displayed, reduceMotion, translateY, lineHeight]);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
-      <View style={styles.thumb}>
-        {thumbUri ? (
-          <Image source={{ uri: thumbUri }} style={styles.thumbImg} />
-        ) : (
-          <Text style={styles.thumbFallback}>{CATEGORY_EMOJI[lieu.category]}</Text>
-        )}
-      </View>
+    <View style={{ height: lineHeight, overflow: 'hidden' }}>
+      <Animated.View style={{ transform: [{ translateY }] }}>
+        <Text style={styles.titleNum}>{previous}</Text>
+        <Text style={styles.titleNum}>{count}</Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+function LieuRow({
+  lieu,
+  entryNumber,
+  onPress,
+}: {
+  lieu: Lieu;
+  entryNumber: string;
+  onPress: () => void;
+}) {
+  const status = resolvePinStatus(lieu);
+  const metaPrefix = buildMetaPrefix(lieu, status !== null);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={`Entrée ${entryNumber}, ${lieu.name}`}
+    >
+      <Text style={styles.rowNum}>{entryNumber}</Text>
       <View style={styles.rowBody}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {CATEGORY_EMOJI[lieu.category]} {lieu.name}
+        <Text style={styles.rowName} numberOfLines={1}>
+          {lieu.name}
         </Text>
-        <Text style={styles.rowMeta} numberOfLines={1}>{lieu.city}</Text>
-        {lieu.sourceInstagram.author && (
-          <Text style={styles.rowAuthor} numberOfLines={1}>Reco @{lieu.sourceInstagram.author}</Text>
-        )}
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {metaPrefix}
+          <BadgeText status={status} />
+        </Text>
+      </View>
+      <View style={styles.rowDot}>
+        <CategoryPin category={lieu.category} size={10} />
       </View>
     </Pressable>
   );
 }
 
+const titleStyle = {
+  fontSize: 34,
+  lineHeight: 34,
+  letterSpacing: -1,
+} as const;
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   header: {
-    paddingHorizontal: spacing['2xl'],
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
-  title: { ...type.h1, color: colors.text, fontWeight: '700' },
-  count: { ...type.caption, color: colors.textSecondary, marginTop: spacing.xs },
-  list: { paddingHorizontal: spacing['2xl'], paddingBottom: spacing['3xl'] },
+  eyebrow: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 2.4,
+    textTransform: 'uppercase',
+    color: colors.graphite,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: spacing.xs,
+  },
+  titleNum: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    color: colors.ink,
+    textTransform: 'uppercase',
+    ...titleStyle,
+  },
+  titleWord: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    color: colors.ink,
+    textTransform: 'uppercase',
+    ...titleStyle,
+  },
+  list: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing['3xl'],
+    flexGrow: 1,
+  },
   row: {
     flexDirection: 'row',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  thumb: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.md,
-    backgroundColor: colors.bgElevated,
     alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.hair,
+    gap: spacing.md,
   },
-  thumbImg: { width: '100%', height: '100%' },
-  thumbFallback: { fontSize: 28 },
+  rowPressed: { opacity: 0.55 },
+  rowNum: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.88, // ~0.08em at 11px
+    color: colors.graphite,
+    width: 52,
+  },
   rowBody: { flex: 1, justifyContent: 'center' },
-  rowTitle: { ...type.h3, color: colors.text, fontWeight: '600' },
-  rowMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
-  rowAuthor: { ...type.micro, color: colors.textTertiary, marginTop: 2, fontStyle: 'italic' },
-  empty: { alignItems: 'center', paddingTop: spacing['4xl'] },
-  emptyTitle: { ...type.h3, color: colors.textSecondary },
-  emptyBody: { ...type.body, color: colors.textTertiary, marginTop: spacing.sm },
-  error: { ...type.caption, color: colors.error, textAlign: 'center', margin: spacing.md },
+  rowName: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    fontSize: 18,
+    lineHeight: 20,
+    letterSpacing: -0.5,
+    textTransform: 'uppercase',
+    color: colors.ink,
+  },
+  rowMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 1.0, // ~0.1em at 10px
+    textTransform: 'uppercase',
+    color: colors.graphite,
+    marginTop: 5,
+  },
+  rowDot: { width: 12, alignItems: 'flex-end' },
+  empty: { alignItems: 'center', paddingTop: spacing['3xl'] },
+  emptyTitle: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    fontSize: 22,
+    letterSpacing: -0.5,
+    textTransform: 'uppercase',
+    color: colors.ink,
+  },
+  emptyBody: {
+    ...type.body,
+    color: colors.graphite,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  error: {
+    ...type.caption,
+    color: colors.catResto,
+    textAlign: 'center',
+    margin: spacing.md,
+  },
 });

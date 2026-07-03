@@ -8,24 +8,19 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   NavigationContainer,
-  DarkTheme,
+  DefaultTheme,
   useNavigation,
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  useFonts,
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+// v8 « atlas numéroté » — tab bar labels adopt the mono three-role type
+// system (below). `fonts` is imported alongside `colors` so the tab bar can
+// paint its labels in the mono role that the v8 spec calls for.
 import AuthScreen from './src/screens/AuthScreen';
 import MapScreen from './src/screens/MapScreen';
 import ListScreen from './src/screens/ListScreen';
@@ -45,16 +40,16 @@ import SearchUsersScreen from './src/screens/SearchUsersScreen';
 import ReportScreen from './src/screens/ReportScreen';
 import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 import { getSocialService } from './src/services/socialService';
-import { colors } from './src/theme';
+import { colors, fonts } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const theme = {
-  ...DarkTheme,
+  ...DefaultTheme,
   colors: {
-    ...DarkTheme.colors,
+    ...DefaultTheme.colors,
     background: colors.bg,
     card: colors.bg,
     text: colors.text,
@@ -114,9 +109,19 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textTertiary,
+        // v8 « atlas numéroté » tab bar — paper ground, hair-thin top border,
+        // ink text (active) vs graphite (inactive). Mono uppercase labels so
+        // « Carte / Liste / Réseau / Toi » read as archival log, not casual UI.
+        tabBarStyle: { backgroundColor: colors.paper, borderTopColor: colors.hair },
+        tabBarActiveTintColor: colors.ink,
+        tabBarInactiveTintColor: colors.graphite,
+        tabBarLabelStyle: {
+          fontFamily: fonts.mono,
+          fontSize: 9,
+          letterSpacing: 1.6,
+          textTransform: 'uppercase',
+          fontWeight: '700',
+        },
       }}
     >
       <Tab.Screen
@@ -341,30 +346,17 @@ function ShareIntentRouter({ navRef }: { navRef: NavRef }) {
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-  });
+  // v8 refonte adopts a three-role system-font stack (grotesque black uppercase
+  // / italic serif / mono). System-ui, Georgia and SF Mono all ship with iOS —
+  // no `useFonts` gate needed at boot.
   const navRef = useNavigationContainerRef();
-
-  if (!fontsLoaded) {
-    // Match the pre-auth splash so the transition is invisible.
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} size="large" />
-      </View>
-    );
-  }
 
   return (
     <ShareIntentProvider options={{ scheme: 'waymark' }}>
       <SafeAreaProvider>
         <NavigationContainer theme={theme} ref={navRef}>
           <AuthProvider>
-            <StatusBar style="light" />
+            <StatusBar style="dark" />
             <ShareIntentRouter navRef={navRef} />
             <Root />
           </AuthProvider>

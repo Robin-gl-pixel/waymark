@@ -12,6 +12,7 @@
     "submit:ios": "eas submit --platform ios",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "test:rules": "npm --prefix firestore-tests test",
     "test:e2e": "maestro test .maestro",
     "test:e2e:launch": "maestro test .maestro/smoke-launch.yaml",
     "test:e2e:login": "maestro test .maestro/smoke-anon-login.yaml",
@@ -22,7 +23,6 @@
     "dev:emulator": "EXPO_PUBLIC_USE_EMULATOR=1 expo start"
   },
   "dependencies": {
-    "@expo-google-fonts/manrope": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.15.9",

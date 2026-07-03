@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,28 +18,21 @@ import { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { getSocialService } from '../services/socialService';
 import { getLieuxService } from '../services/lieuxService';
 import { useAuth } from '../auth/AuthContext';
-import { colors, spacing, type, radius } from '../theme';
+import { categoryColor, colors, radius, spacing, type } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
 import Avatar from '../components/Avatar';
+import CategoryPin from '../components/CategoryPin';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import ProfileLocked from '../components/ProfileLocked';
 import { SkeletonBlock } from '../components/SkeletonRow';
 import { statusBadgeIcon, statusBadgeLabel } from '../lib/statusBadge';
+import { resolveProfileViewMode } from './UserProfileScreen.viewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'UserProfile'>;
 type Rt = RouteProp<RootStackParamList, 'UserProfile'>;
-
-const CATEGORY_EMOJI: Record<LieuCategory, string> = {
-  resto: '🍽️',
-  bar: '🍸',
-  café: '☕',
-  activité: '🎨',
-  musée: '🏛️',
-  hôtel: '🏨',
-  autre: '📍',
-};
 
 // Fallback region — Paris. Used when the profile has no pins so the map still
 // has *something* to show before the empty overlay renders on top.
@@ -109,6 +102,11 @@ export default function UserProfileScreen() {
    * button reacts instantly; on error we roll back. The Cloud Function
    * trigger will update `followersCount` a second later — we bump the
    * profile counter locally to mirror that so the header count doesn't lag.
+   *
+   * Wave-2 note: the same handler backs `<ProfileLocked>`'s CTA. When the
+   * screen is in `locked` mode, `following === false` — tapping runs
+   * `follow()`, `setFollowing(true)` flips the mode to `follower`, and the
+   * screen renders the full profile on the same frame (no refetch needed).
    */
   const toggleFollow = useCallback(async () => {
     if (followBusy || following === null || !profile || isMe) return;
@@ -184,11 +182,13 @@ export default function UserProfileScreen() {
           hitSlop={12}
           accessibilityLabel="Ouvrir le menu d'actions"
         >
-          <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.ink} />
         </Pressable>
       ),
     });
   }, [nav, openMenu, profile]);
+
+  const mode = useMemo(() => resolveProfileViewMode(isMe, following), [isMe, following]);
 
   if (loading) {
     return (
@@ -219,12 +219,34 @@ export default function UserProfileScreen() {
     );
   }
 
+  // Non-follower path — hide the map + list entirely, show only the locked
+  // skeleton with the cerise Suivre CTA. Tapping the CTA calls `toggleFollow`
+  // which flips `following` optimistically → mode becomes 'follower' on the
+  // next render → full profile reveals without a refetch.
+  if (mode === 'locked') {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ProfileLocked
+          handle={profile.username}
+          avatar={profile.avatarUrl}
+          stats={{
+            saves: lieux.length,
+            followers: profile.followersCount,
+            following: profile.followingCount,
+          }}
+          bio={profile.bio}
+          onFollow={toggleFollow}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ProfileHeader
         profile={profile}
         pinCount={lieux.length}
-        showFollowButton={!isMe}
+        showFollowButton={mode === 'follower'}
         isFollowing={following}
         followBusy={followBusy}
         onToggleFollow={toggleFollow}
@@ -242,7 +264,7 @@ export default function UserProfileScreen() {
 }
 
 // -----------------------------------------------------------------------------
-// Header
+// Header (follower / owner mode)
 // -----------------------------------------------------------------------------
 
 function ProfileHeader({
@@ -265,7 +287,7 @@ function ProfileHeader({
       <View style={styles.avatarRow}>
         <Avatar username={profile.username} size={64} />
         <View style={styles.avatarBody}>
-          <Text style={styles.username} numberOfLines={1}>@{profile.username}</Text>
+          <Text style={styles.username} numberOfLines={1}>@{profile.username.toUpperCase()}</Text>
           {profile.displayName ? (
             <Text style={styles.displayName} numberOfLines={1}>{profile.displayName}</Text>
           ) : null}
@@ -283,6 +305,8 @@ function ProfileHeader({
           />
         )}
       </View>
+
+      {profile.bio ? <Text style={styles.bio}>« {profile.bio} »</Text> : null}
 
       <View style={styles.counters}>
         <Counter label="Pins" value={pinCount} />
@@ -333,14 +357,14 @@ function FollowButton({
         ]}
       >
         {busy ? (
-          <ActivityIndicator size="small" color={isFollowing ? colors.text : colors.bg} />
+          <ActivityIndicator size="small" color={isFollowing ? colors.ink : colors.paper} />
         ) : (
           <View style={styles.followBtnContent}>
             {isFollowing ? (
               <Ionicons
                 name="checkmark"
                 size={14}
-                color={colors.text}
+                color={colors.ink}
                 style={{ marginRight: spacing.xs }}
               />
             ) : null}
@@ -412,7 +436,7 @@ function ToggleButton({
       <Ionicons
         name={icon}
         size={16}
-        color={active ? colors.text : colors.textSecondary}
+        color={active ? colors.paper : colors.graphite}
       />
       <Text style={[styles.toggleLabel, active && styles.toggleLabelActive]}>{label}</Text>
     </Pressable>
@@ -420,7 +444,7 @@ function ToggleButton({
 }
 
 // -----------------------------------------------------------------------------
-// Map / List panes
+// Map / List panes — refreshed to the v8 category coding.
 // -----------------------------------------------------------------------------
 
 function MapPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) => void }) {
@@ -441,9 +465,8 @@ function MapPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) =
         provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
-        userInterfaceStyle="dark"
         clusterColor={colors.accent}
-        clusterTextColor={colors.text}
+        clusterTextColor={colors.paper}
         radius={40}
         minPoints={3}
       >
@@ -452,8 +475,12 @@ function MapPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) =
             key={lieu.id}
             coordinate={{ latitude: lieu.lat, longitude: lieu.lng }}
             title={lieu.name}
-            description={`${CATEGORY_EMOJI[lieu.category]} ${lieu.city}`}
-            pinColor="tomato"
+            description={lieu.city}
+            // v8 § Écrans — markers are colored by category, not a single tomato hue.
+            // The full flat-dot design (CategoryPin) lands with MapScreen's own
+            // migration slice; here we shift the native marker color to the
+            // category palette so the atlas already reads as color-coded.
+            pinColor={categoryColor(lieu.category)}
             onCalloutPress={() => onOpenLieu(lieu)}
           />
         ))}
@@ -488,43 +515,45 @@ function ListPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) 
       data={lieux}
       keyExtractor={(l) => l.id}
       contentContainerStyle={styles.list}
-      renderItem={({ item }) => {
-        // #42 — friend-facing badge, immediately after the name so the icon
-        // sits in the eye-scan lane of the list. Absent when status is null
-        // or the pin predates #41 (undefined field on the doc).
-        const badge = statusBadgeIcon(item.status);
-        const badgeA11y = statusBadgeLabel(item.status);
-        return (
-          <Pressable
-            onPress={() => onOpenLieu(item)}
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-          >
-            <View style={styles.rowThumb}>
-              <Text style={styles.rowEmoji}>{CATEGORY_EMOJI[item.category]}</Text>
-            </View>
-            <View style={styles.rowBody}>
-              <View style={styles.rowTitleLine}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                {badge !== null && (
-                  <Text
-                    style={styles.rowBadge}
-                    accessibilityLabel={badgeA11y ?? undefined}
-                  >
-                    {badge}
-                  </Text>
-                )}
-              </View>
-              <Text style={styles.rowMeta} numberOfLines={1}>
-                {item.city}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-          </Pressable>
-        );
-      }}
+      renderItem={({ item }) => <ListRow item={item} onPress={() => onOpenLieu(item)} />}
     />
+  );
+}
+
+function ListRow({ item, onPress }: { item: Lieu; onPress: () => void }) {
+  // #42 — friend-facing badge, immediately after the name so the icon sits in
+  // the eye-scan lane of the list. Absent when status is null or the pin
+  // predates #41 (undefined field on the doc).
+  const badge = statusBadgeIcon(item.status);
+  const badgeA11y = statusBadgeLabel(item.status);
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+    >
+      <View style={styles.rowBody}>
+        <View style={styles.rowTitleLine}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {item.name.toUpperCase()}
+          </Text>
+          {badge !== null && (
+            <Text
+              style={styles.rowBadge}
+              accessibilityLabel={badgeA11y ?? undefined}
+            >
+              {badge}
+            </Text>
+          )}
+        </View>
+        <Text style={styles.rowMeta} numberOfLines={1}>
+          {item.city}
+        </Text>
+      </View>
+      {/* v8 § Écrans — category color lives to the right of every row as a
+          flat dot, the same 14px CategoryPin used everywhere else. */}
+      <CategoryPin category={item.category as LieuCategory} />
+      <Ionicons name="chevron-forward" size={18} color={colors.graphite} />
+    </Pressable>
   );
 }
 
@@ -555,7 +584,7 @@ function HeaderSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   header: {
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing.lg,
@@ -567,8 +596,23 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   avatarBody: { flex: 1 },
-  username: { ...type.h2, color: colors.text, fontWeight: '700' },
-  displayName: { ...type.body, color: colors.textSecondary, marginTop: 2 },
+  // Handle in grotesque black uppercase — v8 § Écrans sociaux.
+  username: {
+    ...type.h2,
+    color: colors.ink,
+    textTransform: 'uppercase',
+    letterSpacing: -0.5,
+  },
+  displayName: {
+    ...type.mono,
+    color: colors.graphite,
+    marginTop: spacing.xs,
+  },
+  bio: {
+    ...type.serifItalic,
+    color: colors.graphite,
+    marginTop: spacing.md,
+  },
   curatedBadge: {
     alignSelf: 'flex-start',
     marginTop: spacing.sm,
@@ -578,10 +622,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   curatedLabel: {
-    ...type.micro,
-    color: colors.bg,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    ...type.mono,
+    color: colors.paper,
+    fontSize: 9,
+    letterSpacing: 1.6,
   },
   followBtn: {
     minWidth: 92,
@@ -598,16 +642,21 @@ const styles = StyleSheet.create({
   },
   followBtnActive: {
     backgroundColor: 'transparent',
-    borderColor: colors.border,
+    borderColor: colors.ink,
   },
   followBtnContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  followBtnLabel: { ...type.caption, fontWeight: '700' },
-  followBtnLabelInactive: { color: colors.bg },
-  followBtnLabelActive: { color: colors.text },
+  followBtnLabel: {
+    ...type.mono,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    fontWeight: '700',
+  },
+  followBtnLabelInactive: { color: colors.paper },
+  followBtnLabelActive: { color: colors.ink },
   counters: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,19 +665,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
-    backgroundColor: colors.bgElevated,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hair,
   },
   counter: { flex: 1, alignItems: 'center' },
-  counterDivider: { width: 1, height: 28, backgroundColor: colors.border },
-  counterValue: { ...type.h3, color: colors.text, fontWeight: '700' },
+  counterDivider: { width: 1, height: 28, backgroundColor: colors.hair },
+  // Stats numbers use mono uppercase — the "archival log" role from v8.
+  counterValue: {
+    ...type.mono,
+    color: colors.ink,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+  },
   counterLabel: {
-    ...type.micro,
-    color: colors.textSecondary,
+    ...type.mono,
+    color: colors.graphite,
+    fontSize: 9,
+    letterSpacing: 1.4,
     marginTop: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   toggle: {
     flexDirection: 'row',
@@ -636,9 +692,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     padding: 4,
     borderRadius: radius.pill,
-    backgroundColor: colors.bgElevated,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hair,
   },
   toggleBtn: {
     flex: 1,
@@ -649,11 +704,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
   },
-  toggleBtnActive: { backgroundColor: colors.accent },
-  toggleLabel: { ...type.caption, color: colors.textSecondary, fontWeight: '600' },
-  toggleLabelActive: { color: colors.text },
+  toggleBtnActive: { backgroundColor: colors.ink },
+  toggleLabel: {
+    ...type.mono,
+    color: colors.graphite,
+    fontSize: 10,
+    letterSpacing: 1.4,
+  },
+  toggleLabelActive: { color: colors.paper },
   bodyContainer: { flex: 1 },
-  mapContainer: { flex: 1, backgroundColor: colors.bg },
+  mapContainer: { flex: 1, backgroundColor: colors.paper },
   list: {
     paddingHorizontal: spacing['2xl'],
     paddingBottom: spacing['3xl'],
@@ -664,37 +724,38 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.hair,
   },
-  rowThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowEmoji: { fontSize: 24 },
   rowBody: { flex: 1 },
   // #42 — the title line hosts the pin name and (optionally) the friend badge.
   // Row layout so the badge tucks in just after the name; `flex: 1` on the
   // name lets the badge stay pinned to its natural width while the name
   // truncates.
   rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  rowTitle: { ...type.h3, color: colors.text, fontWeight: '600', flexShrink: 1 },
-  // Discreet, monochrome badge — colour would fight the category emoji thumb.
+  rowTitle: {
+    ...type.h3,
+    color: colors.ink,
+    textTransform: 'uppercase',
+    letterSpacing: -0.3,
+    flexShrink: 1,
+  },
+  // Discreet, monochrome badge — colour would fight the category color pin.
   rowBadge: {
     ...type.body,
-    color: colors.textSecondary,
+    color: colors.graphite,
     fontWeight: '600',
   },
-  rowMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
+  rowMeta: {
+    ...type.mono,
+    color: colors.graphite,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    marginTop: 2,
+  },
   emptyOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(10,10,10,0.75)',
+    backgroundColor: 'rgba(251, 250, 246, 0.85)',
   },
 });

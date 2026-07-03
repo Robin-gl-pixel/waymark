@@ -8,6 +8,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
+import { applyPhotoCrop } from '../lib/screenshotCrop';
 import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
@@ -133,7 +134,7 @@ export default function SharedImageScreen() {
           console.error('[SharedImageScreen] Instagram URL extract failed', err);
           const e = err as { code?: string; message?: string };
           setError(
-            `Extraction depuis Instagram échouée: ${e?.message || e?.code || 'unknown'}. Astuce : screenshot le reel puis partage la photo.`,
+            `Extraction depuis Insta foirée : ${e?.message || e?.code || 'unknown'}. Astuce : screenshot le reel puis partage la photo.`,
           );
         }
       })();
@@ -184,6 +185,18 @@ export default function SharedImageScreen() {
           caption,
         );
 
+        // Auto-crop Instagram chrome for IMAGE-share only. Video keyframes
+        // are already clean by construction (they show the reel content, not
+        // the IG UI overlay) — extract will typically return `photoBoundingBox:
+        // null` for them, and even if it returns a bbox we ignore it here.
+        const uploadImage = isVideo
+          ? { uri: manipulated.uri, width: manipulated.width, height: manipulated.height, cropped: false }
+          : await applyPhotoCrop(
+              { uri: manipulated.uri, width: manipulated.width, height: manipulated.height },
+              extracted.photoBoundingBox,
+              { manipulateAsync: ImageManipulator.manipulateAsync, SaveFormatJPEG: ImageManipulator.SaveFormat.JPEG },
+            );
+
         if (extracted.lat != null && extracted.lng != null) {
           const existing = await getLieuxService().getAllLieux(user.uid);
           const dup = existing.find(
@@ -214,7 +227,7 @@ export default function SharedImageScreen() {
               name: 'ExtractConfirm',
               params: {
                 extracted,
-                screenshotUri: manipulated.uri,
+                screenshotUri: uploadImage.uri,
                 screenshotMediaType: 'image/jpeg',
               },
             },
@@ -223,7 +236,7 @@ export default function SharedImageScreen() {
       } catch (err) {
         console.error('[SharedImageScreen] extract failed', err);
         const e = err as { code?: string; message?: string };
-        setError(`Extraction échouée: ${e?.message || e?.code || 'unknown'}`);
+        setError(`Extraction foirée : ${e?.message || e?.code || 'unknown'}`);
       }
     })();
   }, [user, firstFile, isVideo, isUrlOnly, shareIntent?.text, nav, resetShareIntent]);
@@ -243,9 +256,10 @@ export default function SharedImageScreen() {
         )}
         {!error ? (
           <>
-            <ActivityIndicator color={colors.accent} size="large" style={{ marginTop: spacing.xl }} />
+            <Text style={styles.eyebrow}>Nº · en cours</Text>
+            <ActivityIndicator color={colors.ink} size="large" style={{ marginTop: spacing.xl }} />
             <Text style={styles.hint}>
-              {isVideo ? 'Analyse de la vidéo…' : 'Extraction du lieu…'}
+              {isVideo ? '« Analyse de la vidéo… »' : '« Extraction du lieu… »'}
             </Text>
           </>
         ) : (
@@ -262,7 +276,7 @@ export default function SharedImageScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   center: {
     flex: 1,
     alignItems: 'center',
@@ -272,19 +286,22 @@ const styles = StyleSheet.create({
   preview: {
     width: '80%',
     height: 320,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.hair,
   },
-  hint: { ...type.body, color: colors.textSecondary, marginTop: spacing.md },
+  eyebrow: { ...type.monoSm, color: colors.graphite, marginTop: spacing.xl },
+  hint: { ...type.serif, color: colors.graphite, marginTop: spacing.md, textAlign: 'center' },
   error: { ...type.body, color: colors.error, textAlign: 'center', marginTop: spacing.xl },
   btn: {
     height: 56,
     marginTop: spacing.xl,
     paddingHorizontal: spacing['2xl'],
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    backgroundColor: colors.catResto,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  btnLabel: { ...type.mono, color: colors.paper, fontWeight: '700' },
 });
