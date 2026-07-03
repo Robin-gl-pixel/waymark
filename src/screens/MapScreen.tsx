@@ -1,5 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Alert } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView from 'react-native-map-clustering';
 import RNMapView, { Marker, PROVIDER_DEFAULT, Callout } from 'react-native-maps';
@@ -9,21 +18,28 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
-import { colors, spacing, type, radius } from '../theme';
+import { colors, spacing, type, fonts } from '../theme';
+import CategoryPin from '../components/CategoryPin';
+import { createPinPulse } from '../lib/pinPulse';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { RootStackParamList, TabParamList } from '../navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type MapRt = RouteProp<TabParamList, 'Map'>;
 
-const CATEGORY_EMOJI: Record<LieuCategory, string> = {
-  resto: '🍽️',
-  bar: '🍸',
-  café: '☕',
-  activité: '🎨',
-  musée: '🏛️',
-  hôtel: '🏨',
-  autre: '📍',
+/**
+ * Human-readable French label for each `LieuCategory`. Used in the marker
+ * callout as the mono meta line under the venue name (replaces the emoji
+ * v7 title bar).
+ */
+const CATEGORY_LABEL: Record<LieuCategory, string> = {
+  resto: 'Resto',
+  bar: 'Bar',
+  café: 'Café',
+  activité: 'Activité',
+  musée: 'Musée',
+  hôtel: 'Hôtel',
+  autre: 'Autre',
 };
 
 // Paris fallback for empty state.
@@ -41,6 +57,63 @@ type MapHandle = {
   animateToRegion: RNMapView['animateToRegion'];
 };
 
+/**
+ * Marker + CategoryPin wrapper — one Animated.Value per pin so a selection
+ * pulse only scales the tapped marker, not every pin on the map. The scale
+ * value is driven by `createPinPulse`, which no-ops under reduced motion.
+ */
+function PinMarker({
+  lieu,
+  reducedMotion,
+  onCalloutPress,
+}: {
+  lieu: Lieu;
+  reducedMotion: boolean;
+  onCalloutPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  // react-native-maps caches the marker as a static image once mounted for
+  // performance. We only enable live view tracking during the pulse window so
+  // the animation actually renders on-screen — then drop back to the cached
+  // snapshot to keep panning smooth with many pins on the map.
+  const [tracksView, setTracksView] = useState(false);
+
+  const handlePress = useCallback(() => {
+    // Single pulse: 1 → 1.2 → 1 (~250ms round-trip). Skipped when the OS-level
+    // reduce-motion preference is on — accessibility gate required by #46 AC.
+    const anim = createPinPulse(scale, { reducedMotion });
+    if (!anim) return;
+    setTracksView(true);
+    anim.start(() => setTracksView(false));
+  }, [reducedMotion, scale]);
+
+  return (
+    <Marker
+      coordinate={{ latitude: lieu.lat, longitude: lieu.lng }}
+      onPress={handlePress}
+      onCalloutPress={onCalloutPress}
+      // The pin is a custom colored dot — `anchor` centers it on the coordinate.
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracksView}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <CategoryPin category={lieu.category} />
+      </Animated.View>
+      <Callout tooltip onPress={onCalloutPress}>
+        <View style={styles.callout}>
+          <Text style={styles.calloutTitle} numberOfLines={1}>
+            {lieu.name}
+          </Text>
+          <Text style={styles.calloutMeta} numberOfLines={1}>
+            {CATEGORY_LABEL[lieu.category]} · {lieu.city}
+          </Text>
+          <Text style={styles.calloutHint}>Voir</Text>
+        </View>
+      </Callout>
+    </Marker>
+  );
+}
+
 export default function MapScreen() {
   const { user } = useAuth();
   const nav = useNavigation<Nav>();
@@ -51,6 +124,28 @@ export default function MapScreen() {
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Subscribe to the OS-level reduce-motion preference so the selection
+  // pulse respects it in real time (user toggles Settings → app foregrounds).
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((v) => {
+        if (mounted) setReducedMotion(v);
+      })
+      .catch(() => {
+        // Assume motion allowed if the OS refuses the query.
+        if (mounted) setReducedMotion(false);
+      });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => {
+      setReducedMotion(v);
+    });
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
 
   const recenterOnMe = useCallback(async () => {
     if (!mapRef.current || locating) return;
@@ -147,10 +242,19 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, [focusLieuId, loading, lieux]);
 
+  // Pin count in mono — zero-padded to three digits so it reads as an archival
+  // log ("047 pins" rather than "47 pins"). Cheap memoization to avoid the
+  // string rebuild in the header on every render.
+  const pinCountLabel = useMemo(() => {
+    const n = lieux.length;
+    const padded = String(n).padStart(3, '0');
+    return `${padded} pins`;
+  }, [lieux.length]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing['3xl'] }} />
+        <ActivityIndicator color={colors.ink} style={{ marginTop: spacing['3xl'] }} />
       </SafeAreaView>
     );
   }
@@ -168,24 +272,40 @@ export default function MapScreen() {
         style={StyleSheet.absoluteFill}
         initialRegion={FALLBACK_REGION}
         showsUserLocation
-        userInterfaceStyle="dark"
+        // v8 paper ground — Apple Maps rendered in its light interface pairs
+        // with the ink/paper palette. `dark` would fight the header tokens.
+        userInterfaceStyle="light"
+        // Clustering color matches the accent (cerise/vermillon). Cluster text
+        // is the paper ground so it reads on the cerise disc.
         clusterColor={colors.accent}
-        clusterTextColor={colors.text}
+        clusterTextColor={colors.paper}
         radius={40}
         minPoints={3}
       >
         {lieux.map((lieu) => (
-          <Marker
+          <PinMarker
             key={lieu.id}
-            coordinate={{ latitude: lieu.lat, longitude: lieu.lng }}
-            title={lieu.name}
-            description={`${CATEGORY_EMOJI[lieu.category]} ${lieu.city}`}
-            pinColor="tomato"
+            lieu={lieu}
+            reducedMotion={reducedMotion}
             onCalloutPress={() => nav.navigate('LieuDetail', { lieuId: lieu.id })}
           />
         ))}
       </MapView>
 
+      {/* Header — « Ta carte » eyebrow + city title + mono pin count. */}
+      <SafeAreaView style={styles.headerOverlay} edges={['top']} pointerEvents="box-none">
+        <View style={styles.headerCard} pointerEvents="none">
+          <View style={styles.headerTitleGroup}>
+            <Text style={styles.eyebrow}>Ta carte</Text>
+            <Text style={styles.title} numberOfLines={1}>
+              Paris
+            </Text>
+          </View>
+          <Text style={styles.pinCount}>{pinCountLabel}</Text>
+        </View>
+      </SafeAreaView>
+
+      {/* Controls — recenter button in paper/ink tokens. */}
       <SafeAreaView style={styles.controlsOverlay} edges={['top']} pointerEvents="box-none">
         <Pressable
           onPress={recenterOnMe}
@@ -199,9 +319,9 @@ export default function MapScreen() {
           hitSlop={8}
         >
           {locating ? (
-            <ActivityIndicator color={colors.text} />
+            <ActivityIndicator color={colors.ink} />
           ) : (
-            <Ionicons name="locate" size={22} color={colors.text} />
+            <Ionicons name="locate" size={22} color={colors.ink} />
           )}
         </Pressable>
       </SafeAreaView>
@@ -209,60 +329,119 @@ export default function MapScreen() {
       {lieux.length === 0 && (
         <SafeAreaView style={styles.emptyOverlay} edges={['top']} pointerEvents="box-none">
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Aucun pin pour l'instant</Text>
+            <Text style={styles.emptyEyebrow}>Aucun pin</Text>
+            <Text style={styles.emptyTitle}>Ta carte commence ici</Text>
             <Text style={styles.emptyBody}>Ajoute ton premier screenshot pour voir la carte se remplir.</Text>
             <Pressable onPress={() => nav.navigate('Upload')} style={styles.emptyBtn}>
-              <Text style={styles.emptyBtnLabel}>+ Ajouter un lieu</Text>
+              <Text style={styles.emptyBtnLabel}>Ajouter un lieu</Text>
             </Pressable>
           </View>
         </SafeAreaView>
       )}
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, backgroundColor: colors.bg },
-  pin: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.bg,
-  },
-  pinEmoji: { fontSize: 22 },
+  safe: { flex: 1, backgroundColor: colors.paper },
+  container: { flex: 1, backgroundColor: colors.paper },
   callout: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.paper,
     padding: spacing.md,
-    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 160,
+    borderColor: colors.hair,
+    minWidth: 180,
   },
-  calloutTitle: { ...type.h3, color: colors.text, fontWeight: '600' },
-  calloutMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
-  calloutHint: { ...type.micro, color: colors.accent, marginTop: spacing.sm },
+  // Grotesque uppercase venue name — the v8 « Écrans » spec for the callout title.
+  calloutTitle: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    fontSize: 16,
+    lineHeight: 18,
+    letterSpacing: -0.3,
+    color: colors.ink,
+    textTransform: 'uppercase',
+  },
+  // Mono meta line — category label + city, mirrors the mockup's mono under-line.
+  calloutMeta: {
+    ...type.mono,
+    color: colors.graphite,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  calloutHint: {
+    ...type.mono,
+    color: colors.accent,
+    marginTop: spacing.sm,
+    fontWeight: '700',
+  },
+  // Overlays. `box-none` on the SafeAreaView so map gestures pass through the
+  // empty edges; only the actual header/button captures touches.
+  headerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'stretch',
+    paddingHorizontal: spacing.lg,
+  },
+  headerCard: {
+    marginTop: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.hair,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: spacing.md,
+  },
+  headerTitleGroup: { flexShrink: 1 },
+  // Mono eyebrow — small, wide-tracked, uppercase.
+  eyebrow: {
+    ...type.mono,
+    fontSize: 9,
+    letterSpacing: 2.16, // ~0.24em at 9px
+    color: colors.graphite,
+    fontWeight: '600',
+  },
+  // Grotesque black uppercase title — Balenciaga/MSCHF energy.
+  title: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    fontSize: 30,
+    lineHeight: 30,
+    letterSpacing: -1.2, // ~-0.04em at 30px
+    color: colors.ink,
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  // Mono count — reads as archival log.
+  pinCount: {
+    ...type.mono,
+    fontSize: 11,
+    letterSpacing: 1.54, // ~0.14em at 11px
+    color: colors.ink,
+    fontWeight: '700',
+    paddingBottom: 4,
+  },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'flex-end',
+    justifyContent: 'flex-end',
     padding: spacing.lg,
   },
   locateBtn: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.paper,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hair,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.ink,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,
   },
@@ -273,22 +452,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   emptyCard: {
-    backgroundColor: colors.bgElevated,
+    backgroundColor: colors.paper,
     padding: spacing.xl,
-    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hair,
     alignItems: 'center',
     maxWidth: 320,
   },
-  emptyTitle: { ...type.h2, color: colors.text, fontWeight: '700', textAlign: 'center' },
-  emptyBody: { ...type.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md },
+  emptyEyebrow: {
+    ...type.mono,
+    fontSize: 9,
+    letterSpacing: 2.16,
+    color: colors.graphite,
+    fontWeight: '600',
+  },
+  emptyTitle: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    fontSize: 22,
+    lineHeight: 24,
+    letterSpacing: -0.4,
+    color: colors.ink,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
+  emptyBody: {
+    fontFamily: fonts.bodySerifItalic,
+    fontStyle: 'italic',
+    fontSize: 15,
+    lineHeight: 20,
+    color: colors.graphite,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
   emptyBtn: {
     marginTop: spacing.xl,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
+    backgroundColor: colors.ink,
   },
-  emptyBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  emptyBtnLabel: {
+    ...type.mono,
+    color: colors.paper,
+    fontWeight: '700',
+  },
 });

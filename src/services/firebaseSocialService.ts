@@ -561,7 +561,8 @@ export const FEED_PER_USER_LIMIT = 20;
 function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>): Lieu {
   // Default userId to the owner uid used to reach this subcollection — the
   // feed reads from other users' subtrees so the doc may or may not carry
-  // its own `userId` field.
+  // its own `userId` field. `hydrateLieuFromRaw` handles the pre-#41 status
+  // read-compat + pre-migration photos[] synthesis.
   const withOwner = data.userId ? data : { ...data, userId: ownerUid };
   return hydrateLieuFromRaw(id, withOwner);
 }

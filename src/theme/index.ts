@@ -129,10 +129,25 @@ export const type = {
     fontWeight: '900' as const,
     textTransform: 'uppercase' as const,
   },
+  // Larger display role used by wave-2 auth/upload/extract screens (slice #50).
+  displayLg: {
+    fontFamily: fonts.display,
+    fontSize: 56,
+    lineHeight: 54,
+    letterSpacing: -2.2,
+    fontWeight: '900' as const,
+    textTransform: 'uppercase' as const,
+  },
   h1: { fontSize: 32, lineHeight: 38, fontFamily: fonts.display, fontWeight: '900' as const },
   h2: { fontSize: 24, lineHeight: 30, fontFamily: fonts.display, fontWeight: '900' as const },
   h3: { fontSize: 18, lineHeight: 24, fontFamily: fonts.display, fontWeight: '700' as const },
   body: { fontSize: 16, lineHeight: 22, fontFamily: fonts.display, fontWeight: '400' as const },
+  bodyBold: {
+    fontFamily: fonts.display,
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700' as const,
+  },
   caption: { fontSize: 13, lineHeight: 18, fontFamily: fonts.display, fontWeight: '500' as const },
   micro: { fontSize: 11, lineHeight: 14, fontFamily: fonts.display, fontWeight: '500' as const },
 
@@ -144,6 +159,14 @@ export const type = {
     fontSize: 18,
     lineHeight: 24,
   },
+  // Slightly smaller serif italic used by wave-2 screens for tastemaker copy
+  // (slice #50). Kept alongside `serifItalic` for typographic contrast.
+  serif: {
+    fontFamily: fonts.bodySerifItalic,
+    fontStyle: 'italic' as const,
+    fontSize: 17,
+    lineHeight: 24,
+  },
   mono: {
     fontFamily: fonts.mono,
     fontSize: 12,
@@ -151,4 +174,34 @@ export const type = {
     letterSpacing: 2.4, // ~0.2em at 12px — archival log feel
     textTransform: 'uppercase' as const,
   },
+  // Compact mono for eyebrows / meta labels ("Nº 01", timestamps).
+  monoSm: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase' as const,
+  },
+  // Mono uppercase eyebrow used by the section headers in the wave-2 screens.
+  sectionEyebrow: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 2.2,
+    textTransform: 'uppercase' as const,
+    fontWeight: '600' as const,
+  },
 } as const;
+
+/**
+ * Format a Date as the compact French mid-dot form `DD·MM·YY`. Consumed by the
+ * detail / list / activity surfaces where dates read as numeric texture rather
+ * than natural language.
+ */
+export function formatDateFR(d: Date | number): string {
+  const date = typeof d === 'number' ? new Date(d) : d;
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yy = String(date.getFullYear() % 100).padStart(2, '0');
+  return `${dd}·${mm}·${yy}`;
+}
