@@ -208,6 +208,24 @@ export default function MyProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/*
+        Header row — post-v8 slice D merged Settings into the Profile tab, so
+        the gear icon here is the sole entry point. We push Settings on the
+        root stack (not a tab swap) so Back drops the user right back on the
+        Profile tab where they were.
+      */}
+      <View style={styles.headerBar}>
+        <Pressable
+          onPress={() => nav.navigate('Settings')}
+          style={({ pressed }) => [styles.gearBtn, pressed && styles.gearBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Réglages"
+          testID="profile-gear-btn"
+          hitSlop={12}
+        >
+          <Ionicons name="settings-outline" size={22} color={colors.text} />
+        </Pressable>
+      </View>
       <FlatList
         data={activities}
         keyExtractor={(a) => a.id}
@@ -359,6 +377,24 @@ export function formatRelativeTime(date: Date, now: Date = new Date()): string {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  // Fixed top-right slot for the gear button — sits above the FlatList so it
+  // stays anchored regardless of scroll position.
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: spacing['2xl'],
+    paddingTop: spacing.md,
+    paddingBottom: 0,
+  },
+  gearBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gearBtnPressed: { opacity: 0.6 },
   list: {
     paddingHorizontal: spacing['2xl'],
     paddingTop: spacing['2xl'],

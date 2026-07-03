@@ -66,15 +66,24 @@ const theme = {
 };
 
 /**
- * "Add" tab is a fake tab button — tapping it pushes Upload onto the root stack
- * instead of switching tab content. Common pattern for prominent action buttons.
+ * Central "+" tab is a fake tab button — tapping it pushes Upload onto the
+ * root stack instead of switching tab content. Post-v8 slice D makes the
+ * button prominent (cerise/vermillon disc that floats above the bar, Instagram-
+ * style) so pin creation is the visual anchor of the tab row.
  */
 function AddTabButton() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
-    <Pressable onPress={() => nav.navigate('Upload')} style={styles.addBtn}>
-      <Ionicons name="add" size={30} color={colors.text} />
-    </Pressable>
+    <View style={styles.addBtnWrap}>
+      <Pressable
+        onPress={() => nav.navigate('Upload')}
+        style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Nouveau lieu"
+      >
+        <Ionicons name="add" size={34} color={colors.paper} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -131,10 +140,17 @@ function MainTabs() {
         },
       }}
     >
+      {/*
+        Order matters — post-v8 slice D lays this out as Carte · Liste · [+] ·
+        Réseau · Toi with the central + button as the visual anchor. Settings
+        is no longer a tab; it opens as a stack push from the gear icon in the
+        Profile header.
+      */}
       <Tab.Screen
         name="Map"
         component={MapScreen}
         options={{
+          tabBarLabel: 'Carte',
           tabBarIcon: ({ color, size }) => <Ionicons name="map" size={size} color={color} />,
         }}
       />
@@ -142,7 +158,16 @@ function MainTabs() {
         name="List"
         component={ListScreen}
         options={{
+          tabBarLabel: 'Liste',
           tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="_Add"
+        component={View as any}
+        options={{
+          tabBarButton: () => <AddTabButton />,
+          tabBarLabel: () => null,
         }}
       />
       <Tab.Screen
@@ -156,30 +181,15 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="_Add"
-        component={View as any}
-        options={{
-          tabBarButton: () => <AddTabButton />,
-          tabBarLabel: () => null,
-        }}
-      />
-      <Tab.Screen
         name="Profile"
         component={MyProfileScreen}
         options={{
-          tabBarLabel: 'Profil',
+          tabBarLabel: 'Toi',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
           tabBarBadge: activityBadge,
           tabBarBadgeStyle: { backgroundColor: colors.error, color: colors.text },
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
         }}
       />
     </Tab.Navigator>
@@ -385,6 +395,13 @@ function Root() {
           <RootStack.Screen name="Report" component={ReportScreen} options={{ title: 'Signaler' }} />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: 'Comptes bloqués' }} />
           <RootStack.Screen name="ShortcutSetup" component={ShortcutSetupScreen} options={{ title: 'Shortcut iOS' }} />
+          {/*
+            Settings is a stack push from the gear icon in MyProfileScreen —
+            post-v8 slice D removed it from the tab bar so pin creation gets
+            the anchor slot. Pushing (rather than swapping tabs) means Back
+            drops the user right back on the Profile tab where they came from.
+          */}
+          <RootStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Réglages' }} />
         </>
       ) : route === 'onboarding' ? (
         <RootStack.Screen
@@ -473,18 +490,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accent,
+  // Wrap centers the disc horizontally in the tab-bar slot. The Pressable
+  // itself is a fixed-size circle so the touch target stays predictable
+  // regardless of the parent's flex sizing.
+  addBtnWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -8,
+  },
+  addBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.accent, // = catResto vermillon, per v8 spec
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Float above the tab-bar top edge so the disc reads as an action, not a
+    // tab (Instagram-style prominent + button).
+    marginTop: -18,
     shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 14,
     shadowOpacity: 0.4,
-    elevation: 8,
+    elevation: 10,
+  },
+  addBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.96 }],
   },
 });
