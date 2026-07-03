@@ -15,13 +15,18 @@ service cloud.firestore {
       allow read: if request.auth != null && resource.data.isPublic == true;
     }
 
-    // Public read of a user's lieux (#11). Any authenticated user can list
-    // and read the lieux of a public owner. We resolve `isPublic` from the
-    // parent user doc via `get()` — memoized within a single rule evaluation,
-    // so it's one extra doc read per query, not per pin.
+    // Follower-gated read of a user's lieux (#40). A user's pins are visible
+    // only to their followers. Owner reads are covered by the wildcard rule
+    // at the top of this file. Any other authenticated caller must exist in
+    // `users/{userId}/followers/{request.auth.uid}` — i.e. they follow the
+    // owner. Resolved via `exists()`, memoized within a single rule eval so
+    // list queries pay one lookup per query, not per pin.
+    //
+    // `isPublic` is no longer used on this path. It still governs the
+    // parent user doc read (search + profile skeleton) — see the rule above.
     match /users/{userId}/lieux/{lieuId} {
       allow read: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(userId)).data.isPublic == true;
+        && exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid));
     }
 
     // Blocks — Apple guideline 1.2 (see #15). Explicit rule kept here even

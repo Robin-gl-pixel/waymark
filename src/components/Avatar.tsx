@@ -48,7 +48,8 @@ const styles = StyleSheet.create({
   },
   letter: {
     color: '#FFFFFF',
-    fontFamily: fonts.extrabold,
+    fontFamily: fonts.display,
+    fontWeight: '900',
     // A tiny inset so the letter doesn't visually kiss the ring on some devices.
     marginTop: -1,
     includeFontPadding: false,

@@ -1,5 +1,4 @@
 import type { Lieu, Timestamp } from '../types/Lieu';
-import { normalizeName } from '../lib/normalize';
 import type {
   UserProfile,
   ProfileInput,
@@ -10,6 +9,7 @@ import type {
   ActivityPage,
 } from '../types/User';
 import type { SocialService, FeedPage } from './socialService';
+import { hydrateLieuFromRaw } from './hydrateLieu';
 
 /**
  * Firebase-backed implementation. Methods are stubbed at scaffolding time —
@@ -559,24 +559,12 @@ export const FEED_PER_USER_LIMIT = 20;
  * plumbing an owner override through the lieux service.
  */
 function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>): Lieu {
-  return {
-    id,
-    userId: (data.userId as string) ?? ownerUid,
-    name: data.name as string,
-    nameNormalized:
-      (data.nameNormalized as string | undefined) ?? normalizeName(data.name as string),
-    city: data.city as string,
-    country: data.country as string,
-    address: data.address as string,
-    lat: data.lat as number,
-    lng: data.lng as number,
-    category: data.category as Lieu['category'],
-    description: (data.description as string) ?? null,
-    sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
-    userNotes: (data.userNotes as string) ?? null,
-    createdAt: data.createdAt as Timestamp,
-    updatedAt: data.updatedAt as Timestamp,
-  };
+  // Default userId to the owner uid used to reach this subcollection — the
+  // feed reads from other users' subtrees so the doc may or may not carry
+  // its own `userId` field. `hydrateLieuFromRaw` handles the pre-#41 status
+  // read-compat + pre-migration photos[] synthesis.
+  const withOwner = data.userId ? data : { ...data, userId: ownerUid };
+  return hydrateLieuFromRaw(id, withOwner);
 }
 
 /**
