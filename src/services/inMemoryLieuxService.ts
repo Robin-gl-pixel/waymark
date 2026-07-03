@@ -1,5 +1,11 @@
-import { Lieu, LieuInput, LieuExtracted, Timestamp } from '../types/Lieu';
-import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
+import { Lieu, LieuInput, LieuExtracted, LieuPhoto, Timestamp } from '../types/Lieu';
+import {
+  LieuxService,
+  LieuDuplicateError,
+  DUPLICATE_DISTANCE_M,
+  MAX_PHOTOS_PER_LIEU,
+  PhotoCapReachedError,
+} from './lieuxService';
 import { normalizeName } from '../lib/normalize';
 import { hydrateLieuFromRaw } from './hydrateLieu';
 
@@ -104,7 +110,7 @@ export class InMemoryLieuxService implements LieuxService {
     // entry on create. `sourceInstagram.screenshotStoragePath` is DELIBERATELY
     // omitted on write — the read-compat path only synthesises photos[] when
     // it sees a legacy doc (screenshotStoragePath present, photos absent).
-    let photos: Array<{ storagePath: string; source: 'insta'; addedAt: Timestamp }> = [];
+    let photos: LieuPhoto[] = [];
     if (input.screenshotUri && input.screenshotUri.length > 0) {
       const photoId = this.randomPhotoId();
       const storagePath = `users/${userId}/photos/${id}/${photoId}.${ext}`;
@@ -268,6 +274,8 @@ export class InMemoryLieuxService implements LieuxService {
           ? { screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath }
           : {}),
       },
+      // Reference-copy the source's `photos[]` — same storagePaths, no Storage
+      // duplication (matches the pre-#35 behavior on `screenshotStoragePath`).
       photos: sourceLieu.photos.map((p) => ({
         storagePath: p.storagePath,
         source: p.source,
@@ -297,6 +305,114 @@ export class InMemoryLieuxService implements LieuxService {
    */
   seedRawDoc(userId: string, lieuId: string, raw: Record<string, unknown>): void {
     this.bucket(userId).set(lieuId, raw);
+  }
+
+  async addPhoto(
+    userId: string,
+    lieuId: string,
+    imageUri: string,
+    source: 'user',
+  ): Promise<LieuPhoto> {
+    this.assertOwnership(userId);
+    const bucket = this.bucket(userId);
+    const existing = bucket.get(lieuId);
+    if (!existing) throw new Error(`Lieu ${lieuId} not found for user ${userId}`);
+    // Read through the hydrator so the pre-#35 read-compat path (synthesised
+    // photos[] from screenshotStoragePath) is honoured — otherwise `addPhoto`
+    // against a legacy doc would land in a doc that still has 0 photos and
+    // skip cap enforcement.
+    const current = hydrateLieuFromRaw(lieuId, existing).photos;
+    if (current.length >= MAX_PHOTOS_PER_LIEU) {
+      throw new PhotoCapReachedError(lieuId);
+    }
+    const photoId = this.nextId();
+    // In-memory stub: we don't actually upload — the storagePath is a marker
+    // that mirrors the shape produced by the Firebase impl so tests can assert
+    // on it. `imageUri` is otherwise unused.
+    void imageUri;
+    const storagePath = `users/${userId}/photos/${lieuId}/${photoId}.jpg`;
+    const photo: LieuPhoto = { storagePath, source, addedAt: this.now() };
+    bucket.set(lieuId, {
+      ...existing,
+      photos: [...current, photo],
+      updatedAt: this.now(),
+    });
+    return photo;
+  }
+
+  async removePhoto(
+    userId: string,
+    lieuId: string,
+    storagePath: string,
+  ): Promise<void> {
+    this.assertOwnership(userId);
+    const bucket = this.bucket(userId);
+    const existing = bucket.get(lieuId);
+    if (!existing) return;
+    const current = hydrateLieuFromRaw(lieuId, existing).photos;
+    const next = current.filter((p) => p.storagePath !== storagePath);
+    // No-op if the path wasn't in the gallery — matches the "best-effort"
+    // posture of the Firebase impl (Storage delete of a missing blob is
+    // silently swallowed there too).
+    if (next.length === current.length) return;
+    bucket.set(lieuId, {
+      ...existing,
+      photos: next,
+      updatedAt: this.now(),
+    });
+  }
+
+  async reorderPhotos(
+    userId: string,
+    lieuId: string,
+    orderedStoragePaths: string[],
+  ): Promise<void> {
+    this.assertOwnership(userId);
+    const bucket = this.bucket(userId);
+    const existing = bucket.get(lieuId);
+    if (!existing) throw new Error(`Lieu ${lieuId} not found for user ${userId}`);
+    const current = hydrateLieuFromRaw(lieuId, existing).photos;
+    // Set-equality check: same count, same members (unordered). Reject on
+    // any mismatch — the caller shouldn't be able to sneak in / lose a photo
+    // via reorder.
+    if (orderedStoragePaths.length !== current.length) {
+      throw new Error(
+        `reorderPhotos: expected ${current.length} paths, got ${orderedStoragePaths.length}`,
+      );
+    }
+    const currentSet = new Set(current.map((p) => p.storagePath));
+    const nextSet = new Set(orderedStoragePaths);
+    if (nextSet.size !== orderedStoragePaths.length) {
+      throw new Error('reorderPhotos: duplicate storagePath in input');
+    }
+    for (const path of orderedStoragePaths) {
+      if (!currentSet.has(path)) {
+        throw new Error(`reorderPhotos: unknown storagePath ${path}`);
+      }
+    }
+    const byPath = new Map(current.map((p) => [p.storagePath, p]));
+    const reordered = orderedStoragePaths.map((path) => byPath.get(path)!);
+    bucket.set(lieuId, {
+      ...existing,
+      photos: reordered,
+      updatedAt: this.now(),
+    });
+  }
+
+  /**
+   * Simulate the Firestore rules check that gates each photo mutation on
+   * `request.auth.uid == userId`. When {@link currentUid} is impersonated,
+   * calling any of the new methods with a `userId` that doesn't match throws
+   * — mirroring the "cross-user write rejected" behavior a rules test would
+   * assert against the emulator. When `currentUid` is null (the default in
+   * pre-#38 tests), no check is applied so existing tests keep passing.
+   */
+  private assertOwnership(userId: string): void {
+    if (this.currentUid !== null && this.currentUid !== userId) {
+      throw new Error(
+        `Cross-user access rejected: signed-in uid ${this.currentUid} != userId ${userId}`,
+      );
+    }
   }
 
   /** Test helper: wipe all state. */

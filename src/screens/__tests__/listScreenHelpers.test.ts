@@ -38,6 +38,7 @@ function makeLieu(overrides: Partial<Lieu> = {}): Lieu {
       },
     ],
     userNotes: null,
+    status: null,
     createdAt: ts(new Date('2026-07-03T12:00:00Z').getTime()),
     updatedAt: ts(new Date('2026-07-03T12:00:00Z').getTime()),
     ...overrides,

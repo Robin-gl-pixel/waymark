@@ -1,4 +1,29 @@
-import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
+import { Lieu, LieuInput, LieuExtracted, LieuPhoto } from '../types/Lieu';
+
+/**
+ * Hard cap on the number of photos per pin. Enforced at the service layer
+ * (throwing {@link PhotoCapReachedError}) — Firestore rules don't check array
+ * length. Mirrored in the UI: `LieuDetailScreen` hides the "+ Ajouter" tile
+ * once a pin has reached this many photos.
+ */
+export const MAX_PHOTOS_PER_LIEU = 10;
+
+/**
+ * Thrown by `addPhoto` when a pin already has {@link MAX_PHOTOS_PER_LIEU}
+ * photos. The UI catches this specifically to surface a friendly "10 photos
+ * max" alert rather than a generic error. Firestore state and Storage are
+ * unchanged on this rejection.
+ */
+export class PhotoCapReachedError extends Error {
+  readonly lieuId: string;
+  readonly cap: number;
+  constructor(lieuId: string) {
+    super(`Pin ${lieuId} already has ${MAX_PHOTOS_PER_LIEU} photos (cap).`);
+    this.name = 'PhotoCapReachedError';
+    this.lieuId = lieuId;
+    this.cap = MAX_PHOTOS_PER_LIEU;
+  }
+}
 
 /**
  * Distance below which two pins are considered the same venue (haversine, meters).
@@ -96,6 +121,55 @@ export interface LieuxService {
    * caller's collection (haversine).
    */
   resaveFromNetwork(sourceLieu: Lieu, credit: { uid: string; username: string }): Promise<Lieu>;
+
+  /**
+   * Append a new photo to the pin's gallery.
+   *
+   * Uploads the local image at `imageUri` to
+   * `users/{userId}/photos/{lieuId}/{photoId}.jpg` and appends a matching
+   * entry to `photos[]`. Enforces the {@link MAX_PHOTOS_PER_LIEU} cap by
+   * throwing {@link PhotoCapReachedError} when the gallery is full — no
+   * Storage upload and no Firestore write happen in that case.
+   *
+   * User-added photos (`source: 'user'`) are uploaded as-is (resize + JPEG
+   * re-encode for size, no crop) — see #34 US11: "photos I add myself aren't
+   * mangled by an algorithm designed for Instagram screenshots".
+   */
+  addPhoto(
+    userId: string,
+    lieuId: string,
+    imageUri: string,
+    source: 'user',
+  ): Promise<LieuPhoto>;
+
+  /**
+   * Remove a photo from the pin's gallery.
+   *
+   * Deletes both the Storage object at `storagePath` (best-effort — missing
+   * blob is not an error) and the matching entry in `photos[]`. If the
+   * removed photo was `photos[0]`, `photos[1]` implicitly becomes the new
+   * hero. Deleting the last remaining photo leaves `photos: []` — callers
+   * (list + detail) already fall back to the category-emoji placeholder in
+   * that case.
+   *
+   * `sourceInstagram.author` is intentionally preserved even when the last
+   * `source: 'insta'` photo is removed — attribution stays as metadata.
+   */
+  removePhoto(userId: string, lieuId: string, storagePath: string): Promise<void>;
+
+  /**
+   * Persist a new photo order.
+   *
+   * `orderedStoragePaths` must contain exactly the same set of storage paths
+   * as the pin's current `photos[]` — no additions, no removals. Providing a
+   * mismatched list throws without any Firestore write (partial writes would
+   * break the invariant that `photos[]` reflects what's actually in Storage).
+   */
+  reorderPhotos(
+    userId: string,
+    lieuId: string,
+    orderedStoragePaths: string[],
+  ): Promise<void>;
 }
 
 let _instance: LieuxService | null = null;
