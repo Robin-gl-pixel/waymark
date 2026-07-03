@@ -112,10 +112,38 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Réglages</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>Connecté en tant que</Text>
-          <Text style={styles.cardValue}>{user?.displayName ?? user?.email ?? '—'}</Text>
-        </View>
+        {user?.isAnonymous ? (
+          <View style={styles.anonCard}>
+            <Text style={styles.anonTitle}>Mode démo (compte anonyme)</Text>
+            <Text style={styles.anonBody}>
+              Tes lieux ne sont pas sauvegardés côté cloud. Crée un vrai compte avec Apple pour les retrouver + activer la partie sociale (follow, feed, save from network).
+            </Text>
+            <Pressable
+              onPress={() => {
+                Alert.alert(
+                  'Créer un vrai compte',
+                  'Tu vas être déconnecté de la démo. Les lieux ajoutés en mode démo seront perdus. Se reconnecter avec Apple pour créer un vrai compte.',
+                  [
+                    { text: 'Annuler', style: 'cancel' },
+                    {
+                      text: 'Se déconnecter',
+                      style: 'destructive',
+                      onPress: () => { logout().catch(console.error); },
+                    },
+                  ],
+                );
+              }}
+              style={({ pressed }) => [styles.anonBtn, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.anonBtnLabel}>Se connecter avec Apple</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Connecté en tant que</Text>
+            <Text style={styles.cardValue}>{user?.displayName ?? user?.email ?? '—'}</Text>
+          </View>
+        )}
 
         <Text style={styles.sectionTitle}>Ajout depuis Partager</Text>
         <Text style={styles.sectionBody}>
@@ -123,40 +151,44 @@ export default function SettingsScreen() {
           grille — l'extraction se lance automatiquement, aucune configuration.
         </Text>
 
-        <View style={styles.actionGroup}>
-          <Pressable
-            onPress={() => nav.navigate('EditUsername')}
-            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-          >
-            <Text style={styles.actionLabel}>Changer mon @username</Text>
-            <Text style={styles.actionChevron}>›</Text>
-          </Pressable>
-          <View style={styles.actionDivider} />
-          <Pressable
-            onPress={inviteFriend}
-            style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-          >
-            <Text style={styles.actionLabel}>Inviter un ami</Text>
-            <Text style={styles.actionChevron}>›</Text>
-          </Pressable>
-          <View style={styles.actionDivider} />
-          <View style={styles.actionRow}>
-            <Text style={styles.actionLabel}>Profil public</Text>
-            <Switch
-              value={isPublic ?? true}
-              onValueChange={toggleVisibility}
-              disabled={isPublic === null}
-              trackColor={{ true: colors.accent, false: colors.border }}
-              thumbColor={colors.text}
-              ios_backgroundColor={colors.border}
-            />
-          </View>
-        </View>
-        <Text style={styles.visibilityHint}>
-          {isPublic === false
-            ? 'En privé, tes lieux sont invisibles aux autres.'
-            : 'Quand ton profil est public, les autres users voient tes lieux dans leur feed et sur ton profil.'}
-        </Text>
+        {!user?.isAnonymous && (
+          <>
+            <View style={styles.actionGroup}>
+              <Pressable
+                onPress={() => nav.navigate('EditUsername')}
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+              >
+                <Text style={styles.actionLabel}>Changer mon @username</Text>
+                <Text style={styles.actionChevron}>›</Text>
+              </Pressable>
+              <View style={styles.actionDivider} />
+              <Pressable
+                onPress={inviteFriend}
+                style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+              >
+                <Text style={styles.actionLabel}>Inviter un ami</Text>
+                <Text style={styles.actionChevron}>›</Text>
+              </Pressable>
+              <View style={styles.actionDivider} />
+              <View style={styles.actionRow}>
+                <Text style={styles.actionLabel}>Profil public</Text>
+                <Switch
+                  value={isPublic ?? true}
+                  onValueChange={toggleVisibility}
+                  disabled={isPublic === null}
+                  trackColor={{ true: colors.accent, false: colors.border }}
+                  thumbColor={colors.text}
+                  ios_backgroundColor={colors.border}
+                />
+              </View>
+            </View>
+            <Text style={styles.visibilityHint}>
+              {isPublic === false
+                ? 'En privé, tes lieux sont invisibles aux autres.'
+                : 'Quand ton profil est public, les autres users voient tes lieux dans leur feed et sur ton profil.'}
+            </Text>
+          </>
+        )}
 
         <View style={{ flex: 1 }} />
 
@@ -188,6 +220,38 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  anonCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+  },
+  anonTitle: {
+    ...type.h3,
+    color: colors.accent,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  anonBody: {
+    ...type.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+    lineHeight: 22,
+  },
+  anonBtn: {
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anonBtnLabel: {
+    ...type.body,
+    color: colors.bg,
+    fontWeight: '700',
+  },
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: {
     paddingHorizontal: spacing['2xl'],
