@@ -17,22 +17,31 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService, LieuDuplicateError } from '../services/lieuxService';
 import { getSocialService } from '../services/socialService';
-import { colors, spacing, type, radius } from '../theme';
-import type { Lieu, LieuCategory } from '../types/Lieu';
+import { colors, spacing, type, categoryColor } from '../theme';
+import type { Lieu, LieuCategory, LieuStatus } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
+import BadgeText, { type BadgeStatus } from '../components/BadgeText';
+import StatusToggle from '../components/StatusToggle';
+import { formatCompactDate, formatEntryNumber } from '../utils/lieuNumber';
+import { detailQuoteText, formatAddress } from './lieuDetail/helpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'LieuDetail'>;
 type Rt = RouteProp<RootStackParamList, 'LieuDetail'>;
 
+/**
+ * Short mono uppercase French category label used inside the category chip.
+ * No emoji — the color IS the code (per PRD §12). Removing the emoji is part
+ * of the v8 copy sweep.
+ */
 const CATEGORY_LABEL: Record<LieuCategory, string> = {
-  resto: '🍽️ Restaurant',
-  bar: '🍸 Bar',
-  café: '☕ Café',
-  activité: '🎨 Activité',
-  musée: '🏛️ Musée',
-  hôtel: '🏨 Hôtel',
-  autre: '📍 Autre',
+  resto: 'Resto',
+  bar: 'Bar',
+  café: 'Café',
+  activité: 'Activité',
+  musée: 'Musée',
+  hôtel: 'Hôtel',
+  autre: 'Autre',
 };
 
 export default function LieuDetailScreen() {
@@ -49,8 +58,9 @@ export default function LieuDetailScreen() {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   // Owner of the pin I'm viewing when it's not mine — used to power the
-  // "Sauver dans ma carte" credit + isCurated badge check.
+  // "Ajouter à ma carte" credit + isCurated badge check + friend note attribution.
   const [otherOwner, setOtherOwner] = useState<UserProfile | null>(null);
   // Profile of the saver referenced by `savedFromUserId` on MY pin — used to
   // upgrade "via @X" to a "Waymark Curated" badge when applicable.
@@ -80,7 +90,7 @@ export default function LieuDetailScreen() {
         }
         // Resolve the owner profile in two cases:
         //   1. Viewing someone else's pin → we need the owner's username to
-        //      pass as `credit` when the user taps "Sauver dans ma carte".
+        //      pass as `credit` when the user taps "Ajouter à ma carte".
         //   2. Viewing my own pin with a `savedFromUserId` → we need the
         //      saver's `isCurated` flag to decide between "via @X" and the
         //      "Waymark Curated" badge.
@@ -150,6 +160,24 @@ export default function LieuDetailScreen() {
     };
   }, [flushNotes]);
 
+  const onStatusChange = useCallback(
+    async (next: BadgeStatus) => {
+      if (!user || !lieu || !isMine) return;
+      // Optimistic — the toggle should feel instant. Rollback on error.
+      const prev = lieu.status ?? null;
+      const nextStatus: LieuStatus | null = next;
+      setLieu({ ...lieu, status: nextStatus });
+      try {
+        await getLieuxService().updateLieu(user.uid, lieu.id, { status: nextStatus });
+      } catch (err) {
+        console.error('[LieuDetail] status update failed', err);
+        setLieu({ ...lieu, status: prev });
+        Alert.alert('Erreur', "La mise à jour n'a pas abouti. Réessaie dans un instant.");
+      }
+    },
+    [user, lieu, isMine],
+  );
+
   const openInMaps = () => {
     if (!lieu) return;
     // maps: scheme opens Apple Maps; Google Maps app hijacks if installed and user set it as default.
@@ -178,8 +206,8 @@ export default function LieuDetailScreen() {
     } catch (err) {
       if (err instanceof LieuDuplicateError) {
         Alert.alert(
-          'Déjà dans ta collection',
-          `"${err.duplicate.name}" est déjà enregistré chez toi.`,
+          'Déjà chez toi',
+          `« ${err.duplicate.name} » est déjà dans ta carte.`,
           [
             {
               text: 'Voir sur la carte',
@@ -199,7 +227,7 @@ export default function LieuDetailScreen() {
         );
       } else {
         console.error('[LieuDetail] resave failed', err);
-        Alert.alert('Erreur', "La sauvegarde n'a pas abouti. Réessaie dans un instant.");
+        Alert.alert('Erreur', 'Ça n’a pas abouti. Réessaie dans un instant.');
       }
     } finally {
       setResaving(false);
@@ -214,8 +242,8 @@ export default function LieuDetailScreen() {
   const confirmDelete = () => {
     if (!lieu || !user) return;
     Alert.alert(
-      'Supprimer ce lieu ?',
-      `"${lieu.name}" sera retiré de ta collection. Cette action est irréversible.`,
+      'Supprimer ce pin ?',
+      `« ${lieu.name} » sera retiré de ta carte. Irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -227,7 +255,7 @@ export default function LieuDetailScreen() {
               nav.goBack();
             } catch (err) {
               console.error(err);
-              Alert.alert('Erreur', 'Suppression échouée.');
+              Alert.alert('Erreur', "Ça n'a pas abouti.");
             }
           },
         },
@@ -238,7 +266,8 @@ export default function LieuDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing['3xl'] }} />
+        <NavBar onBack={() => nav.goBack()} />
+        <ActivityIndicator color={colors.ink} style={{ marginTop: spacing['3xl'] }} />
       </SafeAreaView>
     );
   }
@@ -246,30 +275,116 @@ export default function LieuDetailScreen() {
   if (!lieu) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <Text style={styles.notFound}>Lieu introuvable.</Text>
+        <NavBar onBack={() => nav.goBack()} />
+        <Text style={styles.notFound}>Pin introuvable.</Text>
       </SafeAreaView>
     );
   }
 
+  const catColor = categoryColor(lieu.category);
+  const statusForBadge: BadgeStatus = (lieu.status ?? null) as BadgeStatus;
+
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <NavBar
+        onBack={() => nav.goBack()}
+        onEdit={isMine ? () => setShowEditor((v) => !v) : undefined}
+        onAdd={!isMine && otherOwner && user ? onResaveFromNetwork : undefined}
+        addLoading={resaving}
+      />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {imgUri && <Image source={{ uri: imgUri }} style={styles.hero} resizeMode="cover" />}
+        {/* Hero — full-width, no rotation/tape/border, mono `Nº XXX` in paper. */}
+        <View style={styles.hero}>
+          {imgUri ? (
+            <Image source={{ uri: imgUri }} style={styles.heroImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.heroImage, styles.heroPlaceholder, { backgroundColor: catColor }]} />
+          )}
+          <Text style={styles.heroNum} accessibilityLabel={`Entrée ${formatEntryNumber(lieu)}`}>
+            {formatEntryNumber(lieu)}
+          </Text>
+        </View>
 
         <View style={styles.body}>
-          <Text style={styles.categoryTag}>{CATEGORY_LABEL[lieu.category]}</Text>
-          <Text style={styles.name}>{lieu.name}</Text>
-          <Text style={styles.address}>{lieu.address}</Text>
+          {/* Title row: grotesque black uppercase + category chip in category color. */}
+          <View style={styles.headRow}>
+            <Text style={styles.title} numberOfLines={3}>
+              {lieu.name}
+            </Text>
+            <View style={[styles.catChip, { backgroundColor: catColor }]}>
+              <View style={styles.catChipDot} />
+              <Text style={styles.catChipLabel}>{CATEGORY_LABEL[lieu.category]}</Text>
+            </View>
+          </View>
 
-          {lieu.description && <Text style={styles.description}>{lieu.description}</Text>}
+          {/* Address block: mono uppercase, graphite. Friend mode: BadgeText
+              (wave 1 primitive) renders under the address with the owner's
+              status. A mid-dot prefix mirrors the mockup's `· Allé` / `· Envie`
+              layout without duplicating the label choice. */}
+          <View style={styles.addressBlock}>
+            <Text style={styles.address}>{formatAddress(lieu)}</Text>
+            {!isMine && statusForBadge !== null && (
+              <View style={styles.friendBadgeRow}>
+                <Text style={styles.friendBadgeDot}>{'·'}</Text>
+                <BadgeText status={statusForBadge} />
+              </View>
+            )}
+          </View>
 
-          {lieu.sourceInstagram.author && (
-            <Text style={styles.attribution}>Reco de @{lieu.sourceInstagram.author}</Text>
+          {/* Owner: StatusToggle. Friend: hidden — the BadgeText above already shows it. */}
+          {isMine && (
+            <StatusToggle
+              status={statusForBadge}
+              onChange={onStatusChange}
+              style={styles.statusToggle}
+            />
           )}
 
-          {/* "via @X" attribution — only on MY pins that came from a re-save.
-              Tap opens the saver's profile. `savedFromProfile.isCurated`
-              upgrades the tag to the "Waymark Curated" badge. */}
+          {/* Quote: italic serif with French guillemets. Friend mode gets a
+              second serif block for the friend's userNotes (with attribution). */}
+          {(() => {
+            const quoteText = detailQuoteText(lieu, isMine);
+            return quoteText ? <Text style={styles.quote}>{quoteText}</Text> : null;
+          })()}
+          {!isMine && lieu.userNotes && lieu.userNotes.trim().length > 0 && otherOwner && (
+            <FriendNote note={lieu.userNotes.trim()} handle={otherOwner.username} />
+          )}
+
+          {/* Social proof: `@<author> · REEL` (mono uppercase, small colored bullet). */}
+          {lieu.sourceInstagram.author && (
+            <View style={styles.socialLine}>
+              <View style={[styles.socialDot, { backgroundColor: catColor }]} />
+              <Text style={styles.socialLabel}>
+                <Text style={styles.socialHandle}>@{lieu.sourceInstagram.author}</Text>
+                <Text style={styles.socialLabelSuffix}>{' · reel'}</Text>
+              </Text>
+            </View>
+          )}
+
+          {/* Credit: mono, «Sauvé le DD·MM» + attribution / friend prompt. */}
+          <View style={styles.creditLine}>
+            {isMine ? (
+              <Text style={styles.creditLabel}>{`Sauvé le ${formatCompactDate(lieu.createdAt)}`}</Text>
+            ) : otherOwner ? (
+              <Pressable
+                onPress={onResaveFromNetwork}
+                disabled={resaving}
+                style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+              >
+                <Text style={styles.creditLabel}>
+                  {'De la carte de '}
+                  <Text style={styles.creditStrong}>@{otherOwner.username}</Text>
+                  {' · '}
+                  <Text style={styles.creditStrong}>
+                    {resaving ? 'Ajout…' : '+ Ajouter à ma carte'}
+                  </Text>
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* Attribution — "via @X" or the "Waymark Curated" badge for my
+              re-saves. Preserved from the previous design, just re-styled. */}
           {isMine && lieu.savedFromUsername && (
             <Pressable
               onPress={onTapAttribution}
@@ -285,68 +400,37 @@ export default function LieuDetailScreen() {
             </Pressable>
           )}
 
-          {/* "Sauver dans ma carte" — primary CTA on a network pin (someone
-              else's collection). Dedup handled by resaveFromNetwork itself. */}
-          {!isMine && otherOwner && user && (
-            <Pressable
-              onPress={onResaveFromNetwork}
-              disabled={resaving}
-              style={({ pressed }) => [
-                styles.mapsBtn,
-                { backgroundColor: pressed ? colors.accentDim : colors.accent },
-                resaving && { opacity: 0.6 },
-              ]}
-            >
-              {resaving ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <Text style={styles.mapsBtnLabel}>Sauver dans ma carte</Text>
-              )}
-            </Pressable>
-          )}
-
+          {/* Owner secondary actions: open in maps, view on the map, notes editor, delete. */}
           <Pressable
             onPress={openInMaps}
-            style={({ pressed }) => [
-              !isMine ? styles.secondaryBtn : styles.mapsBtn,
-              !isMine
-                ? pressed && { opacity: 0.7 }
-                : { backgroundColor: pressed ? colors.accentDim : colors.accent },
-            ]}
+            style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}
           >
-            <Text style={!isMine ? styles.secondaryBtnLabel : styles.mapsBtnLabel}>
-              Ouvrir dans Plans
-            </Text>
+            <Text style={styles.secondaryBtnLabel}>Ouvrir dans Plans</Text>
           </Pressable>
-
           <Pressable
             onPress={() =>
               nav.navigate('Main', { screen: 'Map', params: { focusLieuId: lieu.id } })
             }
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              pressed && { opacity: 0.7 },
-            ]}
+            style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}
           >
             <Text style={styles.secondaryBtnLabel}>Voir sur la carte</Text>
           </Pressable>
 
-          {isMine && (
+          {isMine && showEditor && (
             <>
-              <Text style={styles.label}>Mes notes</Text>
+              <Text style={styles.editorLabel}>Tes notes</Text>
               <TextInput
                 value={notes}
                 onChangeText={onNotesChange}
                 onBlur={onNotesBlur}
-                placeholder="Réserver 2 semaines avant, aller le vendredi soir, éviter en été…"
-                placeholderTextColor={colors.textTertiary}
+                placeholder="ce que tu veux dire à ton toi du futur"
+                placeholderTextColor={colors.graphite}
                 multiline
                 style={styles.notesInput}
               />
               {saving && <Text style={styles.saving}>Sauvegarde…</Text>}
-
               <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
-                <Text style={styles.deleteBtnLabel}>Supprimer ce lieu</Text>
+                <Text style={styles.deleteBtnLabel}>Supprimer ce pin</Text>
               </Pressable>
             </>
           )}
@@ -356,98 +440,373 @@ export default function LieuDetailScreen() {
   );
 }
 
+/* ---------- Sub-components ---------- */
+
+function NavBar({
+  onBack,
+  onEdit,
+  onAdd,
+  addLoading,
+}: {
+  onBack: () => void;
+  onEdit?: () => void;
+  onAdd?: () => void;
+  addLoading?: boolean;
+}) {
+  return (
+    <View style={styles.navBar}>
+      <Pressable
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel="Retour"
+        style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}
+      >
+        <Text style={styles.navBtnGlyph}>←</Text>
+      </Pressable>
+      {onEdit && (
+        <Pressable
+          onPress={onEdit}
+          accessibilityRole="button"
+          accessibilityLabel="Modifier"
+          style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={styles.navBtnGlyph}>✎</Text>
+        </Pressable>
+      )}
+      {onAdd && (
+        <Pressable
+          onPress={onAdd}
+          disabled={addLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Ajouter à ma carte"
+          style={({ pressed }) => [styles.navBtn, pressed && { opacity: 0.6 }]}
+        >
+          {addLoading ? (
+            <ActivityIndicator color={colors.ink} size="small" />
+          ) : (
+            <Text style={styles.navBtnGlyph}>+</Text>
+          )}
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function FriendNote({ note, handle }: { note: string; handle: string }) {
+  return (
+    <View style={styles.friendNote}>
+      <Text style={styles.friendNoteBody}>{`« ${note} »`}</Text>
+      <Text style={styles.friendNoteAttrib}>{`— note de @${handle}`}</Text>
+    </View>
+  );
+}
+
+/* ---------- Styles ---------- */
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   scroll: { paddingBottom: spacing['3xl'] },
-  hero: { width: '100%', height: 320, backgroundColor: colors.bgElevated },
-  body: { paddingHorizontal: spacing['2xl'], paddingTop: spacing.xl },
-  categoryTag: {
-    ...type.caption,
-    color: colors.accent,
-    fontWeight: '600',
+
+  /* ----- Nav bar ----- */
+  navBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.paper,
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.hair,
+    backgroundColor: colors.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtnGlyph: {
+    fontSize: 16,
+    color: colors.ink,
+    lineHeight: 18,
+  },
+
+  /* ----- Hero ----- */
+  hero: {
+    width: '100%',
+    height: 320,
+    position: 'relative',
+    backgroundColor: colors.hair,
+  },
+  heroImage: { width: '100%', height: '100%' },
+  heroPlaceholder: { opacity: 0.4 },
+  heroNum: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    ...type.mono,
+    color: colors.paper,
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 2,
+    // A soft shadow so the label reads on light photos without a chip.
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+
+  /* ----- Body ----- */
+  body: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    gap: spacing.lg,
+  },
+  headRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  title: {
+    flex: 1,
+    fontFamily: 'System',
+    fontWeight: '900',
+    fontSize: 30,
+    lineHeight: 30,
+    letterSpacing: -1.2,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
+    color: colors.ink,
   },
-  name: { ...type.h1, color: colors.text, fontWeight: '700' },
-  address: { ...type.body, color: colors.textSecondary, marginTop: spacing.sm },
-  description: { ...type.body, color: colors.text, marginTop: spacing.lg, lineHeight: 24 },
-  attribution: {
-    ...type.caption,
-    color: colors.textTertiary,
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  catChipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.ink,
+  },
+  catChipLabel: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+    color: colors.ink,
+    textTransform: 'uppercase',
+  },
+
+  addressBlock: {
+    gap: spacing.xs,
+  },
+  address: {
+    fontFamily: 'Courier',
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.6,
+    color: colors.graphite,
+    textTransform: 'uppercase',
+  },
+  friendBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+  },
+  friendBadgeDot: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: colors.graphite,
+    textTransform: 'uppercase',
+  },
+
+  statusToggle: {
+    marginTop: spacing.xs,
+  },
+
+  quote: {
+    fontFamily: 'Georgia',
     fontStyle: 'italic',
-    marginTop: spacing.md,
+    fontSize: 17,
+    lineHeight: 24,
+    color: colors.ink,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.hair,
   },
+
+  friendNote: {
+    backgroundColor: 'rgba(20, 16, 10, 0.04)',
+    borderLeftWidth: 2,
+    borderLeftColor: colors.ink,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  friendNoteBody: {
+    fontFamily: 'Georgia',
+    fontStyle: 'italic',
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.ink,
+  },
+  friendNoteAttrib: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: colors.graphite,
+  },
+
+  socialLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: spacing.xs,
+  },
+  socialDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  socialLabel: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: colors.graphite,
+    // Not textTransform:'uppercase' — handles are case-sensitive and the
+    // mockup shows the @handle lowercased. The `· REEL` suffix is uppercased
+    // per-token instead (see `socialLabelSuffix` below).
+  },
+  socialHandle: {
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  socialLabelSuffix: {
+    textTransform: 'uppercase',
+  },
+
+  creditLine: {
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.hair,
+  },
+  creditLabel: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    letterSpacing: 1.6,
+    color: colors.graphite,
+    textTransform: 'uppercase',
+  },
+  creditStrong: {
+    color: colors.catActivite,
+    fontWeight: '700',
+  },
+
   viaRow: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     alignSelf: 'flex-start',
   },
   viaLabel: {
-    ...type.caption,
-    color: colors.accent,
-    fontWeight: '600',
+    fontFamily: 'Courier',
+    fontSize: 10,
+    letterSpacing: 1.6,
+    color: colors.catActivite,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   curatedBadge: {
-    backgroundColor: colors.accentDim,
+    backgroundColor: colors.ink,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
     alignSelf: 'flex-start',
   },
   curatedLabel: {
-    ...type.caption,
-    color: colors.text,
+    fontFamily: 'Courier',
+    fontSize: 10,
+    color: colors.paper,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
-  mapsBtn: {
-    height: 56,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.xl,
-  },
-  mapsBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+
   secondaryBtn: {
-    height: 56,
-    borderRadius: radius.pill,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: spacing.sm,
   },
-  secondaryBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
-  label: {
-    ...type.caption,
-    color: colors.textSecondary,
+  secondaryBtnLabel: {
+    fontFamily: 'Courier',
+    fontSize: 11,
+    color: colors.ink,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+
+  editorLabel: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    color: colors.graphite,
+    letterSpacing: 1.6,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   notesInput: {
-    ...type.body,
-    color: colors.text,
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.md,
+    fontFamily: 'Georgia',
+    fontStyle: 'italic',
+    fontSize: 15,
+    color: colors.ink,
+    backgroundColor: 'rgba(20, 16, 10, 0.04)',
+    borderWidth: 1,
+    borderColor: colors.hair,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     minHeight: 96,
     textAlignVertical: 'top',
   },
-  saving: { ...type.micro, color: colors.textTertiary, marginTop: spacing.xs },
+  saving: {
+    fontFamily: 'Courier',
+    fontSize: 10,
+    color: colors.graphite,
+    marginTop: spacing.xs,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
   deleteBtn: {
-    marginTop: spacing['3xl'],
-    height: 56,
-    borderRadius: radius.pill,
+    marginTop: spacing['2xl'],
+    height: 48,
     borderWidth: 1,
-    borderColor: colors.error,
+    borderColor: colors.catResto,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteBtnLabel: { ...type.h3, color: colors.error, fontWeight: '600' },
-  notFound: { ...type.body, color: colors.textSecondary, textAlign: 'center', marginTop: spacing['3xl'] },
+  deleteBtnLabel: {
+    fontFamily: 'Courier',
+    fontSize: 11,
+    color: colors.catResto,
+    fontWeight: '700',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+
+  notFound: {
+    fontFamily: 'Georgia',
+    fontStyle: 'italic',
+    fontSize: 16,
+    color: colors.graphite,
+    textAlign: 'center',
+    marginTop: spacing['3xl'],
+  },
 });

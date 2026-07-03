@@ -119,7 +119,7 @@ export class FirebaseLieuxService implements LieuxService {
   async updateLieu(
     userId: string,
     lieuId: string,
-    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes'>>,
+    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes' | 'status'>>,
   ): Promise<void> {
     const write: Record<string, unknown> = { ...patch, updatedAt: serverTimestamp() };
     if (patch.name !== undefined) {
@@ -270,6 +270,10 @@ export class FirebaseLieuxService implements LieuxService {
       userNotes: (data.userNotes as string) ?? null,
       savedFromUserId: (data.savedFromUserId as string | null | undefined) ?? null,
       savedFromUsername: (data.savedFromUsername as string | null | undefined) ?? null,
+      // Wave-2 addition — undefined on pre-migration docs, coerce to null so
+      // the toggle renders as unclassified rather than crashing on a strict
+      // narrow.
+      status: (data.status as Lieu['status'] | undefined) ?? null,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
     };

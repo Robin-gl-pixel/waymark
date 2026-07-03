@@ -6,9 +6,8 @@ name: Smoke — app launches to auth
 ---
 - launchApp:
     clearState: true
-# First launch waits for Metro to serve the JS bundle (~10s cold on CI).
+# Wait for the Skip button — it only renders once the JS bundle is loaded and
+# React has mounted AuthScreen. CI's cold Metro bundle can take >60s.
 - extendedWaitUntil:
-    visible: "Waymark"
-    timeout: 60000
-# "Continue with Apple" only renders when the sim has an iCloud session — CI has none.
-- assertVisible: "Skip .dev anonymous sign-in."
+    visible: "Skip .dev anonymous sign-in."
+    timeout: 180000

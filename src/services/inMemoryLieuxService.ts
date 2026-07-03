@@ -105,6 +105,7 @@ export class InMemoryLieuxService implements LieuxService {
         screenshotStoragePath: storagePath,
       },
       userNotes: input.userNotes,
+      status: null,
       createdAt: ts,
       updatedAt: ts,
     };
@@ -115,13 +116,13 @@ export class InMemoryLieuxService implements LieuxService {
   async updateLieu(
     userId: string,
     lieuId: string,
-    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes'>>,
+    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes' | 'status'>>,
   ): Promise<void> {
     const bucket = this.bucket(userId);
     const existing = bucket.get(lieuId);
     if (!existing) return;
     // Only allow the whitelisted fields — mirror the seam contract even though callers are typed.
-    const allowed: Array<keyof typeof patch> = ['name', 'city', 'address', 'category', 'userNotes'];
+    const allowed: Array<keyof typeof patch> = ['name', 'city', 'address', 'category', 'userNotes', 'status'];
     const filtered: Partial<Lieu> = {};
     for (const key of allowed) {
       if (key in patch && patch[key] !== undefined) {
@@ -219,6 +220,7 @@ export class InMemoryLieuxService implements LieuxService {
         screenshotStoragePath: sourceLieu.sourceInstagram.screenshotStoragePath,
       },
       userNotes: null,
+      status: null,
       savedFromUserId: credit.uid,
       savedFromUsername: credit.username,
       createdAt: ts,
