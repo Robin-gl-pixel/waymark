@@ -78,14 +78,65 @@ export default function SharedImageScreen() {
   useEffect(() => {
     if (!user || consumed.current) return;
 
-    // URL-only share (Instagram reel URL, no video file) → early error.
-    // We can't extract from a URL without scraping Instagram which violates
-    // their TOS. Guide the user to screenshot instead.
+    // URL-only share (Instagram reel URL, no video file) → server-side path
+    // that fetches OG metadata (og:image + og:description) and runs the same
+    // vision pipeline.
     if (isUrlOnly) {
       consumed.current = true;
-      setError(
-        "Instagram partage un lien, pas la vidéo. Fais un screenshot du reel puis partage la photo à Waymark.",
-      );
+      (async () => {
+        try {
+          const url = (shareIntent?.webUrl || shareIntent?.text?.trim()) ?? '';
+          const extracted = await getLieuxService().extractFromInstagramUrl(url);
+
+          if (extracted.lat != null && extracted.lng != null) {
+            const existing = await getLieuxService().getAllLieux(user.uid);
+            const dup = existing.find(
+              (l) =>
+                haversineMeters(l.lat, l.lng, extracted.lat!, extracted.lng!) < DUPLICATE_DISTANCE_M,
+            );
+            if (dup) {
+              resetShareIntent();
+              nav.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'Main',
+                    params: { screen: 'Map', params: { focusLieuId: dup.id } },
+                  },
+                ],
+              });
+              return;
+            }
+          }
+
+          resetShareIntent();
+          nav.reset({
+            index: 1,
+            routes: [
+              { name: 'Main' },
+              {
+                name: 'ExtractConfirm',
+                params: {
+                  extracted,
+                  // No local screenshot from an Insta URL share — use a placeholder path.
+                  // The confirm screen doesn't require a physical file for save; the
+                  // storage upload path would need a real image, which the URL doesn't
+                  // provide. TODO(v1.1): fetch og:image client-side to have a local
+                  // preview + Storage upload.
+                  screenshotUri: '',
+                  screenshotMediaType: 'image/jpeg',
+                },
+              },
+            ],
+          });
+        } catch (err) {
+          console.error('[SharedImageScreen] Instagram URL extract failed', err);
+          const e = err as { code?: string; message?: string };
+          setError(
+            `Extraction depuis Instagram échouée: ${e?.message || e?.code || 'unknown'}. Astuce : screenshot le reel puis partage la photo.`,
+          );
+        }
+      })();
       return;
     }
 

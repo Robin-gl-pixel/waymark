@@ -2,6 +2,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { extractPlaceFromScreenshot, ExtractedFromVision } from './lib/claude';
 import { GeocodedPlace } from './lib/mapbox';
 import { orchestrateGeocode } from './lib/geocode';
+import { fetchImageAsBase64, fetchInstagramMetadata, isInstagramUrl } from './lib/instagram';
 
 export interface LieuExtractedResponse extends ExtractedFromVision {
   lat: number | null;
@@ -36,14 +37,53 @@ export const extract = onCall(
       throw new HttpsError('unauthenticated', 'Sign in to extract.');
     }
 
-    const { imageBase64, mediaType = 'image/png', captionText } = request.data as {
+    const { imageBase64: rawImageBase64, mediaType: rawMediaType = 'image/png', captionText, instagramUrl } = request.data as {
       imageBase64?: string;
       mediaType?: 'image/png' | 'image/jpeg' | 'image/webp';
       captionText?: string;
+      instagramUrl?: string;
     };
 
+    // Two call modes:
+    // 1. imageBase64 (screenshot or video keyframe already in client hands) — existing flow
+    // 2. instagramUrl (client shared a reel URL from iOS Share Sheet) — new flow:
+    //    fetch og:image + og:description from the public Insta URL, then run
+    //    the normal vision pipeline on the resolved thumbnail.
+    let imageBase64: string | undefined = rawImageBase64;
+    let mediaType: 'image/png' | 'image/jpeg' | 'image/webp' = rawMediaType;
+    let resolvedCaption: string | null =
+      typeof captionText === 'string' && captionText.trim() ? captionText.trim() : null;
+
+    if (!imageBase64 && instagramUrl && typeof instagramUrl === 'string') {
+      if (!isInstagramUrl(instagramUrl)) {
+        throw new HttpsError('invalid-argument', 'Not an Instagram URL.');
+      }
+      try {
+        const meta = await fetchInstagramMetadata(instagramUrl);
+        if (!meta.imageUrl) {
+          throw new HttpsError('failed-precondition', 'Instagram post has no thumbnail (private or removed?).');
+        }
+        const fetched = await fetchImageAsBase64(meta.imageUrl);
+        imageBase64 = fetched.base64;
+        mediaType = fetched.mediaType;
+        // Prefer og:description over any caption the client also sent — the
+        // og tag comes straight from Instagram's server-rendered HTML.
+        if (meta.description) resolvedCaption = meta.description;
+        console.log('[extract] resolved Instagram URL', {
+          url: instagramUrl,
+          imageUrl: meta.imageUrl,
+          hasDescription: !!meta.description,
+          descriptionLength: meta.description?.length ?? 0,
+        });
+      } catch (err) {
+        console.error('[extract] Instagram fetch failed', err);
+        const msg = (err as Error).message || 'Instagram fetch failed';
+        throw new HttpsError('failed-precondition', msg);
+      }
+    }
+
     if (!imageBase64 || typeof imageBase64 !== 'string') {
-      throw new HttpsError('invalid-argument', 'imageBase64 is required.');
+      throw new HttpsError('invalid-argument', 'imageBase64 or instagramUrl is required.');
     }
 
     // Basic size guard: images >~8 MB base64 usually mean uncompressed or malicious.
@@ -54,9 +94,7 @@ export const extract = onCall(
     // Sanity guard on the optional caption: only accept strings, and trim
     // upstream so we don't waste tokens on whitespace. Length cap is handled
     // downstream in buildUserPrompt.
-    const cleanCaption = typeof captionText === 'string' && captionText.trim()
-      ? captionText.trim()
-      : null;
+    const cleanCaption = resolvedCaption;
 
     let vision: ExtractedFromVision;
     try {

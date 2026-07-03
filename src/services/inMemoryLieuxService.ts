@@ -159,6 +159,23 @@ export class InMemoryLieuxService implements LieuxService {
     };
   }
 
+  async extractFromInstagramUrl(_instagramUrl: string): Promise<LieuExtracted> {
+    // Same stub — tests don't exercise the extraction pipeline.
+    return {
+      name: 'Stub Place (Insta URL)',
+      city: 'Stub City',
+      country: 'Stub Country',
+      address: '1 Stub Street',
+      category: 'resto',
+      description: null,
+      sourceAuthor: null,
+      lat: 0,
+      lng: 0,
+      mapboxId: null,
+      addressCanonical: null,
+    };
+  }
+
   async getScreenshotUrl(storagePath: string): Promise<string> {
     return `mem://${storagePath}`;
   }

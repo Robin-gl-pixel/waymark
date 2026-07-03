@@ -162,6 +162,26 @@ export class FirebaseLieuxService implements LieuxService {
     return json.result;
   }
 
+  async extractFromInstagramUrl(instagramUrl: string): Promise<LieuExtracted> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not signed in');
+    const idToken = await user.getIdToken();
+    const res = await fetch(EXTRACT_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: { instagramUrl } }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`extract HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const json = (await res.json()) as { result: LieuExtracted };
+    return json.result;
+  }
+
   async getScreenshotUrl(storagePath: string): Promise<string> {
     return getDownloadURL(ref(storage, storagePath));
   }

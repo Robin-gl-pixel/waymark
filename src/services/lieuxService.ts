@@ -58,6 +58,17 @@ export interface LieuxService {
     captionText?: string,
   ): Promise<LieuExtracted>;
 
+  /**
+   * Extract from a shared Instagram post/reel URL.
+   *
+   * The server fetches the public OpenGraph metadata (og:image + og:description),
+   * downloads the thumbnail, and runs the normal vision pipeline. Used when iOS
+   * Share Sheet hands us a URL instead of a video file (typical for reel shares).
+   *
+   * Throws when the URL isn't an Instagram host or the post is private/removed.
+   */
+  extractFromInstagramUrl(instagramUrl: string): Promise<LieuExtracted>;
+
   /** Resolve a Storage path (e.g. `sourceInstagram.screenshotStoragePath`) to a signed URL loadable by <Image>. */
   getScreenshotUrl(storagePath: string): Promise<string>;
 
