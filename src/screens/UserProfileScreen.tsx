@@ -218,25 +218,60 @@ export default function UserProfileScreen() {
     );
   }
 
+  // Follower-gated visibility (#40): non-followers see the skeleton (avatar,
+  // username, follower counts) and the Follow CTA, but no pins, no map, no
+  // pin-derived counters. Owner + followers see the full view unchanged.
+  const gated = !isMe && following === false;
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ProfileHeader
         profile={profile}
         pinCount={lieux.length}
+        showPinCount={!gated}
         showFollowButton={!isMe}
         isFollowing={following}
         followBusy={followBusy}
         onToggleFollow={toggleFollow}
       />
-      <ViewToggle view={view} onChange={setView} />
-      <View style={styles.bodyContainer}>
-        {view === 'map' ? (
-          <MapPane lieux={lieux} onOpenLieu={(l) => nav.navigate('LieuDetail', { lieuId: l.id })} />
-        ) : (
-          <ListPane lieux={lieux} onOpenLieu={(l) => nav.navigate('LieuDetail', { lieuId: l.id })} />
-        )}
-      </View>
+      {gated ? (
+        <GatedBody username={profile.username} />
+      ) : (
+        <>
+          <ViewToggle view={view} onChange={setView} />
+          <View style={styles.bodyContainer}>
+            {view === 'map' ? (
+              <MapPane
+                lieux={lieux}
+                onOpenLieu={(l) => nav.navigate('LieuDetail', { lieuId: l.id })}
+              />
+            ) : (
+              <ListPane
+                lieux={lieux}
+                onOpenLieu={(l) => nav.navigate('LieuDetail', { lieuId: l.id })}
+              />
+            )}
+          </View>
+        </>
+      )}
     </SafeAreaView>
+  );
+}
+
+/**
+ * Empty-body copy shown to viewers who don't follow the profile owner.
+ * The Follow CTA already lives in the header — this pane exists so the
+ * screen doesn't look broken (no map, no list) and explains *why*.
+ */
+function GatedBody({ username }: { username: string }) {
+  return (
+    <View style={styles.gatedBody}>
+      <EmptyState
+        icon="lock-closed-outline"
+        title="Contenu privé"
+        body={`Suis @${username} pour voir ses lieux et sa carte.`}
+      />
+    </View>
   );
 }
 
@@ -247,6 +282,7 @@ export default function UserProfileScreen() {
 function ProfileHeader({
   profile,
   pinCount,
+  showPinCount,
   showFollowButton,
   isFollowing,
   followBusy,
@@ -254,6 +290,7 @@ function ProfileHeader({
 }: {
   profile: UserProfile;
   pinCount: number;
+  showPinCount: boolean;
   showFollowButton: boolean;
   isFollowing: boolean | null;
   followBusy: boolean;
@@ -284,8 +321,12 @@ function ProfileHeader({
       </View>
 
       <View style={styles.counters}>
-        <Counter label="Pins" value={pinCount} />
-        <View style={styles.counterDivider} />
+        {showPinCount && (
+          <>
+            <Counter label="Pins" value={pinCount} />
+            <View style={styles.counterDivider} />
+          </>
+        )}
         <Counter label="Abonnés" value={profile.followersCount} />
         <View style={styles.counterDivider} />
         <Counter label="Abonnements" value={profile.followingCount} />
@@ -635,6 +676,13 @@ const styles = StyleSheet.create({
   toggleLabel: { ...type.caption, color: colors.textSecondary, fontWeight: '600' },
   toggleLabelActive: { color: colors.text },
   bodyContainer: { flex: 1 },
+  gatedBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing['2xl'],
+    paddingTop: spacing['3xl'],
+  },
   mapContainer: { flex: 1, backgroundColor: colors.bg },
   list: {
     paddingHorizontal: spacing['2xl'],
