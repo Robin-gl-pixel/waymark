@@ -42,6 +42,7 @@ import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 import { getSocialService } from './src/services/socialService';
 import { colors, fonts } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
+import { resolveRootRoute } from './src/screens/rootGate';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -180,17 +181,21 @@ function MainTabs() {
 }
 
 /**
- * Local AsyncStorage flag that records whether the current install has
- * completed the SeededFollow step (GitHub #17). Persisting here — rather than
- * on the user doc — keeps the change client-only for this PR; we accept the
- * tradeoff that reinstalling the app re-shows the screen.
+ * Local AsyncStorage flags that record whether the current install has seen
+ * the pitch slides (`@waymark:onboarding_seen_v1`, GitHub #17) and completed
+ * the SeededFollow step (`@waymark:seeded_follow_done_v1`). Persisting here —
+ * rather than on the user doc — keeps the change client-only for this PR; we
+ * accept the tradeoff that reinstalling the app re-shows both screens.
  */
+const ONBOARDING_SEEN_STORAGE_KEY = '@waymark:onboarding_seen_v1';
 const SEEDED_FOLLOW_STORAGE_KEY = '@waymark:seeded_follow_done_v1';
 
 function Root() {
   const { user, loading } = useAuth();
   const [profileLoading, setProfileLoading] = React.useState(true);
   const [hasUsername, setHasUsername] = React.useState(false);
+  const [onboardingLoading, setOnboardingLoading] = React.useState(true);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = React.useState(false);
   const [seededFollowLoading, setSeededFollowLoading] = React.useState(true);
   const [hasSeededFollowed, setHasSeededFollowed] = React.useState(false);
 
@@ -213,6 +218,25 @@ function Root() {
     }
   }, [user]);
 
+  const refreshOnboarding = React.useCallback(async () => {
+    if (!user) {
+      setHasSeenOnboarding(false);
+      setOnboardingLoading(false);
+      return;
+    }
+    try {
+      const value = await AsyncStorage.getItem(ONBOARDING_SEEN_STORAGE_KEY);
+      setHasSeenOnboarding(value === 'true');
+    } catch (err) {
+      console.warn('[Root] read onboarding flag failed', err);
+      // Fail open: if AsyncStorage is broken, don't trap the user on the
+      // pitch slides — treat as seen so they reach the picker/app.
+      setHasSeenOnboarding(true);
+    } finally {
+      setOnboardingLoading(false);
+    }
+  }, [user]);
+
   const refreshSeededFollow = React.useCallback(async () => {
     if (!user) {
       setHasSeededFollowed(false);
@@ -232,6 +256,17 @@ function Root() {
     }
   }, [user]);
 
+  const markOnboardingSeen = React.useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_SEEN_STORAGE_KEY, 'true');
+    } catch (err) {
+      // If persistence fails, we still advance the UI — worst case is the
+      // slides re-appear on next launch, which is annoying but not blocking.
+      console.warn('[Root] persist onboarding flag failed', err);
+    }
+    setHasSeenOnboarding(true);
+  }, []);
+
   const markSeededFollowDone = React.useCallback(async () => {
     try {
       await AsyncStorage.setItem(SEEDED_FOLLOW_STORAGE_KEY, 'true');
@@ -245,12 +280,26 @@ function Root() {
 
   React.useEffect(() => {
     setProfileLoading(true);
+    setOnboardingLoading(true);
     setSeededFollowLoading(true);
     refreshProfile();
+    refreshOnboarding();
     refreshSeededFollow();
-  }, [refreshProfile, refreshSeededFollow]);
+  }, [refreshProfile, refreshOnboarding, refreshSeededFollow]);
 
-  if (loading || (user && (profileLoading || seededFollowLoading))) {
+  const route = resolveRootRoute({
+    authLoading: loading,
+    hasUser: Boolean(user),
+    isAnonymous: Boolean(user?.isAnonymous),
+    profileLoading,
+    hasUsername,
+    onboardingLoading,
+    hasSeenOnboarding,
+    seededFollowLoading,
+    hasSeededFollowed,
+  });
+
+  if (route === 'loading') {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.accent} size="large" />
@@ -258,13 +307,7 @@ function Root() {
     );
   }
 
-  if (!user) return <AuthScreen />;
-
-  // Anonymous / dev-bypass users skip the whole social onboarding — they can't
-  // upsertProfile without hitting Firestore permissions anyway, and the whole
-  // point of the "Skip (dev anonymous sign-in)" button is to reach the map
-  // fast without setting up a real account.
-  const bypassSocialOnboarding = user.isAnonymous;
+  if (route === 'auth') return <AuthScreen />;
 
   return (
     <RootStack.Navigator
@@ -275,7 +318,7 @@ function Root() {
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      {bypassSocialOnboarding || (hasUsername && hasSeededFollowed) ? (
+      {route === 'main' ? (
         <>
           <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
           <RootStack.Screen name="Upload" component={UploadScreen} options={{ title: 'Nouveau lieu' }} />
@@ -292,13 +335,15 @@ function Root() {
           <RootStack.Screen name="SearchUsers" component={SearchUsersScreen} options={{ title: 'Rechercher' }} />
           <RootStack.Screen name="Report" component={ReportScreen} options={{ title: 'Signaler' }} />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: 'Comptes bloqués' }} />
-          <RootStack.Screen
-            name="Onboarding"
-            component={OnboardingSlidesScreen}
-            options={{ headerShown: false, gestureEnabled: false }}
-          />
         </>
-      ) : !hasUsername ? (
+      ) : route === 'onboarding' ? (
+        <RootStack.Screen
+          name="Onboarding"
+          options={{ headerShown: false, gestureEnabled: false }}
+        >
+          {() => <OnboardingSlidesScreen onComplete={markOnboardingSeen} />}
+        </RootStack.Screen>
+      ) : route === 'pick-username' ? (
         <RootStack.Screen
           name="PickUsername"
           options={{ headerShown: false, gestureEnabled: false }}
