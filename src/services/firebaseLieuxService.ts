@@ -105,6 +105,10 @@ export class FirebaseLieuxService implements LieuxService {
         screenshotStoragePath: storagePath,
       },
       userNotes: input.userNotes,
+      // #41 — defaults for new pins. status: 'wishlist' matches the seam
+      // contract enforced by both service impls. `visitedAt` is intentionally
+      // not written — it only gets set when the user flips status to 'visited'.
+      status: 'wishlist',
       createdAt: now,
       updatedAt: now,
     };
@@ -119,11 +123,39 @@ export class FirebaseLieuxService implements LieuxService {
   async updateLieu(
     userId: string,
     lieuId: string,
-    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes'>>,
+    patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes' | 'status'>>,
   ): Promise<void> {
-    const write: Record<string, unknown> = { ...patch, updatedAt: serverTimestamp() };
+    // Whitelist the fields we forward to Firestore — `visitedAt` is
+    // service-managed via the invariant below and must never be passed
+    // through even if a rogue caller sneaks it in.
+    const write: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    const allowed: Array<keyof typeof patch> = [
+      'name',
+      'city',
+      'address',
+      'category',
+      'userNotes',
+      'status',
+    ];
+    for (const key of allowed) {
+      if (key in patch && patch[key] !== undefined) {
+        write[key] = patch[key];
+      }
+    }
     if (patch.name !== undefined) {
       write.nameNormalized = normalizeName(patch.name);
+    }
+    // #41 — visitedAt invariant. Mirrors InMemoryLieuxService exactly so the
+    // seam contract tests catch regressions in either impl.
+    if ('status' in patch && patch.status !== undefined) {
+      if (patch.status === 'visited') {
+        write.visitedAt = serverTimestamp();
+      } else {
+        // deleteField() would be ideal, but keeping a zero-dependency footprint
+        // — writing null is equally correct at the seam because `hydrate` maps
+        // both null and undefined to `undefined` on the Lieu.
+        write.visitedAt = null;
+      }
     }
     await updateDoc(doc(this.lieuxCol(userId), lieuId), write);
   }
@@ -239,6 +271,9 @@ export class FirebaseLieuxService implements LieuxService {
       userNotes: null,
       savedFromUserId: credit.uid,
       savedFromUsername: credit.username,
+      // #41 — resaves land in MY wishlist regardless of the source's status.
+      // Status is about my relation to the place, not the source's.
+      status: 'wishlist',
       createdAt: now,
       updatedAt: now,
     };
@@ -270,6 +305,12 @@ export class FirebaseLieuxService implements LieuxService {
       userNotes: (data.userNotes as string) ?? null,
       savedFromUserId: (data.savedFromUserId as string | null | undefined) ?? null,
       savedFromUsername: (data.savedFromUsername as string | null | undefined) ?? null,
+      // #41 — pre-existing pins have no `status` field on their Firestore doc;
+      // surface them as `null` (unclassified) at the seam. No backfill needed.
+      status: (data.status as Lieu['status'] | undefined) ?? null,
+      // Firestore stores the cleared invariant as null (see updateLieu). Both
+      // null and missing collapse to `undefined` on the hydrated Lieu.
+      visitedAt: (data.visitedAt as Timestamp | null | undefined) ?? undefined,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
     };

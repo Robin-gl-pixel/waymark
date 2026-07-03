@@ -44,6 +44,26 @@ export interface Lieu {
    */
   savedFromUserId?: string | null;
   savedFromUsername?: string | null;
+  /**
+   * The pin owner's relation to this place (#41).
+   *
+   * - `'wishlist'` — I want to try this place.
+   * - `'visited'` — I've already been.
+   * - `null` — unclassified. Pre-#41 pins surface as `null` at the seam
+   *   because the field simply doesn't exist on their Firestore doc.
+   *
+   * Caller-writable via `LieuxService.updateLieu({ status })`.
+   */
+  status: 'wishlist' | 'visited' | null;
+  /**
+   * Timestamp of the moment `status` transitioned to `'visited'` (#41).
+   *
+   * NOT caller-writable — the service enforces the invariant: setting
+   * `status = 'visited'` sets `visitedAt` to now; setting `status` to
+   * anything else clears `visitedAt`. Undefined on pins that were never
+   * marked visited.
+   */
+  visitedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

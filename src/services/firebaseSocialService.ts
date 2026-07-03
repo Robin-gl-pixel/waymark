@@ -574,6 +574,10 @@ function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>
     description: (data.description as string) ?? null,
     sourceInstagram: data.sourceInstagram as Lieu['sourceInstagram'],
     userNotes: (data.userNotes as string) ?? null,
+    // #41 — mirror FirebaseLieuxService.hydrate: pre-#41 pins surface as `null`
+    // (unclassified) at the seam; visitedAt collapses null/missing to undefined.
+    status: (data.status as Lieu['status'] | undefined) ?? null,
+    visitedAt: (data.visitedAt as Timestamp | null | undefined) ?? undefined,
     createdAt: data.createdAt as Timestamp,
     updatedAt: data.updatedAt as Timestamp,
   };
