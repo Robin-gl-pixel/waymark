@@ -30,6 +30,13 @@ function makeLieu(overrides: Partial<Lieu> = {}): Lieu {
     category: 'bar',
     description: null,
     sourceInstagram: { author: null, screenshotStoragePath: 'x' },
+    photos: [
+      {
+        storagePath: 'x',
+        source: 'insta',
+        addedAt: ts(new Date('2026-07-03T12:00:00Z').getTime()),
+      },
+    ],
     userNotes: null,
     createdAt: ts(new Date('2026-07-03T12:00:00Z').getTime()),
     updatedAt: ts(new Date('2026-07-03T12:00:00Z').getTime()),

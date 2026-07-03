@@ -21,7 +21,8 @@ Analyse l'image et retourne UN SEUL objet JSON strict avec les champs suivants :
   "address": "string | null — TOUT fragment d'adresse visible : overlay texte, sticker sur l'image, caption. Même partiel (ex: 'rue de Vern...', 'près Bastille', '75007', 'Paris 7ème'). Retourne le fragment tel quel — le geocoder aval sait résoudre les partiels. Ne l'invente PAS depuis ta connaissance : uniquement ce qui est ÉCRIT à l'écran ou dans la caption. null si aucun fragment visible.",
   "category": "'resto' | 'bar' | 'café' | 'activité' | 'musée' | 'hôtel' | 'autre' — déduis depuis le contexte (mots-clés, image).",
   "description": "string | null — 1-2 phrases résumant ce qui est dit du lieu (jazz + techno, cuisine italienne, ambiance rooftop, etc.). Extrait depuis la caption visible.",
-  "sourceAuthor": "string | null — le pseudo Instagram de l'auteur du post (ex: 'juan.inparis'), sans le @."
+  "sourceAuthor": "string | null — le pseudo Instagram de l'auteur du post (ex: 'juan.inparis'), sans le @.",
+  "photoBoundingBox": "{ x, y, w, h } | null — bounding box NORMALISÉE (0..1) de la région contenant la vraie photo du lieu/plat/scène, EXCLUANT toute UI Instagram (header avec avatar+pseudo, boutons like/comment/share, barre d'action en bas, texte de caption, watermark). x/y = coin haut-gauche ; w/h = largeur/hauteur. Aspect ratio libre — posts feed ~1:1, screenshots de reels ~9:16. Sois PRÉCIS : c'est utilisé pour crop l'image avant l'affichage sur la carte. Si l'image n'est PAS un screenshot Instagram avec chrome UI (ex: photo perso, image déjà cropped, screenshot d'une story pleine largeur sans UI visible), ou si tu ne peux pas identifier de région photo distincte : null."
 }
 
 ## Règles strictes
@@ -30,7 +31,7 @@ Analyse l'image et retourne UN SEUL objet JSON strict avec les champs suivants :
 2. **N'INVENTE JAMAIS** depuis ta connaissance seule. Toute info doit être écrite/visible dans le screenshot ou la caption. EN REVANCHE, extrais tout fragment textuel visible même incomplet — un "rue de Vern..." tronqué ou un "75007" seul est plus utile qu'un null.
 3. Si le screenshot ne contient PAS de recommandation de lieu (ex: mème, photo perso sans lieu), retourne :
    \`\`\`
-   { "name": null, "city": null, "country": null, "address": null, "category": null, "description": null, "sourceAuthor": null }
+   { "name": null, "city": null, "country": null, "address": null, "category": null, "description": null, "sourceAuthor": null, "photoBoundingBox": null }
    \`\`\`
 4. Trim les espaces et emojis parasites (garde 📍 uniquement si structurel).
 5. Pour les caption tronquées ("Chai Brongniart, Paris 2..."), extrais ce que tu vois (name="Chai Brongniart", city="Paris") sans deviner la suite.`;

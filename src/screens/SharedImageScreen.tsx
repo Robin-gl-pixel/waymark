@@ -8,6 +8,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
+import { applyPhotoCrop } from '../lib/screenshotCrop';
 import { colors, spacing, type, radius } from '../theme';
 import type { RootStackParamList } from '../navigation';
 
@@ -184,6 +185,18 @@ export default function SharedImageScreen() {
           caption,
         );
 
+        // Auto-crop Instagram chrome for IMAGE-share only. Video keyframes
+        // are already clean by construction (they show the reel content, not
+        // the IG UI overlay) — extract will typically return `photoBoundingBox:
+        // null` for them, and even if it returns a bbox we ignore it here.
+        const uploadImage = isVideo
+          ? { uri: manipulated.uri, width: manipulated.width, height: manipulated.height, cropped: false }
+          : await applyPhotoCrop(
+              { uri: manipulated.uri, width: manipulated.width, height: manipulated.height },
+              extracted.photoBoundingBox,
+              { manipulateAsync: ImageManipulator.manipulateAsync, SaveFormatJPEG: ImageManipulator.SaveFormat.JPEG },
+            );
+
         if (extracted.lat != null && extracted.lng != null) {
           const existing = await getLieuxService().getAllLieux(user.uid);
           const dup = existing.find(
@@ -214,7 +227,7 @@ export default function SharedImageScreen() {
               name: 'ExtractConfirm',
               params: {
                 extracted,
-                screenshotUri: manipulated.uri,
+                screenshotUri: uploadImage.uri,
                 screenshotMediaType: 'image/jpeg',
               },
             },
