@@ -102,13 +102,20 @@ export default function ListScreen() {
 
 function LieuRow({ lieu, onPress }: { lieu: Lieu; onPress: () => void }) {
   const [thumbUri, setThumbUri] = useState<string | null>(null);
+  // Thumbnail reads the hero from `photos[0]` (parent PRD #34). Legacy pins
+  // are transparently normalised on read via the seam's synthesis path.
+  const heroPath = lieu.photos[0]?.storagePath;
 
   useEffect(() => {
+    if (!heroPath) {
+      setThumbUri(null);
+      return;
+    }
     getLieuxService()
-      .getScreenshotUrl(lieu.sourceInstagram.screenshotStoragePath)
+      .getScreenshotUrl(heroPath)
       .then(setThumbUri)
       .catch(() => setThumbUri(null));
-  }, [lieu.sourceInstagram.screenshotStoragePath]);
+  }, [heroPath]);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
