@@ -10,13 +10,8 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, type, radius } from '../theme';
-import type { RootStackParamList } from '../navigation';
-
-type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -53,19 +48,25 @@ const SLIDES: Slide[] = [
   },
 ];
 
-export default function OnboardingSlidesScreen() {
-  const nav = useNavigation<Nav>();
+interface Props {
+  /**
+   * Called when the user finishes the slide deck or taps « Passer ». The
+   * parent (`Root()` in `App.tsx`) advances the first-launch state machine —
+   * this screen deliberately knows nothing about which screen comes next so
+   * it can also be reused as a standalone dev preview.
+   */
+  onComplete: () => void;
+}
+
+export default function OnboardingSlidesScreen({ onComplete }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
 
   const isLast = index === SLIDES.length - 1;
 
-  // Dismiss = go back to whatever pushed us. Callers decide the follow-up
-  // (username picker, seeded follow, main app) — this screen is decoupled from
-  // the auth flow on purpose. See issue #10 / #17 for the eventual wiring.
   const dismiss = useCallback(() => {
-    if (nav.canGoBack()) nav.goBack();
-  }, [nav]);
+    onComplete();
+  }, [onComplete]);
 
   const handleContinue = useCallback(() => {
     if (isLast) {
