@@ -73,6 +73,31 @@ describe('SocialService seam contract (profile foundation, InMemorySocialService
   });
 
   /**
+   * Slice #16 contract test — username-change cooldown. The Firebase impl
+   * enforces this via a 30-day check on `usernameChangedAt` inside the upsert
+   * transaction; the InMemory impl mirrors the same guard. If either side
+   * drifts, this catches it.
+   */
+  describe('upsertProfile — 30-day cooldown', () => {
+    it('throws when the last change was within the cooldown window', async () => {
+      const svc = makeSvc();
+      // Initial pick — first upsert bypasses the cooldown because there's no
+      // prior username stamped on the record (`usernameChangedAt: null`).
+      await svc.upsertProfile({ username: 'first.name' });
+
+      // Immediately rename → InMemory allows it (no `usernameChangedAt` yet)
+      // and stamps `usernameChangedAt: now` after the write.
+      await svc.upsertProfile({ username: 'second.name' });
+
+      // Now `usernameChangedAt` is populated (fresh). The next attempt must
+      // throw the cooldown error — matches the Firebase transaction guard.
+      await expect(
+        svc.upsertProfile({ username: 'third.name' }),
+      ).rejects.toThrow(/cooldown/i);
+    });
+  });
+
+  /**
    * Slice #16 contract tests — privacy toggle. The InMemory impl pins the
    * shape: a user's `isPublic` flips in place, `updatedAt` refreshes, and the
    * caller must be signed in. The Firebase impl mirrors this via
