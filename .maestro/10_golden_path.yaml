@@ -14,7 +14,7 @@ name: Golden path (up to picker open)
 # First launch waits for Metro to serve the JS bundle (~10s cold on CI).
 - extendedWaitUntil:
     visible: "Skip .dev anonymous sign-in."
-    timeout: 60000
+    timeout: 180000
 - tapOn: "Skip .dev anonymous sign-in."
 - extendedWaitUntil:
     visible: "Aucun pin pour l'instant"
