@@ -36,6 +36,7 @@ screenshots-examples/*.png
 screenshots-examples/*.jpg
 screenshots-examples/*.jpeg
 !screenshots-examples/.gitkeep
+!screenshots-examples/scr1.png
 
 # Dev debug screenshots at repo root (not shipped)
 /scr*.png
