@@ -181,6 +181,7 @@ export class InMemoryLieuxService implements LieuxService {
       lng: 0,
       mapboxId: null,
       addressCanonical: null,
+      photoBoundingBox: null,
     };
   }
 
@@ -198,6 +199,7 @@ export class InMemoryLieuxService implements LieuxService {
       lng: 0,
       mapboxId: null,
       addressCanonical: null,
+      photoBoundingBox: null,
     };
   }
 

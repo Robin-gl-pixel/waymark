@@ -92,6 +92,19 @@ export interface Lieu {
 }
 
 /**
+ * Normalized (0..1) bounding box of the actual venue/food/scene photo region
+ * inside an Instagram screenshot, excluding IG UI chrome. Used by the client
+ * to crop the screenshot before uploading so the hero on the resulting pin is
+ * just the food/venue photo, not the whole IG UI. See #36.
+ */
+export interface PhotoBoundingBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
  * Shape returned by the `extract` Cloud Function. Nullable everywhere because
  * a screenshot may fail to yield a specific field — the UI surfaces this to the
  * user for correction before saving.
@@ -108,6 +121,13 @@ export interface LieuExtracted {
   lng: number | null;
   mapboxId: string | null;
   addressCanonical: string | null;
+  /**
+   * Normalized (0..1) bbox of the actual photo region in the screenshot, or
+   * `null` if Claude couldn't identify a clean region or the region failed
+   * server-side sanity checks (aspect ratio ∉ [0.4, 2.5] or area ∉ [25%, 90%]).
+   * When null, the client uploads the screenshot uncropped.
+   */
+  photoBoundingBox: PhotoBoundingBox | null;
 }
 
 /**
