@@ -138,12 +138,24 @@ export default function NetworkFeedScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Réseau</Text>
-        <Text style={styles.subtitle}>
-          {items.length === 0
-            ? 'Aucun lieu récent chez tes abonnements.'
-            : `${items.length} lieu${items.length > 1 ? 'x' : ''} récent${items.length > 1 ? 's' : ''}`}
-        </Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Réseau</Text>
+            <Text style={styles.subtitle}>
+              {items.length === 0
+                ? 'Aucun lieu récent chez tes abonnements.'
+                : `${items.length} lieu${items.length > 1 ? 'x' : ''} récent${items.length > 1 ? 's' : ''}`}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.searchBtn}
+            onPress={() => nav.navigate('SearchUsers')}
+            accessibilityLabel="Rechercher un utilisateur"
+            hitSlop={12}
+          >
+            <Ionicons name="search" size={22} color={colors.text} />
+          </Pressable>
+        </View>
       </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -240,6 +252,22 @@ const styles = StyleSheet.create({
   },
   title: { ...type.h1, color: colors.text, fontWeight: '700' },
   subtitle: { ...type.caption, color: colors.textSecondary, marginTop: spacing.xs },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerText: { flex: 1 },
+  searchBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   list: { paddingHorizontal: spacing['2xl'], paddingBottom: spacing['3xl'] },
   row: {
     flexDirection: 'row',
