@@ -17,6 +17,10 @@ import { colors, radius, spacing, type } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
+import Avatar from '../components/Avatar';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonBlock } from '../components/SkeletonRow';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -127,62 +131,75 @@ export default function NetworkFeedScreen() {
     nav.navigate('LieuDetail', { lieuId: l.id, ownerUid: l.userId });
   };
 
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Réseau</Text>
+          <Text style={styles.subtitle}>
+            {loading
+              ? '…'
+              : items.length === 0
+                ? 'Aucun lieu récent chez tes abonnements.'
+                : `${items.length} lieu${items.length > 1 ? 'x' : ''} récent${items.length > 1 ? 's' : ''}`}
+          </Text>
+        </View>
+        <Pressable
+          style={styles.searchBtn}
+          onPress={() => nav.navigate('SearchUsers')}
+          accessibilityLabel="Rechercher un utilisateur"
+          hitSlop={12}
+        >
+          <Ionicons name="search" size={22} color={colors.text} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing['3xl'] }} />
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {renderHeader()}
+        <View style={styles.list}>
+          <FeedRowSkeleton />
+          <FeedRowSkeleton />
+          <FeedRowSkeleton />
+          <FeedRowSkeleton />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {renderHeader()}
+        <ErrorState message={error} onRetry={loadFirstPage} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Réseau</Text>
-            <Text style={styles.subtitle}>
-              {items.length === 0
-                ? 'Aucun lieu récent chez tes abonnements.'
-                : `${items.length} lieu${items.length > 1 ? 'x' : ''} récent${items.length > 1 ? 's' : ''}`}
-            </Text>
-          </View>
-          <Pressable
-            style={styles.searchBtn}
-            onPress={() => nav.navigate('SearchUsers')}
-            accessibilityLabel="Rechercher un utilisateur"
-            hitSlop={12}
-          >
-            <Ionicons name="search" size={22} color={colors.text} />
-          </Pressable>
-        </View>
-      </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
+      {renderHeader()}
 
       <FlatList
         data={items}
         keyExtractor={(l) => `${l.userId}:${l.id}`}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={items.length === 0 ? styles.emptyList : styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
         onEndReachedThreshold={0.6}
         onEndReached={loadNextPage}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="people-outline" size={40} color={colors.textTertiary} />
-            <Text style={styles.emptyTitle}>Ton feed est vide</Text>
-            <Text style={styles.emptyBody}>
-              Suis un ami ou un compte Waymark Curated pour voir leurs lieux apparaître ici.
-            </Text>
-            <Pressable
-              onPress={() => nav.navigate('SearchUsers')}
-              style={({ pressed }) => [styles.emptyBtn, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.emptyBtnLabel}>Rechercher un utilisateur</Text>
-            </Pressable>
-          </View>
+          <EmptyState
+            icon="people-outline"
+            title="Ton feed est vide"
+            body="Suis un ami ou un compte Waymark Curated pour voir leurs lieux apparaître ici."
+            ctaLabel="Trouver un ami"
+            onCtaPress={() => nav.navigate('SearchUsers')}
+          />
         }
         renderItem={({ item }) => (
           <FeedRow
@@ -229,17 +246,32 @@ function FeedRow({
           {lieu.city}
         </Text>
         <View style={styles.rowFooter}>
+          <Avatar username={owner?.username} size={18} style={{ marginRight: spacing.xs }} />
           <Text style={styles.rowSaver} numberOfLines={1}>
             @{owner?.username ?? '…'}
           </Text>
           <Text style={styles.rowDot}> · </Text>
           <Text style={styles.rowCategory} numberOfLines={1}>
-            {CATEGORY_EMOJI[lieu.category]} {lieu.category}
+            {lieu.category}
           </Text>
         </View>
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
     </Pressable>
+  );
+}
+
+/** Skeleton with the same footprint as a FeedRow — avoids layout jumps. */
+function FeedRowSkeleton() {
+  return (
+    <View style={styles.row}>
+      <SkeletonBlock width={60} height={60} br={radius.md} />
+      <View style={styles.rowBody}>
+        <SkeletonBlock width="70%" height={16} />
+        <SkeletonBlock width="40%" height={12} style={{ marginTop: spacing.sm }} />
+        <SkeletonBlock width="55%" height={10} style={{ marginTop: spacing.sm }} />
+      </View>
+    </View>
   );
 }
 
@@ -269,6 +301,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   list: { paddingHorizontal: spacing['2xl'], paddingBottom: spacing['3xl'] },
+  emptyList: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing['2xl'],
+    paddingBottom: spacing['3xl'],
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,24 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xs,
   },
-  rowSaver: { ...type.micro, color: colors.accent, fontWeight: '600' },
+  rowSaver: { ...type.micro, color: colors.text, fontWeight: '600' },
   rowDot: { ...type.micro, color: colors.textTertiary },
   rowCategory: { ...type.micro, color: colors.textTertiary, textTransform: 'lowercase' },
-  empty: { alignItems: 'center', paddingTop: spacing['4xl'], paddingHorizontal: spacing.xl },
-  emptyTitle: { ...type.h3, color: colors.textSecondary, marginTop: spacing.md },
-  emptyBody: {
-    ...type.body,
-    color: colors.textTertiary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  emptyBtn: {
-    marginTop: spacing.xl,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-  },
-  emptyBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
-  error: { ...type.caption, color: colors.error, textAlign: 'center', margin: spacing.md },
 });

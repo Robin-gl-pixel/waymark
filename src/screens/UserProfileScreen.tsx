@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Pressable,
   Alert,
   ActivityIndicator,
+  Animated,
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,10 @@ import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
+import Avatar from '../components/Avatar';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonBlock } from '../components/SkeletonRow';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'UserProfile'>;
 type Rt = RouteProp<RootStackParamList, 'UserProfile'>;
@@ -187,7 +192,7 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing['3xl'] }} size="large" />
+        <HeaderSkeleton />
       </SafeAreaView>
     );
   }
@@ -195,7 +200,7 @@ export default function UserProfileScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <Text style={styles.error}>{error}</Text>
+        <ErrorState message={error} onRetry={load} style={{ marginTop: spacing['3xl'] }} />
       </SafeAreaView>
     );
   }
@@ -203,7 +208,12 @@ export default function UserProfileScreen() {
   if (!profile) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <Text style={styles.notFound}>Profil introuvable ou privé.</Text>
+        <EmptyState
+          icon="lock-closed-outline"
+          title="Profil introuvable"
+          body="Ce compte n'existe plus ou est privé."
+          style={{ marginTop: spacing['3xl'] }}
+        />
       </SafeAreaView>
     );
   }
@@ -252,11 +262,7 @@ function ProfileHeader({
   return (
     <View style={styles.header}>
       <View style={styles.avatarRow}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarLetter}>
-            {profile.username.charAt(0).toUpperCase() || '?'}
-          </Text>
-        </View>
+        <Avatar username={profile.username} size={64} />
         <View style={styles.avatarBody}>
           <Text style={styles.username} numberOfLines={1}>@{profile.username}</Text>
           {profile.displayName ? (
@@ -301,32 +307,54 @@ function FollowButton({
   // guess wrong. Disabled during the load + during optimistic writes.
   const label = isFollowing === null ? '…' : isFollowing ? 'Suivi' : 'Suivre';
   const disabled = busy || isFollowing === null;
+
+  // Subtle press-in shrink to give the pill a physical feel. Native driver so
+  // the animation runs off the JS thread — matters on slow first-page loads.
+  const scale = useRef(new Animated.Value(1)).current;
+  const springIn = () =>
+    Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+  const springOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={isFollowing ? 'Se désabonner' : 'Suivre'}
-      style={({ pressed }) => [
-        styles.followBtn,
-        isFollowing ? styles.followBtnActive : styles.followBtnInactive,
-        pressed && !disabled && { opacity: 0.7 },
-        disabled && { opacity: 0.6 },
-      ]}
-    >
-      {busy ? (
-        <ActivityIndicator size="small" color={isFollowing ? colors.text : colors.bg} />
-      ) : (
-        <Text
-          style={[
-            styles.followBtnLabel,
-            isFollowing ? styles.followBtnLabelActive : styles.followBtnLabelInactive,
-          ]}
-        >
-          {label}
-        </Text>
-      )}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={springIn}
+        onPressOut={springOut}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={isFollowing ? 'Se désabonner' : 'Suivre'}
+        style={[
+          styles.followBtn,
+          isFollowing ? styles.followBtnActive : styles.followBtnInactive,
+          disabled && { opacity: 0.6 },
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator size="small" color={isFollowing ? colors.text : colors.bg} />
+        ) : (
+          <View style={styles.followBtnContent}>
+            {isFollowing ? (
+              <Ionicons
+                name="checkmark"
+                size={14}
+                color={colors.text}
+                style={{ marginRight: spacing.xs }}
+              />
+            ) : null}
+            <Text
+              style={[
+                styles.followBtnLabel,
+                isFollowing ? styles.followBtnLabelActive : styles.followBtnLabelInactive,
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -431,9 +459,12 @@ function MapPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) =
       </MapView>
 
       {lieux.length === 0 && (
-        <View style={styles.emptyOverlay} pointerEvents="none">
-          <Text style={styles.emptyTitle}>Aucun pin</Text>
-          <Text style={styles.emptyBody}>Ce profil n'a pas encore ajouté de lieu.</Text>
+        <View style={styles.emptyOverlay}>
+          <EmptyState
+            icon="map-outline"
+            title="Aucun pin"
+            body="Ce profil n'a pas encore ajouté de lieu."
+          />
         </View>
       )}
     </View>
@@ -443,10 +474,11 @@ function MapPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) =
 function ListPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) => void }) {
   if (lieux.length === 0) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>Aucun pin</Text>
-        <Text style={styles.emptyBody}>Ce profil n'a pas encore ajouté de lieu.</Text>
-      </View>
+      <EmptyState
+        icon="location-outline"
+        title="Aucun pin"
+        body="Ce profil n'a pas encore ajouté de lieu."
+      />
     );
   }
 
@@ -478,6 +510,32 @@ function ListPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) 
   );
 }
 
+/** Ghost header — same footprint as ProfileHeader while data loads. */
+function HeaderSkeleton() {
+  return (
+    <View style={styles.header}>
+      <View style={styles.avatarRow}>
+        <SkeletonBlock width={64} height={64} br={32} />
+        <View style={styles.avatarBody}>
+          <SkeletonBlock width={140} height={22} />
+          <SkeletonBlock width={100} height={14} style={{ marginTop: spacing.sm }} />
+        </View>
+      </View>
+      <View style={[styles.counters, { borderColor: 'transparent' }]}>
+        {[0, 1, 2].map((i) => (
+          <React.Fragment key={i}>
+            <View style={styles.counter}>
+              <SkeletonBlock width={32} height={20} />
+              <SkeletonBlock width={56} height={11} style={{ marginTop: spacing.xs }} />
+            </View>
+            {i < 2 ? <View style={styles.counterDivider} /> : null}
+          </React.Fragment>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   header: {
@@ -489,21 +547,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    ...type.h1,
-    color: colors.accent,
-    fontWeight: '800',
   },
   avatarBody: { flex: 1 },
   username: { ...type.h2, color: colors.text, fontWeight: '700' },
@@ -538,6 +581,11 @@ const styles = StyleSheet.create({
   followBtnActive: {
     backgroundColor: 'transparent',
     borderColor: colors.border,
+  },
+  followBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   followBtnLabel: { ...type.caption, fontWeight: '700' },
   followBtnLabelInactive: { color: colors.bg },
@@ -614,36 +662,10 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1 },
   rowTitle: { ...type.h3, color: colors.text, fontWeight: '600' },
   rowMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing['2xl'],
-  },
   emptyOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing['2xl'],
-    backgroundColor: 'rgba(10,10,10,0.7)',
-  },
-  emptyTitle: { ...type.h3, color: colors.textSecondary, textAlign: 'center' },
-  emptyBody: {
-    ...type.body,
-    color: colors.textTertiary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  error: {
-    ...type.body,
-    color: colors.error,
-    textAlign: 'center',
-    marginTop: spacing['3xl'],
-  },
-  notFound: {
-    ...type.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing['3xl'],
+    backgroundColor: 'rgba(10,10,10,0.75)',
   },
 });

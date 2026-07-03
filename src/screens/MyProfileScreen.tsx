@@ -17,6 +17,10 @@ import { getLieuxService } from '../services/lieuxService';
 import type { Activity, UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
 import { colors, radius, spacing, type } from '../theme';
+import Avatar from '../components/Avatar';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonBlock, SkeletonRow } from '../components/SkeletonRow';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -182,9 +186,9 @@ export default function MyProfileScreen() {
   const renderHeader = () => (
     <View>
       {profileLoading ? (
-        <ActivityIndicator color={colors.accent} size="large" style={{ marginTop: spacing['2xl'] }} />
+        <ProfileCardSkeleton />
       ) : profileError ? (
-        <Text style={styles.error}>{profileError}</Text>
+        <ErrorState message={profileError} onRetry={loadProfile} />
       ) : profile ? (
         <ProfileCard profile={profile} />
       ) : (
@@ -193,7 +197,11 @@ export default function MyProfileScreen() {
 
       <Text style={styles.sectionTitle}>Activité</Text>
       {activityLoading && activities.length === 0 ? (
-        <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.lg }} />
+        <View>
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
+        </View>
       ) : null}
     </View>
   );
@@ -206,14 +214,12 @@ export default function MyProfileScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
-          activityLoading ? null : (
-            <View style={styles.empty}>
-              <Ionicons name="notifications-outline" size={32} color={colors.textTertiary} />
-              <Text style={styles.emptyText}>
-                Pas encore d'activité. Quand quelqu'un te suivra ou sauvera un de tes pins, ça
-                s'affichera ici.
-              </Text>
-            </View>
+          activityLoading || profileLoading ? null : (
+            <EmptyState
+              icon="notifications-outline"
+              title="Aucune activité"
+              body="Quand quelqu'un te suivra ou sauvera un de tes pins, tu le verras ici."
+            />
           )
         }
         refreshControl={
@@ -241,11 +247,7 @@ export default function MyProfileScreen() {
 function ProfileCard({ profile }: { profile: UserProfile }) {
   return (
     <View style={styles.card}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarLetter}>
-          {profile.username.charAt(0).toUpperCase() || '?'}
-        </Text>
-      </View>
+      <Avatar username={profile.username} size={96} style={{ marginBottom: spacing.lg }} />
       <Text style={styles.username}>@{profile.username}</Text>
       {profile.displayName ? (
         <Text style={styles.displayName}>{profile.displayName}</Text>
@@ -255,6 +257,28 @@ function ProfileCard({ profile }: { profile: UserProfile }) {
         <Counter label="Abonnés" value={profile.followersCount} />
         <View style={styles.counterDivider} />
         <Counter label="Abonnements" value={profile.followingCount} />
+      </View>
+    </View>
+  );
+}
+
+/** Ghost version of ProfileCard — same footprint, no data. */
+function ProfileCardSkeleton() {
+  return (
+    <View style={styles.card}>
+      <SkeletonBlock width={96} height={96} br={48} style={{ marginBottom: spacing.lg }} />
+      <SkeletonBlock width={160} height={22} />
+      <SkeletonBlock width={120} height={14} style={{ marginTop: spacing.sm }} />
+      <View style={[styles.counters, { minHeight: 72, borderColor: 'transparent' }]}>
+        <View style={styles.counter}>
+          <SkeletonBlock width={40} height={22} />
+          <SkeletonBlock width={64} height={11} style={{ marginTop: spacing.xs }} />
+        </View>
+        <View style={styles.counterDivider} />
+        <View style={styles.counter}>
+          <SkeletonBlock width={40} height={22} />
+          <SkeletonBlock width={64} height={11} style={{ marginTop: spacing.xs }} />
+        </View>
       </View>
     </View>
   );
@@ -295,8 +319,11 @@ function ActivityRow({
       <View style={styles.unreadWrap}>
         {!activity.read ? <View style={styles.unreadDot} /> : null}
       </View>
-      <View style={styles.activityIcon}>
-        <Ionicons name={iconName} size={18} color={colors.accent} />
+      <View style={styles.avatarStack}>
+        <Avatar username={activity.actorUsername} size={40} />
+        <View style={styles.activityIconBadge}>
+          <Ionicons name={iconName} size={11} color={colors.text} />
+        </View>
       </View>
       <View style={styles.activityBody}>
         <Text style={styles.activityText} numberOfLines={2}>
@@ -341,21 +368,6 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     paddingBottom: spacing['2xl'],
-  },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  avatarLetter: {
-    ...type.display,
-    color: colors.accent,
   },
   username: {
     ...type.h1,
@@ -426,13 +438,21 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.error,
   },
-  activityIcon: {
+  avatarStack: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
+    position: 'relative',
+  },
+  activityIconBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -446,17 +466,6 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: colors.textTertiary,
     marginTop: 2,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: spacing['2xl'],
-    paddingHorizontal: spacing.xl,
-  },
-  emptyText: {
-    ...type.body,
-    color: colors.textTertiary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
   },
   error: {
     ...type.body,

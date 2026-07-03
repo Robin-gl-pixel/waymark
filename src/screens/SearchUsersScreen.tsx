@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -19,6 +18,10 @@ import { getSocialService } from '../services/socialService';
 import { colors, radius, spacing, type } from '../theme';
 import type { UserProfile } from '../types/User';
 import type { RootStackParamList } from '../navigation';
+import Avatar from '../components/Avatar';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonRowList } from '../components/SkeletonRow';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SearchUsers'>;
 
@@ -117,46 +120,50 @@ export default function SearchUsersScreen() {
           )}
         </View>
 
-        <Body state={state} onOpen={openProfile} />
+        <Body
+          state={state}
+          onOpen={openProfile}
+          onRetry={() => normalized && runSearch(normalized)}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function Body({ state, onOpen }: { state: State; onOpen: (uid: string) => void }) {
+function Body({
+  state,
+  onOpen,
+  onRetry,
+}: {
+  state: State;
+  onOpen: (uid: string) => void;
+  onRetry: () => void;
+}) {
   switch (state.kind) {
     case 'idle':
       return (
-        <View style={styles.hint}>
-          <Text style={styles.hintText}>
-            Cherche un ami par son @pseudo exact.
-          </Text>
-          <Text style={styles.hintSub}>
-            Ex : @waymark.paris.cool
-          </Text>
-        </View>
+        <EmptyState
+          icon="search-outline"
+          title="Cherche un ami"
+          body="Tape son @pseudo exact — la recherche est stricte en V1. Ex : @waymark.paris.cool"
+        />
       );
     case 'searching':
       return (
-        <View style={styles.hint}>
-          <ActivityIndicator color={colors.accent} />
+        <View style={styles.list}>
+          <SkeletonRowList count={4} />
         </View>
       );
     case 'empty':
       return (
-        <View style={styles.hint}>
-          <Text style={styles.hintText}>Aucun résultat</Text>
-          <Text style={styles.hintSub}>
-            Vérifie l'orthographe — la recherche est exacte en V1.
-          </Text>
-        </View>
+        <EmptyState
+          icon="person-remove-outline"
+          title="Aucun résultat"
+          body="Vérifie l'orthographe — la recherche est exacte en V1."
+        />
       );
     case 'error':
-      return (
-        <View style={styles.hint}>
-          <Text style={styles.error}>{state.message}</Text>
-        </View>
-      );
+      return <ErrorState message={state.message} onRetry={onRetry} />;
     case 'results':
       return (
         <FlatList
@@ -177,11 +184,7 @@ function UserRow({ user, onPress }: { user: UserProfile; onPress: () => void }) 
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
       accessibilityLabel={`Ouvrir le profil de ${user.username}`}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarLetter}>
-          {user.username.charAt(0).toUpperCase() || '?'}
-        </Text>
-      </View>
+      <Avatar username={user.username} size={44} />
       <View style={styles.rowBody}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           @{user.username}
@@ -237,21 +240,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    ...type.h3,
-    color: colors.accent,
-    fontWeight: '700',
-  },
   rowBody: { flex: 1 },
   rowTitle: { ...type.h3, color: colors.text, fontWeight: '600' },
   rowMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
@@ -266,27 +254,5 @@ const styles = StyleSheet.create({
     color: colors.bg,
     fontWeight: '700',
     textTransform: 'uppercase',
-  },
-  hint: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing['2xl'],
-  },
-  hintText: {
-    ...type.h3,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  hintSub: {
-    ...type.caption,
-    color: colors.textTertiary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  error: {
-    ...type.body,
-    color: colors.error,
-    textAlign: 'center',
   },
 });
