@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { getAuthService } from '../services/authService';
-import { colors, spacing, type } from '../theme';
+import { colors, spacing, type, radius } from '../theme';
 
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
@@ -74,19 +74,19 @@ export default function AuthScreen() {
       if (code === 'auth/operation-not-allowed' || msg.includes('operation-not-allowed')) {
         setError(__DEV__
           ? 'Apple provider non activé. Firebase Console → Authentication → Sign-in method → Apple.'
-          : 'Connexion Apple non disponible. Réessaie plus tard.');
+          : 'Connexion Apple pas dispo. Réessaie plus tard.');
       } else if (code === 'auth/invalid-credential' || msg.includes('invalid')) {
         setError(__DEV__
           ? `Token Apple refusé par Firebase. code=${code}`
-          : 'Connexion Apple échouée. Réessaie.');
+          : 'Connexion Apple foirée. Réessaie.');
       } else if (code === 'auth/network-request-failed' || msg.toLowerCase().includes('network')) {
-        setError('Pas de connexion internet. Vérifie et réessaie.');
+        setError('Pas de réseau. Check ta co et réessaie.');
       } else if (msg.includes('Pas de token Apple')) {
-        setError('Apple n\'a pas renvoyé de token. Réessaie ou vérifie iCloud dans Réglages.');
+        setError("Apple a rien renvoyé. Réessaie ou check iCloud dans Réglages.");
       } else {
         setError(__DEV__
           ? `Erreur Apple : ${code || msg.slice(0, 80) || 'inconnue'}`
-          : 'Connexion Apple échouée. Réessaie.');
+          : 'Connexion Apple foirée. Réessaie.');
       }
     } finally {
       setLoading(false);
@@ -100,7 +100,7 @@ export default function AuthScreen() {
       await getAuthService().signInAnonymouslyDev();
     } catch (err) {
       console.warn('[AuthScreen] dev bypass failed', err);
-      setError('Dev bypass échoué — active Anonymous auth dans Firebase Console.');
+      setError('Dev bypass foiré — active Anonymous auth dans Firebase Console.');
     } finally {
       setLoading(false);
     }
@@ -109,23 +109,24 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.hero}>
+        <Text style={styles.eyebrow}>Nº 001</Text>
         <Text style={styles.wordmark}>Waymark</Text>
-        <Text style={styles.tagline}>Vos recos Insta,</Text>
-        <Text style={styles.tagline}>sur une carte.</Text>
+        <Text style={styles.tagline}>« Tes recos Insta,</Text>
+        <Text style={styles.tagline}>sur une carte. »</Text>
       </View>
 
       <View style={styles.body}>
         {error && <Text style={styles.errorText}>{error}</Text>}
 
         {loading ? (
-          <ActivityIndicator color={colors.accent} size="large" />
+          <ActivityIndicator color={colors.ink} size="large" />
         ) : (
           <>
             {appleAvailable && (
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-                cornerRadius={28}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={4}
                 style={styles.appleBtn}
                 onPress={handleAppleSignIn}
               />
@@ -139,7 +140,7 @@ export default function AuthScreen() {
         )}
 
         <Text style={styles.legal}>
-          En continuant, tu acceptes les conditions d'utilisation et la politique de confidentialité.
+          En continuant, t'acceptes les CGU et la politique de confidentialité.
         </Text>
       </View>
     </SafeAreaView>
@@ -147,22 +148,28 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.paper },
   hero: {
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing['2xl'],
+    gap: spacing.sm,
+  },
+  eyebrow: {
+    ...type.monoSm,
+    color: colors.graphite,
+    marginBottom: spacing.md,
   },
   wordmark: {
-    ...type.display,
-    color: colors.text,
-    fontWeight: '800',
-    marginBottom: spacing.xl,
+    ...type.displayLg,
+    color: colors.ink,
+    marginBottom: spacing.lg,
   },
   tagline: {
-    ...type.h2,
-    color: colors.textSecondary,
-    fontWeight: '400',
+    ...type.serif,
+    color: colors.graphite,
+    fontSize: 20,
+    lineHeight: 26,
   },
   body: {
     paddingHorizontal: spacing['2xl'],
@@ -175,14 +182,14 @@ const styles = StyleSheet.create({
   devBtn: {
     marginTop: spacing.md,
     paddingVertical: spacing.md,
-    borderRadius: 28,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.ink,
     alignItems: 'center',
   },
   devBtnText: {
-    ...type.body,
-    color: colors.textSecondary,
+    ...type.mono,
+    color: colors.ink,
   },
   errorText: {
     ...type.caption,
@@ -192,7 +199,7 @@ const styles = StyleSheet.create({
   },
   legal: {
     ...type.micro,
-    color: colors.textTertiary,
+    color: colors.graphite,
     textAlign: 'center',
     marginTop: spacing.xl,
   },
