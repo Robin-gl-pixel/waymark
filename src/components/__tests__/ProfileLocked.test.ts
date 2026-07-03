@@ -1,7 +1,7 @@
 jest.mock('react-native', () => require('./_rnTestUtils').rnMock());
 
 import ProfileLocked, { type ProfileStats } from '../ProfileLocked';
-import { colors } from '../../theme';
+import { categoryColor, colors } from '../../theme';
 import { findAll, findFirst, flattenStyle, textContent, walk } from './_rnTestUtils';
 
 const STATS: ProfileStats = { saves: 48, followers: 312, following: 96 };
@@ -95,5 +95,53 @@ describe('<ProfileLocked />', () => {
     const { tree } = render({ handle: 'kelly', avatar: null });
     const texts = findAll(tree, 'Text').map((t) => textContent(t.props.children));
     expect(texts).toEqual(expect.arrayContaining(['K']));
+  });
+
+  // -- Wave 2 additions (issue #49) ------------------------------------------
+
+  it('renders the mono uppercase subtitle « Suis pour la débloquer »', () => {
+    const { tree } = render();
+    const texts = findAll(tree, 'Text');
+    const subtitle = texts.find((t) =>
+      textContent(t.props.children).includes('Suis pour la débloquer'),
+    );
+    expect(subtitle).toBeDefined();
+    const style = flattenStyle(subtitle!.props.style);
+    // v8 § Écrans sociaux — subtitle is mono, uppercased via type.mono
+    expect(style.textTransform).toBe('uppercase');
+  });
+
+  it('paints the blurred pin field with the category palette', () => {
+    const { tree } = render();
+    // Every category-color hex should appear on at least one View in the tree.
+    const views = findAll(tree, 'View');
+    const bgColors = views
+      .map((v) => flattenStyle(v.props.style).backgroundColor)
+      .filter((c): c is string => typeof c === 'string');
+    // Five pin dots in the field — resto, bar, café, musée, hôtel — each in
+    // its category color. Absence would collapse the visual metaphor.
+    expect(bgColors).toEqual(
+      expect.arrayContaining([
+        categoryColor('resto'),
+        categoryColor('bar'),
+        categoryColor('café'),
+        categoryColor('musée'),
+        categoryColor('hôtel'),
+      ]),
+    );
+  });
+
+  it('applies semi-transparency to each blurred pin dot', () => {
+    const { tree } = render();
+    const views = findAll(tree, 'View');
+    // Find the dots by matching backgroundColor to a category token.
+    const restoDot = views.find(
+      (v) => flattenStyle(v.props.style).backgroundColor === categoryColor('resto'),
+    );
+    expect(restoDot).toBeDefined();
+    const style = flattenStyle(restoDot!.props.style);
+    // Below-100% opacity so the paper overlay can veil them.
+    expect(typeof style.opacity).toBe('number');
+    expect(style.opacity as number).toBeLessThan(1);
   });
 });
