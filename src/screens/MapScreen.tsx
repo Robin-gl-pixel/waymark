@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView from 'react-native-map-clustering';
-import RNMapView, { Marker, PROVIDER_DEFAULT, Callout } from 'react-native-maps';
+import RNMapView, { Marker, PROVIDER_DEFAULT, Callout, type PoiClickEvent } from 'react-native-maps';
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,9 +20,11 @@ import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, fonts } from '../theme';
 import CategoryPin from '../components/CategoryPin';
+import MapPoiSaveSheet from '../components/MapPoiSaveSheet';
 import { createPinPulse } from '../lib/pinPulse';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { RootStackParamList, TabParamList } from '../navigation';
+import { mapPoiToLieuInput, type MapPoiTap } from './mapPoiHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type MapRt = RouteProp<TabParamList, 'Map'>;
@@ -125,6 +127,11 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // POI-tap flow state. `poiTap` holds the tapped POI while the save sheet is
+  // open; `savingPoi` guards the async createLieu/updateLieu round-trip so the
+  // sheet's CTA can show a spinner and swallow re-taps.
+  const [poiTap, setPoiTap] = useState<MapPoiTap | null>(null);
+  const [savingPoi, setSavingPoi] = useState(false);
 
   // Subscribe to the OS-level reduce-motion preference so the selection
   // pulse respects it in real time (user toggles Settings → app foregrounds).
@@ -242,6 +249,58 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, [focusLieuId, loading, lieux]);
 
+  // POI tap → open the save sheet with the POI's name + coordinate. On iOS
+  // this fires on Apple Maps' native POI tap targets (labelled shops, cafés,
+  // etc.). If the underlying provider doesn't emit onPoiClick (e.g. an Apple
+  // Maps build where the react-native-maps bridge treats POIs as inert), the
+  // handler simply never runs — no error surfaced to the user.
+  const handlePoiClick = useCallback((e: PoiClickEvent) => {
+    // Skip anonymous POIs — pinning a spot with no name is worse than a
+    // dropped pin from the picker.
+    if (!e.nativeEvent.name) return;
+    setPoiTap({
+      name: e.nativeEvent.name,
+      coordinate: e.nativeEvent.coordinate,
+    });
+  }, []);
+
+  const handlePoiCancel = useCallback(() => {
+    if (savingPoi) return; // don't close mid-save
+    setPoiTap(null);
+  }, [savingPoi]);
+
+  const handlePoiSave = useCallback(
+    async ({ category, status }: { category: LieuCategory; status: 'wishlist' | 'visited' | null }) => {
+      if (!user || !poiTap) return;
+      setSavingPoi(true);
+      try {
+        const { input } = mapPoiToLieuInput({ poi: poiTap, category, status });
+        const created = await getLieuxService().createLieu(user.uid, input);
+        // createLieu hardcodes status: 'wishlist'. If the user picked
+        // « Allé » (or explicitly cleared), flip via updateLieu so the
+        // visitedAt invariant is honoured server-side (#41).
+        if (status !== 'wishlist') {
+          await getLieuxService().updateLieu(user.uid, created.id, { status });
+        }
+        // Optimistic local update — the freshly saved pin shows up on the
+        // map immediately instead of waiting for the next focus reload.
+        setLieux((prev) => [{ ...created, status }, ...prev]);
+        setPoiTap(null);
+        // "Nº <count+1>" — the numbering scheme matches ListScreen's atlas
+        // (Nº 001, Nº 002, …). We use prev length + 1 since setLieux is queued.
+        const nextNumber = String(lieux.length + 1).padStart(3, '0');
+        Alert.alert('Ajouté à ta carte', `Nº ${nextNumber} · ${created.name}`);
+      } catch (err) {
+        console.error('[MapScreen] POI save failed', err);
+        const e = err as { message?: string };
+        Alert.alert('Sauvegarde foirée', e?.message ?? 'Réessaie dans une seconde.');
+      } finally {
+        setSavingPoi(false);
+      }
+    },
+    [poiTap, user, lieux.length],
+  );
+
   // Pin count in mono — zero-padded to three digits so it reads as an archival
   // log ("047 pins" rather than "47 pins"). Cheap memoization to avoid the
   // string rebuild in the header on every render.
@@ -281,6 +340,7 @@ export default function MapScreen() {
         clusterTextColor={colors.paper}
         radius={40}
         minPoints={3}
+        onPoiClick={handlePoiClick}
       >
         {lieux.map((lieu) => (
           <PinMarker
@@ -325,6 +385,14 @@ export default function MapScreen() {
           )}
         </Pressable>
       </SafeAreaView>
+
+      {/* Bottom-sheet save flow — opens when the user taps a POI on the map. */}
+      <MapPoiSaveSheet
+        poi={poiTap}
+        onCancel={handlePoiCancel}
+        onSave={handlePoiSave}
+        saving={savingPoi}
+      />
 
       {lieux.length === 0 && (
         <SafeAreaView style={styles.emptyOverlay} edges={['top']} pointerEvents="box-none">
