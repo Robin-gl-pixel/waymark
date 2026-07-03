@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { getLieuxService, LieuDuplicateError } from '../services/lieuxService';
 import { getSocialService } from '../services/socialService';
+import { statusBadgeIcon, statusBadgeLabel } from '../lib/statusBadge';
 import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
@@ -281,6 +282,26 @@ export default function LieuDetailScreen() {
           <Text style={styles.name}>{lieu.name}</Text>
           <Text style={styles.address}>{lieu.address}</Text>
 
+          {/* #42 — friend-view badge. Sits in the SAME slot as the owner
+              toggles below so the signal reads at the same visual altitude
+              whichever side of the follow you're on. Read-only; nothing
+              tappable. Absent when status is null / undefined. */}
+          {!isMine && (() => {
+            const badge = statusBadgeIcon(lieu.status);
+            if (badge === null) return null;
+            const label = statusBadgeLabel(lieu.status);
+            return (
+              <View style={styles.friendBadgeRow}>
+                <Text
+                  style={styles.friendBadgeIcon}
+                  accessibilityLabel={label ?? undefined}
+                >
+                  {badge}
+                </Text>
+              </View>
+            );
+          })()}
+
           {/* #41 — owner-only status toggles. Sits directly under the address
               per the design symmetry decision in #39 (badge for followers
               lands in the same spot in the follow-up slice). Tapping the
@@ -331,6 +352,15 @@ export default function LieuDetailScreen() {
           )}
 
           {lieu.description && <Text style={styles.description}>{lieu.description}</Text>}
+
+          {/* #42 — owner's personal notes surface to the follower here, under
+              the description. Empty / null render nothing (no label, no
+              placeholder — the acceptance criterion is explicit). Only shown
+              on the friend-view; the owner has their own editable notes UI
+              further down. */}
+          {!isMine && lieu.userNotes && lieu.userNotes.trim().length > 0 && (
+            <Text style={styles.friendNotes}>{lieu.userNotes}</Text>
+          )}
 
           {lieu.sourceInstagram.author && (
             <Text style={styles.attribution}>Reco de @{lieu.sourceInstagram.author}</Text>
@@ -465,6 +495,27 @@ const styles = StyleSheet.create({
   },
   statusToggleLabelActive: {
     color: colors.text,
+  },
+  // #42 — read-only friend badge. Same vertical slot as the owner toggles
+  // (marginTop mirrors statusRow) so the position stays symmetric.
+  friendBadgeRow: {
+    flexDirection: 'row',
+    marginTop: spacing.md,
+  },
+  friendBadgeIcon: {
+    ...type.h2,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  // #42 — friend's userNotes paragraph, under the description. Slightly
+  // dimmer than the description body so the visual hierarchy stays
+  // "description > friend's note".
+  friendNotes: {
+    ...type.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    lineHeight: 22,
+    fontStyle: 'italic',
   },
   description: { ...type.body, color: colors.text, marginTop: spacing.lg, lineHeight: 24 },
   attribution: {

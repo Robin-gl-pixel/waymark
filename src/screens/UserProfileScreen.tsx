@@ -26,6 +26,7 @@ import Avatar from '../components/Avatar';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonBlock } from '../components/SkeletonRow';
+import { statusBadgeIcon, statusBadgeLabel } from '../lib/statusBadge';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'UserProfile'>;
 type Rt = RouteProp<RootStackParamList, 'UserProfile'>;
@@ -487,25 +488,42 @@ function ListPane({ lieux, onOpenLieu }: { lieux: Lieu[]; onOpenLieu: (l: Lieu) 
       data={lieux}
       keyExtractor={(l) => l.id}
       contentContainerStyle={styles.list}
-      renderItem={({ item }) => (
-        <Pressable
-          onPress={() => onOpenLieu(item)}
-          style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
-        >
-          <View style={styles.rowThumb}>
-            <Text style={styles.rowEmoji}>{CATEGORY_EMOJI[item.category]}</Text>
-          </View>
-          <View style={styles.rowBody}>
-            <Text style={styles.rowTitle} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.rowMeta} numberOfLines={1}>
-              {item.city}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-        </Pressable>
-      )}
+      renderItem={({ item }) => {
+        // #42 — friend-facing badge, immediately after the name so the icon
+        // sits in the eye-scan lane of the list. Absent when status is null
+        // or the pin predates #41 (undefined field on the doc).
+        const badge = statusBadgeIcon(item.status);
+        const badgeA11y = statusBadgeLabel(item.status);
+        return (
+          <Pressable
+            onPress={() => onOpenLieu(item)}
+            style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.rowThumb}>
+              <Text style={styles.rowEmoji}>{CATEGORY_EMOJI[item.category]}</Text>
+            </View>
+            <View style={styles.rowBody}>
+              <View style={styles.rowTitleLine}>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {badge !== null && (
+                  <Text
+                    style={styles.rowBadge}
+                    accessibilityLabel={badgeA11y ?? undefined}
+                  >
+                    {badge}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.rowMeta} numberOfLines={1}>
+                {item.city}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+          </Pressable>
+        );
+      }}
     />
   );
 }
@@ -660,7 +678,18 @@ const styles = StyleSheet.create({
   },
   rowEmoji: { fontSize: 24 },
   rowBody: { flex: 1 },
-  rowTitle: { ...type.h3, color: colors.text, fontWeight: '600' },
+  // #42 — the title line hosts the pin name and (optionally) the friend badge.
+  // Row layout so the badge tucks in just after the name; `flex: 1` on the
+  // name lets the badge stay pinned to its natural width while the name
+  // truncates.
+  rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  rowTitle: { ...type.h3, color: colors.text, fontWeight: '600', flexShrink: 1 },
+  // Discreet, monochrome badge — colour would fight the category emoji thumb.
+  rowBadge: {
+    ...type.body,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
   rowMeta: { ...type.caption, color: colors.textSecondary, marginTop: 2 },
   emptyOverlay: {
     ...StyleSheet.absoluteFillObject,
