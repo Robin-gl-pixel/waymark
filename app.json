@@ -52,7 +52,8 @@
         "expo-share-intent",
         {
           "iosActivationRules": {
-            "NSExtensionActivationSupportsImageWithMaxCount": 1
+            "NSExtensionActivationSupportsImageWithMaxCount": 1,
+            "NSExtensionActivationSupportsMovieWithMaxCount": 1
           },
           "iosShareExtensionName": "Waymark Share",
           "disableAndroid": true

@@ -133,17 +133,26 @@ export class FirebaseLieuxService implements LieuxService {
   async extractFromScreenshot(
     imageBase64: string,
     mediaType: 'image/png' | 'image/jpeg' | 'image/webp',
+    captionText?: string,
   ): Promise<LieuExtracted> {
     const user = auth.currentUser;
     if (!user) throw new Error('Not signed in');
     const idToken = await user.getIdToken();
+    // Only include captionText when it's a non-empty string — the Cloud Function
+    // ignores undefined but a stray empty string would still show up in the
+    // prompt builder's null check as truthy noise.
+    const trimmedCaption = captionText?.trim();
+    const payload =
+      trimmedCaption && trimmedCaption.length > 0
+        ? { imageBase64, mediaType, captionText: trimmedCaption }
+        : { imageBase64, mediaType };
     const res = await fetch(EXTRACT_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${idToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ data: { imageBase64, mediaType } }),
+      body: JSON.stringify({ data: payload }),
     });
     if (!res.ok) {
       const text = await res.text();

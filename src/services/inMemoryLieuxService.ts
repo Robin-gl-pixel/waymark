@@ -141,6 +141,7 @@ export class InMemoryLieuxService implements LieuxService {
   async extractFromScreenshot(
     _imageBase64: string,
     _mediaType: 'image/png' | 'image/jpeg' | 'image/webp',
+    _captionText?: string,
   ): Promise<LieuExtracted> {
     // Fixed stub — unit tests don't exercise the extraction pipeline here.
     return {
