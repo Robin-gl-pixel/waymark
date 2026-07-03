@@ -18,7 +18,7 @@ Analyse l'image et retourne UN SEUL objet JSON strict avec les champs suivants :
   "name": "string — le nom du lieu recommandé. Cherche en priorité après un emoji 📍 rouge. Si plusieurs lieux (ex: 'La Gare / Le Gore'), garde le format tel quel.",
   "city": "string — la ville. Si non explicite dans le texte, déduis depuis le tag de localisation Instagram (en bas du post) ou le nom d'utilisateur (ex: @juan.inparis → Paris).",
   "country": "string — le pays. Déduis depuis la ville si évident.",
-  "address": "string | null — l'adresse complète si mentionnée dans le screenshot. Ne l'invente PAS. null si absente.",
+  "address": "string | null — TOUT fragment d'adresse visible : overlay texte, sticker sur l'image, caption. Même partiel (ex: 'rue de Vern...', 'près Bastille', '75007', 'Paris 7ème'). Retourne le fragment tel quel — le geocoder aval sait résoudre les partiels. Ne l'invente PAS depuis ta connaissance : uniquement ce qui est ÉCRIT à l'écran ou dans la caption. null si aucun fragment visible.",
   "category": "'resto' | 'bar' | 'café' | 'activité' | 'musée' | 'hôtel' | 'autre' — déduis depuis le contexte (mots-clés, image).",
   "description": "string | null — 1-2 phrases résumant ce qui est dit du lieu (jazz + techno, cuisine italienne, ambiance rooftop, etc.). Extrait depuis la caption visible.",
   "sourceAuthor": "string | null — le pseudo Instagram de l'auteur du post (ex: 'juan.inparis'), sans le @."
@@ -27,7 +27,7 @@ Analyse l'image et retourne UN SEUL objet JSON strict avec les champs suivants :
 ## Règles strictes
 
 1. **JSON UNIQUEMENT**. Aucun texte avant/après. Aucun commentaire. Aucune backticks.
-2. **N'INVENTE JAMAIS** une adresse, un nom ou des infos non présentes dans le screenshot. Utilise null si absent.
+2. **N'INVENTE JAMAIS** depuis ta connaissance seule. Toute info doit être écrite/visible dans le screenshot ou la caption. EN REVANCHE, extrais tout fragment textuel visible même incomplet — un "rue de Vern..." tronqué ou un "75007" seul est plus utile qu'un null.
 3. Si le screenshot ne contient PAS de recommandation de lieu (ex: mème, photo perso sans lieu), retourne :
    \`\`\`
    { "name": null, "city": null, "country": null, "address": null, "category": null, "description": null, "sourceAuthor": null }

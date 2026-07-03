@@ -15,6 +15,7 @@ import { ref, uploadBytes, deleteObject, getDownloadURL } from 'firebase/storage
 import { auth, db, storage } from '../auth/firebase';
 import { Lieu, LieuInput, LieuExtracted } from '../types/Lieu';
 import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
+import { normalizeName } from '../lib/normalize';
 
 /**
  * Great-circle distance in meters. Duplicated from `UploadScreen` /
@@ -91,6 +92,7 @@ export class FirebaseLieuxService implements LieuxService {
     const data = {
       userId,
       name: input.name,
+      nameNormalized: normalizeName(input.name),
       city: input.city,
       country: input.country,
       address: input.address,
@@ -119,10 +121,11 @@ export class FirebaseLieuxService implements LieuxService {
     lieuId: string,
     patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes'>>,
   ): Promise<void> {
-    await updateDoc(doc(this.lieuxCol(userId), lieuId), {
-      ...patch,
-      updatedAt: serverTimestamp(),
-    });
+    const write: Record<string, unknown> = { ...patch, updatedAt: serverTimestamp() };
+    if (patch.name !== undefined) {
+      write.nameNormalized = normalizeName(patch.name);
+    }
+    await updateDoc(doc(this.lieuxCol(userId), lieuId), write);
   }
 
   async deleteLieu(userId: string, lieuId: string): Promise<void> {
@@ -221,6 +224,7 @@ export class FirebaseLieuxService implements LieuxService {
     const data: Record<string, unknown> = {
       userId: myUid,
       name: sourceLieu.name,
+      nameNormalized: sourceLieu.nameNormalized ?? normalizeName(sourceLieu.name),
       city: sourceLieu.city,
       country: sourceLieu.country,
       address: sourceLieu.address,
@@ -250,6 +254,11 @@ export class FirebaseLieuxService implements LieuxService {
       id,
       userId: data.userId as string,
       name: data.name as string,
+      // Fallback for pre-migration docs that don't have the field yet — the
+      // backfill script will fill them in, but a client read shouldn't crash
+      // in the meantime.
+      nameNormalized:
+        (data.nameNormalized as string | undefined) ?? normalizeName(data.name as string),
       city: data.city as string,
       country: data.country as string,
       address: data.address as string,

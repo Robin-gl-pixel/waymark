@@ -509,6 +509,7 @@ function makeLieu(ownerUid: string, id: string, createdAtMs: number, overrides: 
     id,
     userId: ownerUid,
     name: `Lieu ${id}`,
+    nameNormalized: `lieu ${id}`,
     city: 'Paris',
     country: 'France',
     address: '1 rue test',

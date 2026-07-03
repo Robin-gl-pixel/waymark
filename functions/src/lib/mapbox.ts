@@ -12,6 +12,7 @@ export interface GeocodedPlace {
   lat: number;
   lng: number;
   mapboxId: string;
+  city?: string | null;
 }
 
 const MAPBOX_ENDPOINT = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
@@ -48,10 +49,25 @@ function isoForCountry(country: string | null): string | null {
   return COUNTRY_ISO[country.trim().toLowerCase()] ?? null;
 }
 
+interface MapboxContextItem {
+  id: string; // e.g. "place.12345", "postcode.6789", "country.99"
+  text: string;
+}
+
 interface MapboxFeature {
   id: string;
   place_name: string;
   center: [number, number]; // [lng, lat]
+  context?: MapboxContextItem[];
+}
+
+/**
+ * Extract the "place" (city/town) from a Mapbox result's structured context.
+ * Used for sanity-checking that Mapbox didn't map "Paris 7" to "7 Rue De Paris, Créteil".
+ */
+export function mapboxCityFromContext(feature: MapboxFeature): string | null {
+  const placeCtx = feature.context?.find((c) => c.id.startsWith('place.'));
+  return placeCtx?.text ?? null;
 }
 
 async function mapboxQuery(
@@ -78,7 +94,13 @@ async function mapboxQuery(
 
 function toGeocoded(feature: MapboxFeature): GeocodedPlace {
   const [lng, lat] = feature.center;
-  return { address: feature.place_name, lat, lng, mapboxId: feature.id };
+  return {
+    address: feature.place_name,
+    lat,
+    lng,
+    mapboxId: feature.id,
+    city: mapboxCityFromContext(feature),
+  };
 }
 
 /**

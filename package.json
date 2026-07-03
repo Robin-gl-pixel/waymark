@@ -12,6 +12,9 @@
     "submit:ios": "eas submit --platform ios",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "test:e2e": "maestro test .maestro",
+    "test:e2e:launch": "maestro test .maestro/smoke-launch.yaml",
+    "test:e2e:login": "maestro test .maestro/smoke-anon-login.yaml",
     "android": "expo run:android",
     "postinstall": "patch-package",
     "emulator:start": "firebase emulators:start --only auth,firestore,functions,storage",
@@ -51,10 +54,12 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
+    "firebase-admin": "^14.1.0",
     "jest": "^30.4.1",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
     "ts-jest": "^29.4.11",
+    "tsx": "^4.23.0",
     "typescript": "~5.9.2"
   },
   "overrides": {

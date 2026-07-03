@@ -15,6 +15,14 @@ export interface Lieu {
   id: string;
   userId: string;
   name: string;
+  /**
+   * Lowercased, NFD-stripped, whitespace-collapsed form of `name`. Written
+   * automatically on create/update. Used by the extract Cloud Function to look
+   * up an already-known lieu across all users (collectionGroup query) before
+   * hitting Claude/Google/Mapbox — dedup + zero API cost when someone already
+   * added this venue.
+   */
+  nameNormalized: string;
   city: string;
   country: string;
   address: string;

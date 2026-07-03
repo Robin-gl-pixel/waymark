@@ -1,4 +1,5 @@
 import type { Lieu, Timestamp } from '../types/Lieu';
+import { normalizeName } from '../lib/normalize';
 import type {
   UserProfile,
   ProfileInput,
@@ -562,6 +563,8 @@ function hydrateLieu(ownerUid: string, id: string, data: Record<string, unknown>
     id,
     userId: (data.userId as string) ?? ownerUid,
     name: data.name as string,
+    nameNormalized:
+      (data.nameNormalized as string | undefined) ?? normalizeName(data.name as string),
     city: data.city as string,
     country: data.country as string,
     address: data.address as string,

@@ -18,6 +18,14 @@
     },
     {
       "collectionGroup": "lieux",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "nameNormalized", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lieux",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "userId", "order": "ASCENDING" },

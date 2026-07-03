@@ -1,5 +1,6 @@
 import { Lieu, LieuInput, LieuExtracted, Timestamp } from '../types/Lieu';
 import { LieuxService, LieuDuplicateError, DUPLICATE_DISTANCE_M } from './lieuxService';
+import { normalizeName } from '../lib/normalize';
 
 /** Great-circle distance in meters — mirror of the FirebaseLieuxService helper. */
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -91,6 +92,7 @@ export class InMemoryLieuxService implements LieuxService {
       id,
       userId,
       name: input.name,
+      nameNormalized: normalizeName(input.name),
       city: input.city,
       country: input.country,
       address: input.address,
@@ -129,6 +131,8 @@ export class InMemoryLieuxService implements LieuxService {
     const updated: Lieu = {
       ...existing,
       ...filtered,
+      nameNormalized:
+        filtered.name !== undefined ? normalizeName(filtered.name as string) : existing.nameNormalized,
       updatedAt: this.now(),
     };
     bucket.set(lieuId, updated);
@@ -202,6 +206,7 @@ export class InMemoryLieuxService implements LieuxService {
       id,
       userId: myUid,
       name: sourceLieu.name,
+      nameNormalized: sourceLieu.nameNormalized,
       city: sourceLieu.city,
       country: sourceLieu.country,
       address: sourceLieu.address,
