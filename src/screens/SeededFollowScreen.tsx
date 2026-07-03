@@ -262,6 +262,7 @@ function hydrateUser(uid: string, data: Record<string, unknown>): UserProfile {
     avatarUrl: (data.avatarUrl as string | null) ?? null,
     bio: (data.bio as string | null) ?? null,
     usernameChangedAt: (data.usernameChangedAt as Timestamp | null) ?? null,
+    shortcutToken: (data.shortcutToken as string | null | undefined) ?? null,
     createdAt: data.createdAt as Timestamp,
     updatedAt: data.updatedAt as Timestamp,
   };

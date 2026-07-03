@@ -128,6 +128,10 @@ export class FirebaseSocialService implements SocialService {
           avatarUrl: null,
           bio: null,
           usernameChangedAt: null,
+          // #7 — Shortcut token is minted lazily on first Settings visit.
+          // A brand-new profile has no token until the user explicitly opens
+          // the Shortcut setup screen.
+          shortcutToken: null,
           createdAt: now,
           updatedAt: now,
         });
@@ -175,9 +179,47 @@ export class FirebaseSocialService implements SocialService {
       avatarUrl: (data.avatarUrl as string | null) ?? null,
       bio: (data.bio as string | null) ?? null,
       usernameChangedAt: (data.usernameChangedAt as Timestamp | null) ?? null,
+      shortcutToken: (data.shortcutToken as string | null | undefined) ?? null,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
     };
+  }
+
+  // --- iOS Shortcut token (#7) ---
+
+  /**
+   * Return the current user's Shortcut auth token, minting one on first read.
+   *
+   * The token is stored on `/users/{uid}.shortcutToken` and gates the
+   * `extractFromShortcut` Cloud Function (auth by Bearer token, not Firebase
+   * ID). We use `expo-crypto`'s CSPRNG (`getRandomBytesAsync(32)`) then render
+   * as lowercase hex — 64 chars, indistinguishable from a random blob to a
+   * bruteforcer at that entropy.
+   */
+  async getOrCreateShortcutToken(): Promise<string> {
+    const { auth, db, doc, getDoc, updateDoc, serverTimestamp } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    const userRef = doc(db as never, 'users', me.uid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) throw new Error('Profile not found — complete PickUsername first.');
+    const existing = (snap.data() as Record<string, unknown>).shortcutToken;
+    if (typeof existing === 'string' && existing.length === 64) return existing;
+    const token = await generateShortcutToken();
+    await updateDoc(userRef, { shortcutToken: token, updatedAt: serverTimestamp() });
+    return token;
+  }
+
+  async regenerateShortcutToken(): Promise<string> {
+    const { auth, db, doc, updateDoc, serverTimestamp } = loadFirebase();
+    const me = auth.currentUser;
+    if (!me) throw new Error('Not signed in');
+    const token = await generateShortcutToken();
+    await updateDoc(doc(db as never, 'users', me.uid), {
+      shortcutToken: token,
+      updatedAt: serverTimestamp(),
+    });
+    return token;
   }
 
   // --- Search ---
@@ -597,6 +639,37 @@ export const REPORT_FREETEXT_MAX_LENGTH = 200;
  * or overlong freeText. Kept as a pure function so it's testable without a
  * Firebase environment.
  */
+/**
+ * Length of the raw entropy for a Shortcut token, in bytes. 32 bytes ×
+ * 8 bits = 256 bits — bruteforce-proof at any reasonable scale, and the
+ * rendered hex form (64 chars) is short enough to fit on a single Settings
+ * row without wrapping awkwardly on a phone.
+ */
+export const SHORTCUT_TOKEN_BYTES = 32;
+
+/**
+ * Length of a valid Shortcut token in rendered lowercase-hex form. The
+ * `extractFromShortcut` Cloud Function rejects any header that isn't exactly
+ * this long, so a malformed paste from the iOS Shortcut app fails fast.
+ */
+export const SHORTCUT_TOKEN_HEX_LENGTH = SHORTCUT_TOKEN_BYTES * 2;
+
+/**
+ * Generate a fresh Shortcut token: 32 bytes from `expo-crypto`'s CSPRNG,
+ * rendered as lowercase hex. Async because `getRandomBytesAsync` is — Expo's
+ * sync equivalent isn't guaranteed to be a real CSPRNG on every device.
+ */
+async function generateShortcutToken(): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Crypto = require('expo-crypto') as typeof import('expo-crypto');
+  const bytes = await Crypto.getRandomBytesAsync(SHORTCUT_TOKEN_BYTES);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex;
+}
+
 export function validateReportInput(input: ReportInput): void {
   if (!input || typeof input !== 'object') throw new Error('Invalid report input');
   if (!input.targetUid || typeof input.targetUid !== 'string') {
