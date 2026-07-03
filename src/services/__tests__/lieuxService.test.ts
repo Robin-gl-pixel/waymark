@@ -203,6 +203,23 @@ describe('LieuxService seam contract (InMemoryLieuxService)', () => {
         }),
       );
     });
+
+    it('accepts (and ignores) an optional captionText argument', async () => {
+      // The in-memory impl doesn't actually pass captionText through to
+      // anything — it just needs to accept the extra arg without throwing so
+      // the SharedImageScreen video-share path can call it with the caption.
+      const withCaption = await svc.extractFromScreenshot(
+        'AAAA',
+        'image/png',
+        'Chai Brongniart, Paris 2ème — jazz + techno rooftop',
+      );
+      const withoutCaption = await svc.extractFromScreenshot('AAAA', 'image/png');
+      expect(withCaption).toEqual(withoutCaption);
+    });
+
+    it('accepts an empty captionText without throwing', async () => {
+      await expect(svc.extractFromScreenshot('AAAA', 'image/png', '')).resolves.toBeDefined();
+    });
   });
 
   describe('resaveFromNetwork (#13)', () => {

@@ -36,9 +36,10 @@ export const extract = onCall(
       throw new HttpsError('unauthenticated', 'Sign in to extract.');
     }
 
-    const { imageBase64, mediaType = 'image/png' } = request.data as {
+    const { imageBase64, mediaType = 'image/png', captionText } = request.data as {
       imageBase64?: string;
       mediaType?: 'image/png' | 'image/jpeg' | 'image/webp';
+      captionText?: string;
     };
 
     if (!imageBase64 || typeof imageBase64 !== 'string') {
@@ -50,9 +51,16 @@ export const extract = onCall(
       throw new HttpsError('invalid-argument', 'Image too large (>8MB).');
     }
 
+    // Sanity guard on the optional caption: only accept strings, and trim
+    // upstream so we don't waste tokens on whitespace. Length cap is handled
+    // downstream in buildUserPrompt.
+    const cleanCaption = typeof captionText === 'string' && captionText.trim()
+      ? captionText.trim()
+      : null;
+
     let vision: ExtractedFromVision;
     try {
-      vision = await extractPlaceFromScreenshot(imageBase64, mediaType);
+      vision = await extractPlaceFromScreenshot(imageBase64, mediaType, cleanCaption);
       console.log('[extract] vision result', {
         name: vision.name,
         city: vision.city,

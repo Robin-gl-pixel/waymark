@@ -36,3 +36,17 @@ Analyse l'image et retourne UN SEUL objet JSON strict avec les champs suivants :
 5. Pour les caption tronquées ("Chai Brongniart, Paris 2..."), extrais ce que tu vois (name="Chai Brongniart", city="Paris") sans deviner la suite.`;
 
 export const USER_PROMPT_LINE = 'Voici un screenshot Instagram. Extrait les infos du lieu recommandé au format JSON strict spécifié.';
+
+/**
+ * Build the user prompt line, optionally suffixed with the raw Instagram
+ * caption text when the Share Sheet handed us one (typical for video/reel
+ * shares — often the caption spells out name/address in plain text and gives
+ * Claude a much easier target than pixels alone).
+ *
+ * Caption is trimmed and capped at 2000 chars to keep the prompt lean.
+ */
+export function buildUserPrompt(captionText?: string | null): string {
+  const base = USER_PROMPT_LINE;
+  if (!captionText || !captionText.trim()) return base;
+  return `${base}\n\nVoici aussi la caption du post Insta (peut contenir nom + adresse en clair) :\n"""${captionText.trim().slice(0, 2000)}"""`;
+}

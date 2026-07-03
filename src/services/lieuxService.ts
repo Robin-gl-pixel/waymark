@@ -45,8 +45,18 @@ export interface LieuxService {
   /** Delete a lieu and its associated screenshot from Storage. */
   deleteLieu(userId: string, lieuId: string): Promise<void>;
 
-  /** Call the `extract` Cloud Function and return the structured extraction. */
-  extractFromScreenshot(imageBase64: string, mediaType: 'image/png' | 'image/jpeg' | 'image/webp'): Promise<LieuExtracted>;
+  /**
+   * Call the `extract` Cloud Function and return the structured extraction.
+   *
+   * `captionText` is an optional bonus context passed through to Claude — used
+   * when the iOS Share Sheet provides the Instagram caption alongside the media
+   * (typically for video/reel shares). Ignored server-side when absent/empty.
+   */
+  extractFromScreenshot(
+    imageBase64: string,
+    mediaType: 'image/png' | 'image/jpeg' | 'image/webp',
+    captionText?: string,
+  ): Promise<LieuExtracted>;
 
   /** Resolve a Storage path (e.g. `sourceInstagram.screenshotStoragePath`) to a signed URL loadable by <Image>. */
   getScreenshotUrl(storagePath: string): Promise<string>;

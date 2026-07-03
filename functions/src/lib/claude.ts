@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import sharp from 'sharp';
-import { SYSTEM_PROMPT, USER_PROMPT_LINE } from './prompt';
+import { SYSTEM_PROMPT, buildUserPrompt } from './prompt';
 
 // Anthropic Vision recommends max ~1568px on longest side; anything larger
 // gets tokenized wastefully and slows the call to 15-20s. Downsample + JPEG
@@ -27,6 +27,7 @@ const MODEL = 'claude-haiku-4-5-20251001';
 export async function extractPlaceFromScreenshot(
   imageBase64: string,
   _mediaType: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png',
+  captionText?: string | null,
 ): Promise<ExtractedFromVision> {
   const inputBuf = Buffer.from(imageBase64, 'base64');
   const t0 = Date.now();
@@ -50,7 +51,7 @@ export async function extractPlaceFromScreenshot(
             type: 'image',
             source: { type: 'base64', media_type: 'image/jpeg', data: resizedB64 },
           },
-          { type: 'text', text: USER_PROMPT_LINE },
+          { type: 'text', text: buildUserPrompt(captionText) },
         ],
       },
     ],
