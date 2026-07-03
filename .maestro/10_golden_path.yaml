@@ -11,7 +11,10 @@ name: Golden path (up to picker open)
     clearState: true
 
 # --- Auth ---
-- assertVisible: "Skip .dev anonymous sign-in."
+# First launch waits for Metro to serve the JS bundle (~10s cold on CI).
+- extendedWaitUntil:
+    visible: "Skip .dev anonymous sign-in."
+    timeout: 60000
 - tapOn: "Skip .dev anonymous sign-in."
 - extendedWaitUntil:
     visible: "Aucun pin pour l'instant"
