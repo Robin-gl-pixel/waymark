@@ -292,16 +292,14 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* Header — « Ta carte » eyebrow + city title + mono pin count. */}
+      {/* Header — minimal mono pin count chip, right-aligned. The « Ta carte »
+          eyebrow + city title were dropped: founder pins worldwide, so the
+          hard-coded « Paris » was misleading, and the eyebrow read as chrome. */}
       <SafeAreaView style={styles.headerOverlay} edges={['top']} pointerEvents="box-none">
-        <View style={styles.headerCard} pointerEvents="none">
-          <View style={styles.headerTitleGroup}>
-            <Text style={styles.eyebrow}>Ta carte</Text>
-            <Text style={styles.title} numberOfLines={1}>
-              Paris
-            </Text>
+        <View style={styles.headerRow} pointerEvents="none">
+          <View style={styles.pinCountChip}>
+            <Text style={styles.pinCount}>{pinCountLabel}</Text>
           </View>
-          <Text style={styles.pinCount}>{pinCountLabel}</Text>
         </View>
       </SafeAreaView>
 
@@ -383,37 +381,21 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     paddingHorizontal: spacing.lg,
   },
-  headerCard: {
+  // Right-aligned row so the count sits at the top-right corner and leaves the
+  // left half of the screen clean over the map tiles.
+  headerRow: {
     marginTop: spacing.xs,
-    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  // Small paper chip carrying the count — keeps the count readable over any
+  // tile without reintroducing a full-width header bar.
+  pinCountChip: {
+    paddingVertical: 6,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.paper,
     borderWidth: 1,
     borderColor: colors.hair,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: spacing.md,
-  },
-  headerTitleGroup: { flexShrink: 1 },
-  // Mono eyebrow — small, wide-tracked, uppercase.
-  eyebrow: {
-    ...type.mono,
-    fontSize: 9,
-    letterSpacing: 2.16, // ~0.24em at 9px
-    color: colors.graphite,
-    fontWeight: '600',
-  },
-  // Grotesque black uppercase title — Balenciaga/MSCHF energy.
-  title: {
-    fontFamily: fonts.display,
-    fontWeight: '900',
-    fontSize: 30,
-    lineHeight: 30,
-    letterSpacing: -1.2, // ~-0.04em at 30px
-    color: colors.ink,
-    marginTop: 4,
-    textTransform: 'uppercase',
   },
   // Mono count — reads as archival log.
   pinCount: {
@@ -422,7 +404,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.54, // ~0.14em at 11px
     color: colors.ink,
     fontWeight: '700',
-    paddingBottom: 4,
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
