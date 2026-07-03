@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Typecheck + tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Typecheck (root)
+        run: npx tsc --noEmit
+
+      - name: Typecheck (functions)
+        run: npx tsc --noEmit
+        working-directory: functions
+
+      - name: Tests (root)
+        run: npx jest --silent
+
+      - name: Tests (functions)
+        run: npm test
+        working-directory: functions
