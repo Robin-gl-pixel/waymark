@@ -360,7 +360,7 @@ export default function App() {
   }
 
   return (
-    <ShareIntentProvider>
+    <ShareIntentProvider options={{ scheme: 'waymark' }}>
       <SafeAreaProvider>
         <NavigationContainer theme={theme} ref={navRef}>
           <AuthProvider>
