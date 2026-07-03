@@ -280,7 +280,7 @@ function Root() {
             options={{ title: 'Ajout depuis Partager', headerBackVisible: false, gestureEnabled: false }}
           />
           <RootStack.Screen name="ExtractConfirm" component={ExtractConfirmScreen} options={{ title: 'Vérifier' }} />
-          <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ title: '' }} />
+          <RootStack.Screen name="LieuDetail" component={LieuDetailScreen} options={{ headerShown: false }} />
           <RootStack.Screen name="MyProfile" component={MyProfileScreen} options={{ title: 'Profil' }} />
           <RootStack.Screen name="EditUsername" component={EditUsernameScreen} options={{ title: 'Changer mon @' }} />
           <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profil' }} />

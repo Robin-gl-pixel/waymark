@@ -1,5 +1,14 @@
 export type LieuCategory = 'resto' | 'bar' | 'café' | 'activité' | 'musée' | 'hôtel' | 'autre';
 
+/**
+ * Owner's relation to a lieu — `wishlist` = «Envie», `visited` = «Allé», null
+ * = unclassified. Surfaced by `<StatusToggle>` in owner mode and by
+ * `<BadgeText>` in friend/follower mode. Persistence lives on the pin
+ * document; wave 2 introduces the field, wave 3 will handle the social
+ * follow-gate rules.
+ */
+export type LieuStatus = 'wishlist' | 'visited';
+
 // Structural match for firebase/firestore Timestamp so screens don't need to import from firebase/*.
 export interface Timestamp {
   readonly seconds: number;
@@ -44,6 +53,13 @@ export interface Lieu {
    */
   savedFromUserId?: string | null;
   savedFromUsername?: string | null;
+  /**
+   * Owner-set relation to the pin: `wishlist` («Envie») / `visited` («Allé»)
+   * / `null` (unclassified). Only the owner writes it — friends read it to
+   * render `<BadgeText>` under the address on their view of the pin.
+   * Undefined on pre-wave-2 docs; treat as `null`.
+   */
+  status?: LieuStatus | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

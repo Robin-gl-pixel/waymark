@@ -39,8 +39,13 @@ export interface LieuxService {
   /** Persist a new lieu. Uploads the screenshot to Storage, writes the Firestore doc, returns the created Lieu. */
   createLieu(userId: string, input: LieuInput): Promise<Lieu>;
 
-  /** Patch fields on an existing lieu. Only `userNotes`, `name`, `city`, `address`, `category` are user-editable. */
-  updateLieu(userId: string, lieuId: string, patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes'>>): Promise<void>;
+  /**
+   * Patch fields on an existing lieu. Only `userNotes`, `name`, `city`,
+   * `address`, `category`, and `status` are user-editable. Passing
+   * `status: null` clears an existing wishlist/visited relation back to
+   * unclassified — matches the `<StatusToggle>` tap-active semantics.
+   */
+  updateLieu(userId: string, lieuId: string, patch: Partial<Pick<Lieu, 'name' | 'city' | 'address' | 'category' | 'userNotes' | 'status'>>): Promise<void>;
 
   /** Delete a lieu and its associated screenshot from Storage. */
   deleteLieu(userId: string, lieuId: string): Promise<void>;

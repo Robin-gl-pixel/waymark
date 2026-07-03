@@ -167,6 +167,46 @@ describe('LieuxService seam contract (InMemoryLieuxService)', () => {
       expect(after!.createdAt.toMillis()).toBe(created.createdAt.toMillis());
       expect(after!.updatedAt.toMillis()).toBeGreaterThan(created.updatedAt.toMillis());
     });
+
+    // --- Wave 2 (#47) — status field ---
+    // The atlas-numbered detail screen calls updateLieu({ status }) when the
+    // owner taps <StatusToggle>. These tests lock the seam behaviour: create
+    // leaves it null, patches round-trip both values and clearing.
+    it('leaves status = null on a freshly created lieu', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      expect(created.status ?? null).toBeNull();
+    });
+
+    it('round-trips status "wishlist" and "visited"', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+
+      await svc.updateLieu(USER, created.id, { status: 'wishlist' });
+      const afterWish = await svc.getLieuById(USER, created.id);
+      expect(afterWish!.status).toBe('wishlist');
+
+      await svc.updateLieu(USER, created.id, { status: 'visited' });
+      const afterVisit = await svc.getLieuById(USER, created.id);
+      expect(afterVisit!.status).toBe('visited');
+    });
+
+    it('clears status back to null when passed status: null', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      await svc.updateLieu(USER, created.id, { status: 'visited' });
+      await svc.updateLieu(USER, created.id, { status: null });
+
+      const after = await svc.getLieuById(USER, created.id);
+      expect(after!.status ?? null).toBeNull();
+    });
+
+    it('does not disturb status when other fields are patched', async () => {
+      const created = await svc.createLieu(USER, makeInput());
+      await svc.updateLieu(USER, created.id, { status: 'wishlist' });
+      await svc.updateLieu(USER, created.id, { userNotes: 'unrelated' });
+
+      const after = await svc.getLieuById(USER, created.id);
+      expect(after!.status).toBe('wishlist');
+      expect(after!.userNotes).toBe('unrelated');
+    });
   });
 
   describe('deleteLieu', () => {
