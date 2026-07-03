@@ -1,5 +1,7 @@
 # Waymark
 
+[![CI](https://github.com/Robin-gl-pixel/waymark/actions/workflows/ci.yml/badge.svg)](https://github.com/Robin-gl-pixel/waymark/actions/workflows/ci.yml)
+
 Screenshot Instagram → pin sur ta carte perso. Zéro saisie.
 
 ## Getting started
