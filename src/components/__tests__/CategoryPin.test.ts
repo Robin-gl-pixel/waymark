@@ -1,7 +1,7 @@
 jest.mock('react-native', () => require('./_rnTestUtils').rnMock());
 
 import CategoryPin from '../CategoryPin';
-import { categoryColor } from '../../theme';
+import { categoryColor, colors } from '../../theme';
 import type { LieuCategory } from '../../types/Lieu';
 import { findFirst, flattenStyle } from './_rnTestUtils';
 
@@ -40,6 +40,19 @@ describe('<CategoryPin />', () => {
     expect(style.shadowOpacity).toBeGreaterThan(0);
     expect(style.shadowOpacity).toBeLessThan(0.5);
   });
+
+  it.each(CATEGORIES)(
+    'draws a 1.5px ink stroke on every %s pin so it reads against the map tile',
+    (category) => {
+      // v8 mockup carries an ink edge on the marker; without it, the chartreuse
+      // Bar hue blended into light OSM/Apple tiles on device. Every category
+      // gets the same stroke so the map reads as one consistent atlas system.
+      const view = findFirst(render({ category }), 'View');
+      const style = flattenStyle(view.props.style);
+      expect(style.borderWidth).toBe(1.5);
+      expect(style.borderColor).toBe(colors.ink);
+    },
+  );
 
   it('renders no text inside the pin', () => {
     const view = findFirst(render({ category: 'hôtel' }), 'View');
