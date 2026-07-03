@@ -12,18 +12,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSocialService } from '../services/socialService';
 import { colors, spacing, type, radius } from '../theme';
 import type { UserProfile } from '../types/User';
+import Avatar from '../components/Avatar';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonRowList } from '../components/SkeletonRow';
 
 export default function BlockedUsersScreen() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [unblocking, setUnblocking] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const blocked = await getSocialService().getBlocked();
       setUsers(blocked);
     } catch (err) {
       console.error(err);
+      setError('Impossible de charger la liste.');
     } finally {
       setLoading(false);
     }
@@ -58,27 +66,45 @@ export default function BlockedUsersScreen() {
     );
   };
 
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <Text style={styles.title}>Comptes bloqués</Text>
+      <Text style={styles.subtitle}>
+        Ils ne peuvent plus voir tes lieux ni te suivre.
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing['3xl'] }} />
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        {renderHeader()}
+        <View style={styles.list}>
+          <SkeletonRowList count={4} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        {renderHeader()}
+        <ErrorState message={error} onRetry={load} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Comptes bloqués</Text>
-        <Text style={styles.subtitle}>
-          Ils ne peuvent plus voir tes lieux ni te suivre.
-        </Text>
-      </View>
+      {renderHeader()}
 
       {users.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>Tu n'as bloqué personne.</Text>
-        </View>
+        <EmptyState
+          icon="shield-checkmark-outline"
+          title="Personne de bloqué"
+          body="Tu n'as bloqué personne. Les comptes bloqués ne verront plus tes lieux."
+        />
       ) : (
         <FlatList
           data={users}
@@ -86,6 +112,7 @@ export default function BlockedUsersScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <View style={styles.row}>
+              <Avatar username={item.username} size={44} />
               <View style={styles.rowText}>
                 <Text style={styles.username}>@{item.username}</Text>
                 {item.displayName ? (
@@ -123,6 +150,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     padding: spacing.lg,
     backgroundColor: colors.bgElevated,
     borderRadius: radius.md,
@@ -143,6 +171,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   unblockLabel: { ...type.caption, color: colors.text, fontWeight: '600' },
-  empty: { padding: spacing['2xl'], alignItems: 'center' },
-  emptyText: { ...type.body, color: colors.textSecondary },
 });

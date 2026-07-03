@@ -15,6 +15,9 @@ import { getSocialService } from '../services/socialService';
 import { colors, radius, spacing, type } from '../theme';
 import type { UserProfile } from '../types/User';
 import type { Timestamp } from '../types/Lieu';
+import Avatar from '../components/Avatar';
+import EmptyState from '../components/EmptyState';
+import { SkeletonRow } from '../components/SkeletonRow';
 
 /**
  * Post-signup seeded follow (GitHub #17).
@@ -152,25 +155,28 @@ export default function SeededFollowScreen({ onComplete }: Props) {
         </Text>
 
         {state.kind === 'loading' && (
-          <View style={styles.centerBlock}>
-            <ActivityIndicator color={colors.accent} />
+          <View style={styles.skeletonWrap}>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
           </View>
         )}
 
         {state.kind === 'error' && (
-          <View style={styles.centerBlock}>
-            <Text style={styles.errorText}>{state.message}</Text>
-          </View>
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Chargement échoué"
+            body={state.message}
+          />
         )}
 
         {state.kind === 'empty' && (
-          <View style={styles.centerBlock}>
-            <Text style={styles.emptyTitle}>Bientôt.</Text>
-            <Text style={styles.emptyBody}>
-              Nos comptes curated arrivent. En attendant, va faire un tour sur
-              la carte.
-            </Text>
-          </View>
+          <EmptyState
+            icon="sparkles-outline"
+            title="Bientôt"
+            body="Nos comptes Waymark Curated arrivent. En attendant, tu peux commencer par ajouter tes propres lieux."
+          />
         )}
 
         {state.kind === 'ready' && (
@@ -222,11 +228,7 @@ function UserRow({ user, on, onToggle, disabled }: RowProps) {
   const meta = user.bio ?? user.displayName ?? null;
   return (
     <View style={styles.row}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarLetter}>
-          {user.username.charAt(0).toUpperCase() || '?'}
-        </Text>
-      </View>
+      <Avatar username={user.username} size={44} />
       <View style={styles.rowBody}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           @{user.username}
@@ -314,34 +316,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing['2xl'],
   },
-  centerBlock: {
-    paddingVertical: spacing['3xl'],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    ...type.h3,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-  emptyBody: {
-    ...type.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  errorText: {
-    ...type.body,
-    color: colors.error,
-    textAlign: 'center',
-  },
   list: {
     borderRadius: radius.md,
     backgroundColor: colors.bgElevated,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+  },
+  skeletonWrap: {
+    paddingHorizontal: spacing.lg,
   },
   row: {
     flexDirection: 'row',
@@ -351,21 +334,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    ...type.h3,
-    color: colors.accent,
-    fontWeight: '700',
   },
   rowBody: { flex: 1 },
   rowTitle: { ...type.h3, color: colors.text, fontWeight: '600' },

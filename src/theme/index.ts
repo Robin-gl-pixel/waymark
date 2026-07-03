@@ -10,6 +10,25 @@ export const colors = {
   error: '#FF5555',
 } as const;
 
+/**
+ * Deterministic avatar palette — 8 muted-vivid hues that read well on a dark
+ * background and stay distinct at a glance in a scrolling list. Consumed by
+ * `src/utils/avatar.ts`; each username hashes to exactly one index.
+ *
+ * Order matters — do not reshuffle without regenerating any cached palette
+ * choices. Adding new colors at the END is safe (nobody's index shifts down).
+ */
+export const avatarPalette = [
+  '#FF6B47', // coral (Waymark accent)
+  '#F5A462', // amber
+  '#E8C547', // gold
+  '#7FB77E', // sage
+  '#4FB8B6', // teal
+  '#5B8DEF', // sky
+  '#9C6EEE', // lavender
+  '#E86AA8', // rose
+] as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,
