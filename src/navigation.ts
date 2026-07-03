@@ -24,16 +24,22 @@ export type RootStackParamList = {
   Report: { targetUid: string; targetLieuId?: string };
   BlockedUsers: undefined;
   ShortcutSetup: undefined;
+  // Settings moved off the tab bar (post-v8 slice D). It's reached via the
+  // gear icon at the top-right of MyProfileScreen as a stack push, so it
+  // pops back to the Profile tab on close.
+  Settings: undefined;
 };
 
 /**
- * Bottom tabs under Main.
+ * Bottom tabs under Main — post-v8 slice D order: Carte · Liste · [+] · Réseau · Toi.
+ * The central `_Add` slot is a fake tab (button that opens Upload on the root
+ * stack, not a screen). Settings was removed from the tab bar; access is now
+ * via the gear icon in MyProfileScreen's header.
  */
 export type TabParamList = {
   Map: { focusLieuId?: string } | undefined;
   List: undefined;
+  _Add: undefined; // Fake tab: central prominent + button that opens Upload.
   Network: undefined;
-  _Add: undefined; // Fake tab: button that opens Upload in the root stack.
   Profile: undefined;
-  Settings: undefined;
 };
