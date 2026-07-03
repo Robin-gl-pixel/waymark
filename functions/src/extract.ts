@@ -135,8 +135,11 @@ export const extract = onCall(
       lat: geo?.lat ?? null,
       lng: geo?.lng ?? null,
       mapboxId: geo?.mapboxId ?? null,
-      // Prefer Mapbox canonical address when Claude didn't get a full one.
-      addressCanonical: vision.address ?? geo?.address ?? null,
+      // Prefer the geocoded canonical when we have one — it's verified against
+      // a live DB (Mapbox / Google / DB dedup) and typically has street+postcode.
+      // vision.address is often a fragment ("Paris 7", "près Bastille") that's
+      // fine to feed into the geocoder but ugly as the displayed address.
+      addressCanonical: geo?.address ?? vision.address ?? null,
     };
   },
 );
