@@ -1,0 +1,12 @@
+# Smoke test — the app launches and the auth screen renders.
+# Gate before running the longer flows: fails fast if the last build/patch
+# broke basic startup.
+appId: com.robinhesse.waymark
+name: Smoke — app launches to auth
+---
+- launchApp:
+    clearState: true
+- assertVisible: Waymark
+- assertVisible: "Vos recos Insta,"
+- assertVisible: "Continue with Apple"
+- assertVisible: "Skip .dev anonymous sign-in."

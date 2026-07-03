@@ -1,0 +1,16 @@
+appId: host.exp.Exponent
+name: smoke-anon-login
+tags:
+  - smoke
+---
+# Uses the dev anonymous sign-in path to bypass Apple Sign In,
+# then asserts the main tabs render.
+- launchApp:
+    clearState: false
+- assertVisible: "Skip (dev anonymous sign-in)"
+- tapOn: "Skip (dev anonymous sign-in)"
+# After login the bottom tab bar mounts. "Réseau" is a unique tab label
+# (App.tsx line 140) so it's a good landing signal.
+- assertVisible:
+    text: "Réseau"
+    timeout: 15000

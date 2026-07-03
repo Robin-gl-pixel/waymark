@@ -1,0 +1,30 @@
+# Golden path — from clean launch through Upload screen.
+#
+# LIMIT: Maestro can't reliably drive iOS 26's PHPicker (cell taps don't
+# register as selection). We test everything WE own — auth, navigation,
+# picker-open — and stop there. The extract → confirm → save flow is
+# covered by curl in docs/preflight.md instead (server-authoritative).
+appId: com.robinhesse.waymark
+name: Golden path (up to picker open)
+---
+- launchApp:
+    clearState: true
+
+# --- Auth ---
+- assertVisible: "Skip .dev anonymous sign-in."
+- tapOn: "Skip .dev anonymous sign-in."
+- extendedWaitUntil:
+    visible: "Aucun pin pour l'instant"
+    timeout: 10000
+
+# --- Upload flow (up to but not through the picker) ---
+- tapOn: "\\+ Ajouter un lieu"
+- assertVisible: "Ajouter un lieu"
+- assertVisible: "Choisir un screenshot"
+- tapOn: "Choisir un screenshot"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# --- Picker chrome should be visible (iOS system Photos picker) ---
+- assertVisible: "Photos"
+- assertVisible: "Collections"
