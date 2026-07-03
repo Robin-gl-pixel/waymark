@@ -50,7 +50,8 @@ jobs:
     # Only on push to main — macOS runners are ~10x the price of ubuntu.
     # A slow but authoritative gate before the main branch takes new code.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: macos-14
+    # macos-15 runner ships Xcode 16.x, which RN 0.81.5 requires (macos-14 has 15.4)
+    runs-on: macos-15
     timeout-minutes: 60
     needs: test
 
@@ -84,6 +85,11 @@ jobs:
 
       - name: Install root dependencies
         run: npm ci
+
+      - name: Select latest Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app || true
+          xcodebuild -version
 
       - name: Install Maestro
         run: |
