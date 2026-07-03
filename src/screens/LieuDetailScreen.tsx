@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,14 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Share,
+  Keyboard,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useAuth } from '../auth/AuthContext';
@@ -30,6 +34,7 @@ import {
 } from '../services/lieuxService';
 import { getSocialService } from '../services/socialService';
 import { statusBadgeIcon, statusBadgeLabel } from '../lib/statusBadge';
+import { buildShareMessage } from './lieuDetailHelpers';
 import { colors, spacing, type, radius } from '../theme';
 import type { Lieu, LieuCategory, LieuPhoto } from '../types/Lieu';
 import type { UserProfile } from '../types/User';
@@ -92,9 +97,13 @@ export default function LieuDetailScreen() {
   const isMine = readUid !== null && user?.uid === readUid;
   const [lieu, setLieu] = useState<Lieu | null>(null);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState('');
+  // Notes are edited through an explicit collapse/expand affordance now — no
+  // more autosave-on-blur. `editingNote` gates the TextInput; `noteDraft`
+  // holds the in-flight value that gets committed via Enregistrer.
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   // Owner of the pin I'm viewing when it's not mine — used to power the
   // "Sauver dans ma carte" credit + isCurated badge check.
   const [otherOwner, setOtherOwner] = useState<UserProfile | null>(null);
@@ -102,8 +111,6 @@ export default function LieuDetailScreen() {
   // upgrade "via @X" to a "Waymark Curated" badge when applicable.
   const [savedFromProfile, setSavedFromProfile] = useState<UserProfile | null>(null);
   const [resaving, setResaving] = useState(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSave = useRef<string | null>(null);
   // Gallery state — edit mode toggles the reorder/delete affordances; lightbox
   // index null means the lightbox is closed.
   const [editMode, setEditMode] = useState(false);
@@ -116,7 +123,6 @@ export default function LieuDetailScreen() {
       const svc = getLieuxService();
       const fetched = await svc.getLieuById(readUid, lieuId);
       setLieu(fetched);
-      setNotes(fetched?.userNotes ?? '');
       if (fetched) {
         // Resolve every gallery photo's signed URL — the readPhotos synthesis
         // in the seam's hydrator guarantees `photos[]` is populated even for
@@ -149,57 +155,41 @@ export default function LieuDetailScreen() {
     load();
   }, [load]);
 
-  const flushNotes = useCallback(async () => {
-    if (!user || !lieu) return;
-    const next = (pendingSave.current ?? notes).trim();
-    pendingSave.current = null;
-    if ((lieu.userNotes ?? '') === next) return;
-    setSaving(true);
-    try {
-      await getLieuxService().updateLieu(user.uid, lieu.id, { userNotes: next || null });
-      // Reflect the persisted value locally so subsequent equality checks skip no-op writes.
-      setLieu({ ...lieu, userNotes: next || null });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  }, [user, lieu, notes]);
-
-  const onNotesChange = (text: string) => {
-    setNotes(text);
-    pendingSave.current = text;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    // 800 ms is long enough to skip mid-word writes and short enough to feel autosaved.
-    saveTimer.current = setTimeout(() => {
-      flushNotes().catch(console.error);
-    }, 800);
-  };
-
-  const onNotesBlur = () => {
-    // Blur is a hard flush: cancel the pending timer and write immediately.
-    if (saveTimer.current) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
-    flushNotes().catch(console.error);
-  };
-
-  // Guarantee an in-flight edit lands even if the screen unmounts.
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) {
-        clearTimeout(saveTimer.current);
-        flushNotes().catch(console.error);
-      }
-    };
-  }, [flushNotes]);
-
   const openInMaps = () => {
     if (!lieu) return;
     // maps: scheme opens Apple Maps; Google Maps app hijacks if installed and user set it as default.
     Linking.openURL(`maps://?q=${encodeURIComponent(lieu.name)}&ll=${lieu.lat},${lieu.lng}`);
   };
+
+  // Header share button — native iOS Share sheet with a short text-only
+  // message ("Chez Alice — 1 rue du Test, Paris"). No URL is included yet;
+  // once the public web view lands we'll append `waymark.app/l/{shareId}`.
+  const onShareLieu = useCallback(async () => {
+    if (!lieu) return;
+    try {
+      await Share.share({ message: buildShareMessage(lieu) });
+    } catch (err) {
+      console.warn('[LieuDetail] share failed', err);
+    }
+  }, [lieu]);
+
+  // Header nav: title stays blank; add a share icon on the right per the v8
+  // spec. Ink glyph on paper — matches the header tint set at App.tsx.
+  useLayoutEffect(() => {
+    nav.setOptions({
+      headerRight: () =>
+        lieu ? (
+          <Pressable
+            onPress={onShareLieu}
+            hitSlop={12}
+            accessibilityLabel="Partager ce lieu"
+            testID="lieu-share"
+          >
+            <Ionicons name="share-outline" size={22} color={colors.ink} />
+          </Pressable>
+        ) : null,
+    });
+  }, [nav, lieu, onShareLieu]);
 
   const onResaveFromNetwork = async () => {
     if (!lieu || !user || !readUid || !otherOwner) return;
@@ -300,6 +290,47 @@ export default function LieuDetailScreen() {
     );
   };
 
+  // Notes editor — collapse/expand. On open, we pre-fill from the pin's
+  // current userNotes so editing feels seamless. Save persists via
+  // updateLieu({ userNotes }); Cancel discards the draft.
+  const onStartEditNote = () => {
+    if (!lieu) return;
+    setNoteDraft(lieu.userNotes ?? '');
+    setEditingNote(true);
+  };
+
+  const onCancelEditNote = () => {
+    setEditingNote(false);
+    setNoteDraft('');
+    Keyboard.dismiss();
+  };
+
+  const onSaveNote = async () => {
+    if (!user || !lieu) return;
+    const next = noteDraft.trim();
+    // Empty string normalizes to null so we don't leave whitespace values in
+    // Firestore that read as "has a note" downstream.
+    const nextValue = next.length > 0 ? next : null;
+    // Skip the network round-trip when the value is unchanged.
+    if ((lieu.userNotes ?? null) === nextValue) {
+      setEditingNote(false);
+      Keyboard.dismiss();
+      return;
+    }
+    setSavingNote(true);
+    try {
+      await getLieuxService().updateLieu(user.uid, lieu.id, { userNotes: nextValue });
+      setLieu({ ...lieu, userNotes: nextValue });
+      setEditingNote(false);
+      Keyboard.dismiss();
+    } catch (err) {
+      console.error('[LieuDetail] save note failed', err);
+      Alert.alert('Erreur', "La note n'a pas pu être enregistrée. Réessaie.");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   // Optimistically write `nextPhotos` into local state, then commit. On error,
   // reload from the server to get the source-of-truth ordering back.
   const applyPhotoMutation = useCallback(
@@ -379,8 +410,10 @@ export default function LieuDetailScreen() {
       );
       return;
     }
-    // Ask user: camera or library. Small ActionSheet-style Alert.
-    Alert.alert('Ajouter une photo', undefined, [
+    // Ask user: camera or library. An empty message string (not undefined) is
+    // used because some RN Alert stacks render the buttons oddly when message
+    // is `undefined` — the empty string is the boring/safe form.
+    Alert.alert('Ajouter une photo', '', [
       {
         text: 'Prendre une photo',
         onPress: () => launchPickerAndAdd('camera'),
@@ -487,6 +520,11 @@ export default function LieuDetailScreen() {
   const heroUri = heroPhoto ? photoUrls[heroPhoto.storagePath] ?? null : null;
   const tailPhotos: LieuPhoto[] = lieu.photos.slice(1);
   const canAddMore = lieu.photos.length < MAX_PHOTOS_PER_LIEU;
+  // Show the "+ Ajouter" tile whenever the owner can add a photo — no need to
+  // enter edit mode first. The tile was previously edit-mode-only, which the
+  // founder called out as undiscoverable during the v8 device test.
+  const showAddTile = canEditPhotos && canAddMore;
+  const hasUserNote = !!(lieu.userNotes && lieu.userNotes.trim().length > 0);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -698,10 +736,12 @@ export default function LieuDetailScreen() {
           </Pressable>
         </View>
 
-        {/* Gallery strip — photos[1..] as horizontal thumbnails. When in edit
-            mode, each tile gets a delete X + move arrows, and a "+ Ajouter"
-            tile appears at the tail (hidden at the 10-photo cap). */}
-        {(tailPhotos.length > 0 || (editMode && canAddMore)) && (
+        {/* Gallery strip — photos[1..] as horizontal thumbnails, plus a
+            persistent "+ Ajouter" tile at the tail for the owner (v8 polish:
+            the tile used to only appear in edit mode, which was
+            undiscoverable). Edit mode continues to reveal per-tile delete and
+            reorder affordances. */}
+        {(tailPhotos.length > 0 || showAddTile) && (
           <View style={styles.stripSection} testID="lieu-strip">
             <ScrollView
               horizontal
@@ -770,8 +810,7 @@ export default function LieuDetailScreen() {
                   </View>
                 );
               })}
-              {/* "+ Ajouter" tile — only in edit mode, hidden at the cap. */}
-              {editMode && canAddMore && (
+              {showAddTile && (
                 <Pressable
                   onPress={onAddPhoto}
                   style={[styles.tile, styles.addTile]}
@@ -780,7 +819,7 @@ export default function LieuDetailScreen() {
                   accessibilityLabel="Ajouter une photo"
                 >
                   {uploadingPhoto ? (
-                    <ActivityIndicator color={colors.accent} />
+                    <ActivityIndicator color={colors.ink} />
                   ) : (
                     <Text style={styles.addTileLabel}>+</Text>
                   )}
@@ -792,23 +831,83 @@ export default function LieuDetailScreen() {
 
         <View style={styles.body}>
           {isMine && (
-            <>
-              <Text style={styles.label}>Mes notes</Text>
-              <TextInput
-                value={notes}
-                onChangeText={onNotesChange}
-                onBlur={onNotesBlur}
-                placeholder="Réserver 2 semaines avant, aller le vendredi soir, éviter en été…"
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                style={styles.notesInput}
-              />
-              {saving && <Text style={styles.saving}>Sauvegarde…</Text>}
+            <View style={styles.noteSection}>
+              <Text style={styles.noteLabel}>MA NOTE</Text>
 
-              <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
-                <Text style={styles.deleteBtnLabel}>Supprimer ce lieu</Text>
-              </Pressable>
-            </>
+              {editingNote ? (
+                <>
+                  <TextInput
+                    value={noteDraft}
+                    onChangeText={setNoteDraft}
+                    placeholder="Réserver 2 semaines avant, aller le vendredi soir, éviter en été…"
+                    placeholderTextColor={colors.textTertiary}
+                    multiline
+                    autoFocus
+                    style={styles.notesInput}
+                    testID="lieu-note-input"
+                  />
+                  <Text style={styles.noteCaption} testID="lieu-note-caption">
+                    VISIBLE À TOI ET À TES FOLLOWERS
+                  </Text>
+                  <View style={styles.noteActionsRow}>
+                    <Pressable
+                      onPress={onCancelEditNote}
+                      disabled={savingNote}
+                      style={({ pressed }) => [
+                        styles.noteBtn,
+                        styles.noteBtnGhost,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      testID="lieu-note-cancel"
+                    >
+                      <Text style={styles.noteBtnGhostLabel}>ANNULER</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={onSaveNote}
+                      disabled={savingNote}
+                      style={({ pressed }) => [
+                        styles.noteBtn,
+                        styles.noteBtnPrimary,
+                        pressed && { opacity: 0.85 },
+                        savingNote && { opacity: 0.6 },
+                      ]}
+                      testID="lieu-note-save"
+                    >
+                      {savingNote ? (
+                        <ActivityIndicator color={colors.paper} />
+                      ) : (
+                        <Text style={styles.noteBtnPrimaryLabel}>ENREGISTRER</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </>
+              ) : hasUserNote ? (
+                <Pressable
+                  onPress={onStartEditNote}
+                  style={({ pressed }) => [styles.noteExisting, pressed && { opacity: 0.85 }]}
+                  testID="lieu-note-edit"
+                  accessibilityLabel="Modifier la note"
+                >
+                  <Text style={styles.noteExistingBody}>{lieu.userNotes}</Text>
+                  <Text style={styles.noteExistingCta}>MODIFIER</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={onStartEditNote}
+                  style={({ pressed }) => [styles.noteAddBtn, pressed && { opacity: 0.85 }]}
+                  testID="lieu-note-add"
+                  accessibilityLabel="Ajouter une note"
+                >
+                  <Text style={styles.noteAddBtnLabel}>AJOUTER UNE NOTE</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {isMine && (
+            <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
+              <Text style={styles.deleteBtnLabel}>Supprimer ce lieu</Text>
+            </Pressable>
           )}
         </View>
       </ScrollView>
@@ -827,6 +926,12 @@ export default function LieuDetailScreen() {
  * Full-screen pager over the pin's gallery. Uses a paged horizontal
  * ScrollView — native swipe left/right, no gesture-handler dependency needed.
  * Rendered inside a Modal so it overlays even the SafeArea insets.
+ *
+ * v8 polish (post-device-test): the founder reported the lightbox as "stuck"
+ * because the single close chip was easy to miss. We now dismiss on any of:
+ *   1. Tap the paper-on-ink X chip top-right (accessible target).
+ *   2. Tap the black letterbox around the image.
+ *   3. Swipe the lightbox down (matches iOS photo viewer convention).
  */
 function Lightbox({
   photos,
@@ -865,6 +970,25 @@ function Lightbox({
     [photos, urls],
   );
 
+  // Swipe-down-to-dismiss. Only responds when the vertical drag dominates the
+  // horizontal one (otherwise the parent horizontal ScrollView gets to page).
+  // Threshold of 80px or a strong downward flick (>0.7 px/ms) fires onClose.
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_evt, g) =>
+          g.dy > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5,
+        onPanResponderRelease: (_evt, g) => {
+          if (g.dy > 80 || g.vy > 0.7) {
+            onClose();
+          }
+        },
+        onPanResponderTerminationRequest: () => true,
+      }),
+    [onClose],
+  );
+
   return (
     <Modal
       visible={visible}
@@ -873,7 +997,7 @@ function Lightbox({
       onRequestClose={onClose}
       testID="lieu-lightbox"
     >
-      <View style={styles.lightboxRoot}>
+      <View style={styles.lightboxRoot} {...panResponder.panHandlers}>
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -881,29 +1005,42 @@ function Lightbox({
           showsHorizontalScrollIndicator={false}
         >
           {pages.map((page) => (
-            <View
+            <Pressable
               key={page.key}
+              onPress={onClose}
               style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
+              testID={`lieu-lightbox-page-${page.key}`}
+              accessibilityLabel="Fermer la vue plein écran"
             >
               {page.uri ? (
-                <Image
-                  source={{ uri: page.uri }}
-                  style={{ width, height }}
-                  resizeMode="contain"
-                />
+                // Nested Pressable with a no-op handler absorbs taps on the
+                // image itself so tapping the photo doesn't dismiss — only
+                // taps on the surrounding black letterbox do. This matches
+                // the iOS Photos app convention.
+                <Pressable
+                  onPress={() => {}}
+                  style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Image
+                    source={{ uri: page.uri }}
+                    style={{ width, height }}
+                    resizeMode="contain"
+                  />
+                </Pressable>
               ) : (
-                <ActivityIndicator color={colors.text} />
+                <ActivityIndicator color={colors.paper} />
               )}
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
         <Pressable
           onPress={onClose}
           style={styles.lightboxClose}
+          hitSlop={12}
           testID="lieu-lightbox-close"
           accessibilityLabel="Fermer"
         >
-          <Text style={styles.lightboxCloseLabel}>×</Text>
+          <Ionicons name="close" size={22} color={colors.ink} />
         </Pressable>
       </View>
     </Modal>
@@ -932,7 +1069,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editHeroBtnLabel: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  editHeroBtnLabel: { color: colors.paper, fontSize: 18, fontWeight: '700' },
   heroEditOverlay: {
     position: 'absolute',
     top: spacing.md,
@@ -985,7 +1122,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  deleteX: { color: colors.text, fontSize: 16, lineHeight: 18, fontWeight: '700' },
+  deleteX: { color: colors.paper, fontSize: 16, lineHeight: 18, fontWeight: '700' },
   tileArrowsRow: {
     position: 'absolute',
     bottom: -6,
@@ -1003,15 +1140,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileArrowDisabled: { opacity: 0.3 },
-  moveArrow: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  moveArrow: { color: colors.paper, fontSize: 14, fontWeight: '700' },
   addTile: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.ink,
     borderStyle: 'dashed',
+    backgroundColor: 'transparent',
   },
-  addTileLabel: { color: colors.accent, fontSize: 32, fontWeight: '300' },
+  addTileLabel: { color: colors.ink, fontSize: 32, fontWeight: '300' },
   categoryTag: {
     ...type.caption,
     color: colors.accent,
@@ -1046,7 +1184,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusToggleLabelActive: {
-    color: colors.text,
+    color: colors.paper,
   },
   // #42 — read-only friend badge. Same vertical slot as the owner toggles
   // (marginTop mirrors statusRow) so the position stays symmetric.
@@ -1094,7 +1232,7 @@ const styles = StyleSheet.create({
   },
   curatedLabel: {
     ...type.caption,
-    color: colors.text,
+    color: colors.paper,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
@@ -1105,7 +1243,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.xl,
   },
-  mapsBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
+  mapsBtnLabel: { ...type.h3, color: colors.paper, fontWeight: '600' },
   secondaryBtn: {
     height: 56,
     borderRadius: radius.pill,
@@ -1116,13 +1254,45 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   secondaryBtnLabel: { ...type.h3, color: colors.text, fontWeight: '600' },
-  label: {
-    ...type.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xl,
+  // Notes editor — v8 polish: collapse/expand affordance replaces the always
+  // -visible TextInput. Balenciaga-mono uppercase button when empty, tap to
+  // open the editor with explicit save / cancel and a visibility caption.
+  noteSection: { marginTop: spacing.xl },
+  noteLabel: {
+    ...type.mono,
+    color: colors.ink,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  },
+  noteAddBtn: {
+    minHeight: 56,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  noteAddBtnLabel: {
+    ...type.mono,
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  noteExisting: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    backgroundColor: 'transparent',
+  },
+  noteExistingBody: {
+    ...type.body,
+    color: colors.text,
+    lineHeight: 22,
+  },
+  noteExistingCta: {
+    ...type.mono,
+    color: colors.ink,
+    fontWeight: '700',
+    marginTop: spacing.md,
   },
   notesInput: {
     ...type.body,
@@ -1136,7 +1306,41 @@ const styles = StyleSheet.create({
     minHeight: 96,
     textAlignVertical: 'top',
   },
-  saving: { ...type.micro, color: colors.textTertiary, marginTop: spacing.xs },
+  noteCaption: {
+    ...type.monoSm,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  noteActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  noteBtn: {
+    flex: 1,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  noteBtnGhost: {
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    backgroundColor: 'transparent',
+  },
+  noteBtnGhostLabel: {
+    ...type.mono,
+    color: colors.ink,
+    fontWeight: '700',
+  },
+  noteBtnPrimary: {
+    backgroundColor: colors.ink,
+  },
+  noteBtnPrimaryLabel: {
+    ...type.mono,
+    color: colors.paper,
+    fontWeight: '700',
+  },
   deleteBtn: {
     marginTop: spacing['3xl'],
     height: 56,
@@ -1152,6 +1356,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  // v8 polish: paper chip with ink X, top-right, comfortably above the notch
+  // and hit-slop enlarged. The chip is intentionally *paper* (not translucent
+  // black) so it reads as a control, not a shadow — matches the "ink X on
+  // paper" spec from the founder's feedback.
   lightboxClose: {
     position: 'absolute',
     top: spacing['3xl'],
@@ -1159,9 +1367,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: colors.paper,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lightboxCloseLabel: { color: colors.text, fontSize: 24, fontWeight: '700' },
 });
