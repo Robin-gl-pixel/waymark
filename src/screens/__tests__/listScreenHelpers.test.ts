@@ -5,6 +5,7 @@ import {
   formatCityShort,
   formatDateCompact,
   formatEntryNumber,
+  matchesQuery,
   resolvePinStatus,
 } from '../listScreenHelpers';
 import type { Lieu, LieuCategory } from '../../types/Lieu';
@@ -166,18 +167,88 @@ describe('resolvePinStatus', () => {
 });
 
 describe('buildMetaPrefix', () => {
-  it('joins category · city · date with " · " when no status follows', () => {
+  it('joins category · city with " · " when no status follows — no date, dropped in post-v8 polish', () => {
     const lieu = makeLieu();
-    expect(buildMetaPrefix(lieu, false)).toBe('Bar · Paris 7 · 03·07');
+    expect(buildMetaPrefix(lieu, false)).toBe('Bar · Paris 7');
   });
 
   it('appends a trailing " · " when a status badge will be rendered inline', () => {
     const lieu = makeLieu();
-    expect(buildMetaPrefix(lieu, true)).toBe('Bar · Paris 7 · 03·07 · ');
+    expect(buildMetaPrefix(lieu, true)).toBe('Bar · Paris 7 · ');
   });
 
   it('falls back to the raw city when arrondissement extraction fails', () => {
     const lieu = makeLieu({ city: 'Lyon', address: '69001 Lyon', category: 'resto' });
-    expect(buildMetaPrefix(lieu, false)).toBe('Resto · Lyon · 03·07');
+    expect(buildMetaPrefix(lieu, false)).toBe('Resto · Lyon');
+  });
+
+  it('never includes a DD·MM date fragment (regression guard)', () => {
+    // Founder feedback post-v8: the save-date was cut from the row meta line.
+    // Detail screen still shows the full date — list rows must not reintroduce it.
+    const lieu = makeLieu();
+    expect(buildMetaPrefix(lieu, false)).not.toMatch(/\d{2}·\d{2}/);
+    expect(buildMetaPrefix(lieu, true)).not.toMatch(/\d{2}·\d{2}/);
+  });
+});
+
+describe('matchesQuery', () => {
+  it('matches every pin on an empty / whitespace query — the caller can skip filtering', () => {
+    const lieu = makeLieu();
+    expect(matchesQuery(lieu, '')).toBe(true);
+    expect(matchesQuery(lieu, '   ')).toBe(true);
+  });
+
+  it('matches on the venue name, case-insensitive', () => {
+    const lieu = makeLieu({ name: 'Le Gainsbarre' });
+    expect(matchesQuery(lieu, 'gains')).toBe(true);
+    expect(matchesQuery(lieu, 'GAINS')).toBe(true);
+    expect(matchesQuery(lieu, 'gainsbarre')).toBe(true);
+  });
+
+  it('folds accents both ways — "cafe" hits "Café", "élysée" hits "elysee"', () => {
+    expect(matchesQuery(makeLieu({ name: 'Café des Épices' }), 'cafe')).toBe(true);
+    expect(matchesQuery(makeLieu({ name: 'Café des Épices' }), 'epices')).toBe(true);
+    expect(matchesQuery(makeLieu({ name: 'Elysee Palace' }), 'élysée')).toBe(true);
+  });
+
+  it('matches on the compacted city ("Paris 7")', () => {
+    const lieu = makeLieu({ city: 'Paris', address: '5 rue de Verneuil, 75007 Paris' });
+    expect(matchesQuery(lieu, 'paris 7')).toBe(true);
+  });
+
+  it('matches on the raw city so "paris" alone still surfaces every Parisian pin', () => {
+    const lieu = makeLieu({ city: 'Paris', address: '5 rue de Verneuil, 75007 Paris' });
+    expect(matchesQuery(lieu, 'paris')).toBe(true);
+  });
+
+  it('matches non-Paris cities on the raw city name', () => {
+    const lieu = makeLieu({ city: 'Lyon', address: '69001 Lyon' });
+    expect(matchesQuery(lieu, 'lyon')).toBe(true);
+  });
+
+  it('matches on the category label (French display form)', () => {
+    expect(matchesQuery(makeLieu({ category: 'bar' }), 'bar')).toBe(true);
+    expect(matchesQuery(makeLieu({ category: 'resto' }), 'resto')).toBe(true);
+    // Accent folding on the label too — "cafe" hits "Café".
+    expect(matchesQuery(makeLieu({ category: 'café' }), 'cafe')).toBe(true);
+    expect(matchesQuery(makeLieu({ category: 'hôtel' }), 'hotel')).toBe(true);
+  });
+
+  it('rejects a query that has no substring hit anywhere', () => {
+    const lieu = makeLieu({
+      name: 'Le Gainsbarre',
+      city: 'Paris',
+      category: 'bar',
+    });
+    expect(matchesQuery(lieu, 'passerini')).toBe(false);
+    expect(matchesQuery(lieu, 'marseille')).toBe(false);
+    expect(matchesQuery(lieu, 'resto')).toBe(false);
+  });
+
+  it("doesn't bleed one field into another via the join glue", () => {
+    // Query spanning name→city must not match. We join fields with whitespace
+    // padding — a literal "barreparis" search must return false.
+    const lieu = makeLieu({ name: 'Le Gainsbarre', city: 'Paris', category: 'bar' });
+    expect(matchesQuery(lieu, 'barreparis')).toBe(false);
   });
 });

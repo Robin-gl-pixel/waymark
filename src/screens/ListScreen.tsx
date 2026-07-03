@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ import type { RootStackParamList } from '../navigation';
 import {
   buildMetaPrefix,
   formatEntryNumber,
+  matchesQuery,
   resolvePinStatus,
 } from './listScreenHelpers';
 
@@ -47,6 +49,23 @@ export default function ListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const trimmedQuery = query.trim();
+  // Pre-tag each pin with its unfiltered `Nº` so search-filter doesn't
+  // renumber the visible rows. `Nº 048` must stay tied to the same pin
+  // whether or not the list is filtered — it's a stable atlas index.
+  const annotated = useMemo(
+    () => lieux.map((lieu, i) => ({ lieu, entryNumber: formatEntryNumber(i, lieux.length) })),
+    [lieux],
+  );
+  const visible = useMemo(
+    () =>
+      trimmedQuery
+        ? annotated.filter(({ lieu }) => matchesQuery(lieu, trimmedQuery))
+        : annotated,
+    [annotated, trimmedQuery],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -103,12 +122,31 @@ export default function ListScreen() {
         </View>
       </View>
 
+      <View style={styles.searchWrap}>
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Chercher un lieu"
+          placeholderTextColor={colors.graphite}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          spellCheck={false}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          accessibilityLabel="Chercher un lieu"
+        />
+      </View>
+
       {error && <Text style={styles.error}>{error}</Text>}
 
       <FlatList
-        data={lieux}
-        keyExtractor={(item) => item.id}
+        data={visible}
+        keyExtractor={(item) => item.lieu.id}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -117,7 +155,14 @@ export default function ListScreen() {
           />
         }
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : trimmedQuery ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Aucun résultat</Text>
+              <Text style={styles.emptyBody}>
+                {`Aucun résultat pour "${trimmedQuery}"`}
+              </Text>
+            </View>
+          ) : (
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>Rien encore</Text>
               <Text style={styles.emptyBody}>
@@ -126,11 +171,11 @@ export default function ListScreen() {
             </View>
           )
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <LieuRow
-            lieu={item}
-            entryNumber={formatEntryNumber(index, lieux.length)}
-            onPress={() => nav.navigate('LieuDetail', { lieuId: item.id })}
+            lieu={item.lieu}
+            entryNumber={item.entryNumber}
+            onPress={() => nav.navigate('LieuDetail', { lieuId: item.lieu.id })}
           />
         )}
       />
@@ -270,6 +315,21 @@ const styles = StyleSheet.create({
     color: colors.ink,
     textTransform: 'uppercase',
     ...titleStyle,
+  },
+  searchWrap: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  searchInput: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    color: colors.ink,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.hair,
+    backgroundColor: colors.paper,
   },
   list: {
     paddingHorizontal: spacing.xl,
