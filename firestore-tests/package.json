@@ -1,5 +1,5 @@
 {
-  "name": "waymark-firestore-tests",
+  "name": "amble-firestore-tests",
   "description": "Firestore rules unit tests (run against the local emulator).",
   "private": true,
   "scripts": {

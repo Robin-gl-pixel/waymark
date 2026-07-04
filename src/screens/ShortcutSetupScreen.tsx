@@ -118,8 +118,8 @@ export default function ShortcutSetupScreen() {
         <Text style={styles.eyebrow}>Nº 07 · Shortcut iOS</Text>
         <Text style={styles.title}>Ajouter un lieu sans ouvrir l'app</Text>
         <Text style={styles.lede}>
-          Depuis Photos ou Instagram, tape Partager → "Add to Waymark" → une notification t'annonce
-          l'ajout. Le Shortcut envoie l'image à Waymark avec ton token secret.
+          Depuis Photos ou Instagram, tape Partager → "Add to Amble" → une notification t'annonce
+          l'ajout. Le Shortcut envoie l.image à Amble avec ton token secret.
         </Text>
 
         <Text style={styles.sectionEyebrow}>Étape 01 · Ton token</Text>
@@ -166,7 +166,7 @@ export default function ShortcutSetupScreen() {
 
         <Text style={styles.sectionEyebrow}>Étape 03 · Utiliser</Text>
         <Text style={styles.sectionBody}>
-          Dans Photos (ou Insta), tape Partager, choisis "Add to Waymark". Le lieu apparaît dans ta
+          Dans Photos (ou Insta), tape Partager, choisis "Add to Amble". Le lieu apparaît dans ta
           liste à la prochaine ouverture.
         </Text>
 

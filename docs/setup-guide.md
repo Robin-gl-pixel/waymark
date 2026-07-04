@@ -1,6 +1,6 @@
-# Waymark — Manual Setup Guide
+# Amble — Manual Setup Guide
 
-Everything Robin needs to click through in browsers, Apple Developer portal, and Xcode so that when the Waymark code lands, it will compile and Sign in with Apple will work end-to-end.
+Everything Robin needs to click through in browsers, Apple Developer portal, and Xcode so that when the Amble code lands, it will compile and Sign in with Apple will work end-to-end.
 
 Estimated time: **30–45 minutes**. Do the sections in order — later steps depend on earlier ones (Apple Team ID → App ID → Services ID → Key → Firebase).
 
@@ -16,7 +16,7 @@ Before you start, confirm:
 - [ ] Google account signed in to browser (for Firebase Console)
 - [ ] Expo account: **`robiintesteur`** (verified from Theater's `app.json` — reuse this account)
 
-If you want a fresh Expo account for Waymark (recommended for cleaner billing/limits), sign in at https://expo.dev and create one; otherwise keep `robiintesteur`.
+If you want a fresh Expo account for Amble (recommended for cleaner billing/limits), sign in at https://expo.dev and create one; otherwise keep `robiintesteur`.
 
 ---
 
@@ -26,22 +26,22 @@ If you want a fresh Expo account for Waymark (recommended for cleaner billing/li
 
 1. Open https://console.firebase.google.com/
 2. Click **Add project** (or "Create a project" if this is your first).
-3. Project name: **`waymark-app`**
-   - Firebase will auto-generate a project ID like `waymark-app` or `waymark-app-XXXXX`. Accept whatever it suggests — you don't need it to be pretty.
+3. Project name: **`amble-app`**
+   - Firebase will auto-generate a project ID like `amble-app` or `amble-app-XXXXX`. Accept whatever it suggests — you don't need it to be pretty.
 4. Google Analytics: **enable** (choose or create an account — "Default Account for Firebase" is fine).
 5. Wait ~30 seconds for provisioning, then click **Continue**.
 
 ### 1b. Add the iOS app
 
 1. On the Firebase project overview, click the **iOS+** icon ("Add app → iOS").
-2. **Apple bundle ID:** `com.robinhesse.waymark`
-   - Format check: reverse-DNS, all lowercase, no underscores, no spaces. `com.robinhesse.waymark` is valid.
+2. **Apple bundle ID:** `com.robinhesse.amble`
+   - Format check: reverse-DNS, all lowercase, no underscores, no spaces. `com.robinhesse.amble` is valid.
    - Write it down — you'll use the **exact same string** in the Apple Developer portal (Section 2) and in `app.json` later. A single character mismatch breaks everything.
-3. App nickname: `Waymark iOS` (cosmetic only)
+3. App nickname: `Amble iOS` (cosmetic only)
 4. App Store ID: **leave blank** (not on App Store yet)
 5. Click **Register app**.
 6. Click **Download GoogleService-Info.plist** — this is a one-click download.
-7. **Where to put it:** save it to `/Users/robinhesse/Documents/1. GitHub/3. Waymark/GoogleService-Info.plist` (project root).
+7. **Where to put it:** save it to `/Users/robinhesse/Documents/1. GitHub/3. Amble/GoogleService-Info.plist` (project root).
    - When the Expo project scaffolds, `app.json` will reference it via `ios.googleServicesFile: "./GoogleService-Info.plist"`. Do **not** commit this file to git — I'll add it to `.gitignore` when the code lands.
 8. Skip the "Add Firebase SDK" and "Add initialization code" steps — the Expo template handles those. Click **Next → Next → Continue to console**.
 
@@ -97,8 +97,8 @@ You need **four things** from this section, all pasted into Firebase at step 2e:
 1. https://developer.apple.com/account/resources/identifiers/list
 2. Click the **+** next to "Identifiers".
 3. Select **App IDs** → **Continue** → Type **App** → **Continue**.
-4. Description: `Waymark iOS App`
-5. **Bundle ID:** Explicit → `com.robinhesse.waymark` (must match Firebase exactly).
+4. Description: `Amble iOS App`
+5. **Bundle ID:** Explicit → `com.robinhesse.amble` (must match Firebase exactly).
 6. Scroll the capabilities list and check **Sign In with Apple** (leave "Enable as a primary App ID" selected — this is the default and correct choice).
 7. Click **Continue → Register**.
 
@@ -108,16 +108,16 @@ Firebase's Apple provider needs a **Services ID** as its OAuth client ID — thi
 
 1. Back at https://developer.apple.com/account/resources/identifiers/list → **+**.
 2. Select **Services IDs** → **Continue**.
-3. Description: `Waymark Sign In Service`
-4. **Identifier:** `com.robinhesse.waymark.signin`
+3. Description: `Amble Sign In Service`
+4. **Identifier:** `com.robinhesse.amble.signin`
    - Convention: App ID + `.signin` suffix. Must be **different** from the App ID.
 5. Continue → Register.
 6. Now click the Services ID you just created to edit it.
 7. Check **Sign In with Apple** → click **Configure**.
-8. Primary App ID: select `com.robinhesse.waymark` (the App ID from 2a).
+8. Primary App ID: select `com.robinhesse.amble` (the App ID from 2a).
 9. **Domains and Return URLs** — get these from Firebase:
-   - In Firebase Console → Authentication → Sign-in method → Apple → expand the config. Firebase shows a callback URL like `https://waymark-app-XXXXX.firebaseapp.com/__/auth/handler`. Copy it.
-   - Back in Apple: **Domains:** `waymark-app-XXXXX.firebaseapp.com` (host only, no `https://`).
+   - In Firebase Console → Authentication → Sign-in method → Apple → expand the config. Firebase shows a callback URL like `https://amble-app-XXXXX.firebaseapp.com/__/auth/handler`. Copy it.
+   - Back in Apple: **Domains:** `amble-app-XXXXX.firebaseapp.com` (host only, no `https://`).
    - **Return URLs:** paste the full `https://.../__/auth/handler` URL.
 10. Click **Next → Done → Continue → Save**.
 
@@ -126,9 +126,9 @@ Note: for the **native iOS flow** (`expo-apple-authentication` on-device), you d
 ### 2c. Generate the Sign in with Apple private key (.p8)
 
 1. https://developer.apple.com/account/resources/authkeys/list → **+**.
-2. Key Name: `Waymark Sign In With Apple Key`
+2. Key Name: `Amble Sign In With Apple Key`
 3. Check **Sign in with Apple** → click **Configure** next to it.
-4. Primary App ID: `com.robinhesse.waymark` → **Save**.
+4. Primary App ID: `com.robinhesse.amble` → **Save**.
 5. Click **Continue → Register**.
 6. **Download the `.p8` file — you get exactly ONE chance.** Save it to `~/Documents/apple-keys/AuthKey_MAPPIES.p8` (or somewhere you'll remember and back up). **Do not** put this in the git repo.
 7. **Copy the Key ID** shown on this page (10-character string like `ABC1234DEF`) — write it down, you'll need it in 2e.
@@ -141,7 +141,7 @@ Top-right corner of the developer portal, under your name — a 10-character str
 
 1. Firebase Console → **Authentication → Sign-in method → Apple** → edit the Apple provider.
 2. Fill in:
-   - **Services ID:** `com.robinhesse.waymark.signin` (from 2b)
+   - **Services ID:** `com.robinhesse.amble.signin` (from 2b)
    - **Apple Team ID:** `QFZK63FH8F` (from 2d)
    - **Key ID:** the 10-char ID from 2c
    - **Private key:** open the `.p8` file in a text editor, copy the **entire contents** including the `-----BEGIN PRIVATE KEY-----` and `-----END PRIVATE KEY-----` lines, paste into the field.
@@ -163,7 +163,7 @@ npx eas-cli whoami
 
 - If it prints `robiintesteur`, you're logged in on the same account as Theater. Good.
 - If it says "Not logged in," run `npx eas-cli login` and use the Expo credentials you use for Theater.
-- If you want a separate Expo account for Waymark, run `npx eas-cli logout` then `npx eas-cli register` (or log in as the new user). Decide now — the `owner` field goes in `app.json`.
+- If you want a separate Expo account for Amble, run `npx eas-cli logout` then `npx eas-cli register` (or log in as the new user). Decide now — the `owner` field goes in `app.json`.
 
 ### 3b. Understand the Theater EAS pattern (reference)
 
@@ -173,11 +173,11 @@ Theater's `eas.json` (at `/Users/robinhesse/Documents/1. GitHub/1. Theater/event
 - `preview` — internal distribution, iOS simulator build (for TestFlight-style sharing / simulator dogfooding)
 - `production` — auto-incremented build number, `m-medium` resource class (for App Store submit)
 
-Its `submit.production.ios` block hardcodes `appleId`, `ascAppId`, `appleTeamId` — you won't have `ascAppId` for Waymark until App Store Connect has a listing, so leave that blank or omit `submit` for now.
+Its `submit.production.ios` block hardcodes `appleId`, `ascAppId`, `appleTeamId` — you won't have `ascAppId` for Amble until App Store Connect has a listing, so leave that blank or omit `submit` for now.
 
-### 3c. Template `eas.json` for Waymark (drop-in when code arrives)
+### 3c. Template `eas.json` for Amble (drop-in when code arrives)
 
-You don't need to create this file yourself — the code delivery will drop it in. But so you know what to expect at `/Users/robinhesse/Documents/1. GitHub/3. Waymark/eas.json`:
+You don't need to create this file yourself — the code delivery will drop it in. But so you know what to expect at `/Users/robinhesse/Documents/1. GitHub/3. Amble/eas.json`:
 
 ```json
 {
@@ -212,7 +212,7 @@ You don't need to create this file yourself — the code delivery will drop it i
 }
 ```
 
-Difference from Theater: the `development` profile has `ios.simulator: true` so you can run dev-client builds in the iOS simulator (Theater builds dev on-device). We want simulator-friendly for Waymark while it's early.
+Difference from Theater: the `development` profile has `ios.simulator: true` so you can run dev-client builds in the iOS simulator (Theater builds dev on-device). We want simulator-friendly for Amble while it's early.
 
 ### 3d. Pre-authorize EAS to touch Apple credentials
 
@@ -233,7 +233,7 @@ Your machine already has:
 - iOS 26.4 runtime
 - iOS 26.5 runtime
 
-(Confirmed via `xcrun simctl list runtimes`.) That's fine for Waymark — Sign in with Apple works from iOS 13+ and both these runtimes are far past that.
+(Confirmed via `xcrun simctl list runtimes`.) That's fine for Amble — Sign in with Apple works from iOS 13+ and both these runtimes are far past that.
 
 ### 4b. Deployment target
 
@@ -258,7 +258,7 @@ Practical consequence for today:
   2. **`npx expo run:ios`** — local Xcode build, faster iteration once your machine has all the deps.
 - Once the dev-client is installed (either method), you scan the QR from `npx expo start` with **that** app instead of Expo Go, and hot-reload works normally.
 
-Known SDK 54 gotcha: [expo/expo#36798](https://github.com/expo/expo/issues/36798) — Sign in with Apple returns `ERR_REQUEST_UNKNOWN` on `expo run:ios --device` (local dev builds on a physical device) but works in Expo Go and EAS-built dev clients. **Mitigation for Waymark:** first Sign in with Apple test should be with an EAS-built dev client (`eas build --profile development`) or in the simulator, not a device-attached `expo run:ios`.
+Known SDK 54 gotcha: [expo/expo#36798](https://github.com/expo/expo/issues/36798) — Sign in with Apple returns `ERR_REQUEST_UNKNOWN` on `expo run:ios --device` (local dev builds on a physical device) but works in Expo Go and EAS-built dev clients. **Mitigation for Amble:** first Sign in with Apple test should be with an EAS-built dev client (`eas build --profile development`) or in the simulator, not a device-attached `expo run:ios`.
 
 ### 4d. Boot a simulator now (smoke test)
 
@@ -275,16 +275,16 @@ You should see a simulator window boot within ~20s. If not, open Xcode once (`op
 
 ## 4bis. MCP servers setup (Claude Code)
 
-The repo already has `/Users/robinhesse/Documents/1. GitHub/3. Waymark/.mcp.json` configured with three MCP servers: **GitHub**, **Firebase**, and **Context7**. Each needs manual auth/setup before Claude Code can use it.
+The repo already has `/Users/robinhesse/Documents/1. GitHub/3. Amble/.mcp.json` configured with three MCP servers: **GitHub**, **Firebase**, and **Context7**. Each needs manual auth/setup before Claude Code can use it.
 
 ### GitHub MCP — needs a Personal Access Token
 
 The config uses `${GITHUB_PERSONAL_ACCESS_TOKEN}` from your shell env.
 
 1. Go to https://github.com/settings/tokens → **Generate new token → Fine-grained token**.
-2. Name: `Claude Code Waymark MCP`
+2. Name: `Claude Code Amble MCP`
 3. Expiration: 90 days (or "no expiration" if you want to forget about it).
-4. Repository access: **Only select repositories** → pick the Waymark repo (create it first on GitHub if it doesn't exist yet).
+4. Repository access: **Only select repositories** → pick the Amble repo (create it first on GitHub if it doesn't exist yet).
 5. Permissions (repository): Contents = Read/Write, Issues = Read/Write, Pull requests = Read/Write, Metadata = Read (auto).
 6. Generate → copy the token (`github_pat_...`).
 7. Add to your shell profile. If you use zsh:
@@ -299,12 +299,12 @@ The config uses `${GITHUB_PERSONAL_ACCESS_TOKEN}` from your shell env.
 The config launches `npx firebase-tools@latest mcp`, which reads your local Firebase CLI session.
 
 1. Terminal: `npx firebase-tools@latest login`
-2. It opens your browser → log in with the Google account that owns the `waymark-app` project (Section 1).
-3. Back in terminal: `npx firebase-tools@latest projects:list` — you should see `waymark-app` in the list.
-4. Set the default project for the Waymark directory:
+2. It opens your browser → log in with the Google account that owns the `amble-app` project (Section 1).
+3. Back in terminal: `npx firebase-tools@latest projects:list` — you should see `amble-app` in the list.
+4. Set the default project for the Amble directory:
    ```
-   cd "/Users/robinhesse/Documents/1. GitHub/3. Waymark"
-   npx firebase-tools@latest use waymark-app
+   cd "/Users/robinhesse/Documents/1. GitHub/3. Amble"
+   npx firebase-tools@latest use amble-app
    ```
 5. That's it — the MCP server will pick up your session automatically.
 
@@ -317,7 +317,7 @@ The config launches `npx firebase-tools@latest mcp`, which reads your local Fire
 After setting the `GITHUB_PERSONAL_ACCESS_TOKEN` env var and logging into Firebase CLI:
 
 1. **Quit Claude Code fully** (Cmd+Q, not just close window).
-2. Reopen it in the Waymark directory: `cd "/Users/robinhesse/Documents/1. GitHub/3. Waymark" && claude`
+2. Reopen it in the Amble directory: `cd "/Users/robinhesse/Documents/1. GitHub/3. Amble" && claude`
 3. On startup, Claude Code will prompt you to approve the MCP servers listed in `.mcp.json` — approve them.
 4. Run `/mcp` in Claude Code to verify all three show as "connected".
 
@@ -329,7 +329,7 @@ If GitHub shows an auth error, your token isn't in the env — restart your term
 
 Confirmed by reading `/Users/robinhesse/Documents/1. GitHub/1. Theater/event_log/package.json`:
 
-| Package | Theater version | Waymark target |
+| Package | Theater version | Amble target |
 | --- | --- | --- |
 | `expo` | `~54.0.33` | **SDK 54** — same |
 | `expo-apple-authentication` | `~8.0.8` | **`~8.0.8`** — same |
@@ -357,11 +357,11 @@ No blockers for the setup path. Move ahead.
 
 Before you tell Claude "code away," confirm all of these:
 
-- [ ] Firebase project `waymark-app` exists, iOS app registered with bundle ID `com.robinhesse.waymark`
-- [ ] `GoogleService-Info.plist` downloaded and saved to `/Users/robinhesse/Documents/1. GitHub/3. Waymark/GoogleService-Info.plist`
+- [ ] Firebase project `amble-app` exists, iOS app registered with bundle ID `com.robinhesse.amble`
+- [ ] `GoogleService-Info.plist` downloaded and saved to `/Users/robinhesse/Documents/1. GitHub/3. Amble/GoogleService-Info.plist`
 - [ ] Firestore, Storage, Functions (Blaze plan) all enabled
-- [ ] Apple App ID `com.robinhesse.waymark` created with Sign In with Apple capability
-- [ ] Apple Services ID `com.robinhesse.waymark.signin` created and configured with Firebase's return URL
+- [ ] Apple App ID `com.robinhesse.amble` created with Sign In with Apple capability
+- [ ] Apple Services ID `com.robinhesse.amble.signin` created and configured with Firebase's return URL
 - [ ] Apple `.p8` private key downloaded to `~/Documents/apple-keys/AuthKey_MAPPIES.p8` (backed up)
 - [ ] Key ID (10-char) written down: `_______________`
 - [ ] Team ID confirmed: `QFZK63FH8F`
@@ -370,7 +370,7 @@ Before you tell Claude "code away," confirm all of these:
 - [ ] Simulator boots when you run `open -a Simulator`
 - [ ] You understand: **Apple Sign-in requires a dev-client build; Expo Go will not work**
 - [ ] `GITHUB_PERSONAL_ACCESS_TOKEN` exported in `~/.zshrc` and visible via `echo $GITHUB_PERSONAL_ACCESS_TOKEN`
-- [ ] `npx firebase-tools@latest projects:list` shows `waymark-app`
+- [ ] `npx firebase-tools@latest projects:list` shows `amble-app`
 - [ ] Claude Code `/mcp` shows GitHub, Firebase, Context7 all connected
 
 When all boxes are ticked, tell Claude — code delivery can begin.

@@ -7,12 +7,12 @@ import { colors, fonts, spacing, type } from '../theme';
  * Share Extension tutorial modal (GitHub #79 / parent #77).
  *
  * Rendered from the Map empty state when the user taps the « Depuis Instagram »
- * card. Teaches the Waymark Share flow in three annotated slots without leaving
+ * card. Teaches the Amble Share flow in three annotated slots without leaving
  * the app:
  *
  *   1. Instagram post/reel → tape le bouton Partager (avion papier).
- *   2. Share sheet iOS     → choisis « Waymark Share ».
- *   3. Preview Waymark     → confirme le lieu et sauvegarde.
+ *   2. Share sheet iOS     → choisis « Amble Share ».
+ *   3. Preview Amble       → confirme le lieu et sauvegarde.
  *
  * NB : c'est la Share Extension iOS, PAS un screenshot. Le média (photo/vidéo)
  * du post arrive directement dans l'app. Le path « screenshot déjà pris » vit
@@ -53,12 +53,12 @@ const SLOTS: readonly Slot[] = [
   {
     icon: 'share-outline',
     eyebrow: 'Étape 2',
-    body: 'Dans la share sheet iOS, choisis « Waymark Share ».',
+    body: 'Dans la share sheet iOS, choisis « Amble Share ».',
   },
   {
     icon: 'map-outline',
     eyebrow: 'Étape 3',
-    body: 'Waymark reçoit le média, détecte le lieu et l\'épingle sur ta carte.',
+    body: 'Amble reçoit le média, détecte le lieu et l\'épingle sur ta carte.',
   },
 ] as const;
 
@@ -77,10 +77,10 @@ export default function ShareExtensionTutorialModal({ visible, onClose }: Props)
           accessibilityRole="alert"
           accessibilityLabel="Comment partager depuis Instagram"
         >
-          <Text style={styles.eyebrow}>Tuto Waymark Share</Text>
+          <Text style={styles.eyebrow}>Tuto Amble Share</Text>
           <Text style={styles.title}>Depuis Instagram</Text>
           <Text style={styles.subtitle}>
-            Partage un post ou un reel Insta vers Waymark Share : on détecte le
+            Partage un post ou un reel Insta vers Amble Share : on détecte le
             lieu et on l'épingle sur ta carte, sans screenshot.
           </Text>
 

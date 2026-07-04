@@ -1,4 +1,4 @@
-# Waymark — PRD V1
+# Amble — PRD V1
 
 **Status**: draft
 **Target ship date**: J+3 (submit-ready App Store)
@@ -20,23 +20,23 @@ Je vois régulièrement des influenceurs Instagram recommander des lieux (restau
 
 ## Solution
 
-Une app iOS "Waymark" qui transforme le screenshot Instagram en pin sur ma carte perso, sans saisie manuelle.
+Une app iOS "Amble" qui transforme le screenshot Instagram en pin sur ma carte perso, sans saisie manuelle.
 
 Flow utilisateur idéal :
 1. Je vois un post Insta d'un influenceur recommandant "Chez Janou, Paris 4ème"
 2. Screenshot iPhone (Volume+ / Side button)
-3. Depuis Insta ou Photos, "Partager" → **Waymark (via l'iOS Share Sheet)**
+3. Depuis Insta ou Photos, "Partager" → **Amble (via l'iOS Share Sheet)**
 4. L'app extrait automatiquement le nom, la ville, l'adresse. Enrichit avec lat/lng via Mapbox.
 5. Le lieu apparaît sur ma carte + dans ma liste, avec le screenshot d'origine attaché.
-6. Quand je suis à Paris → ouvre Waymark → carte → je vois tous les lieux à visiter autour de moi.
+6. Quand je suis à Paris → ouvre Amble → carte → je vois tous les lieux à visiter autour de moi.
 
 ## User Stories
 
 ### Extraction & ajout
 
 1. En tant qu'utilisateur, je veux uploader un screenshot Instagram depuis ma pellicule iPhone, afin que l'app extraie automatiquement les infos du lieu.
-2. En tant qu'utilisateur, je veux partager un screenshot depuis Photos vers Waymark via le Share Sheet iOS, afin d'éviter d'ouvrir manuellement l'app.
-3. En tant qu'utilisateur, je veux pouvoir partager un screenshot vers Waymark depuis n'importe quelle app iOS (Photos, Instagram, Safari…) via une iOS Share Extension native — l'extraction se fait automatiquement, sans configuration.
+2. En tant qu'utilisateur, je veux partager un screenshot depuis Photos vers Amble via le Share Sheet iOS, afin d'éviter d'ouvrir manuellement l'app.
+3. En tant qu'utilisateur, je veux pouvoir partager un screenshot vers Amble depuis n'importe quelle app iOS (Photos, Instagram, Safari…) via une iOS Share Extension native — l'extraction se fait automatiquement, sans configuration.
 4. En tant qu'utilisateur, je veux voir un feedback visuel pendant l'extraction (~3-5s), afin de savoir que ça travaille.
 5. En tant qu'utilisateur, je veux pouvoir corriger le nom/ville extrait si l'IA s'est trompée, avant de sauvegarder.
 6. En tant qu'utilisateur, je veux que le screenshot d'origine soit attaché au lieu, afin de retrouver le contexte visuel (photo de l'influenceur, ambiance) plus tard.
@@ -67,7 +67,7 @@ Flow utilisateur idéal :
 ### Onboarding
 
 21. En tant que nouvel utilisateur, je veux voir 2-3 écrans d'onboarding expliquant le concept avant la connexion.
-22. En tant que nouvel utilisateur, je veux que le partage vers Waymark fonctionne dès l'installation, sans étape de configuration.
+22. En tant que nouvel utilisateur, je veux que le partage vers Amble fonctionne dès l'installation, sans étape de configuration.
 
 ## Implementation Decisions
 
@@ -155,8 +155,8 @@ Une seule fonction : `POST /extract`
 ### iOS Share Extension (V1)
 
 - Native Share Extension bundled with the app via `expo-share-intent` — activation rule `NSExtensionActivationSupportsImageWithMaxCount = 1`
-- Zero user configuration: as soon as the app is installed, "Waymark" appears in the iOS share sheet for images
-- Flow: user taps Share on a screenshot → picks Waymark → the main app opens with `hasShareIntent === true`, routes to `SharedImageScreen`, runs the same `extract` Cloud Function pipeline as the in-app upload, then hands off to `ExtractConfirmScreen`
+- Zero user configuration: as soon as the app is installed, "Amble" appears in the iOS share sheet for images
+- Flow: user taps Share on a screenshot → picks Amble → the main app opens with `hasShareIntent === true`, routes to `SharedImageScreen`, runs the same `extract` Cloud Function pipeline as the in-app upload, then hands off to `ExtractConfirmScreen`
 - No separate auth token — the user is already signed in via Firebase Auth inside the app
 
 ## Testing Decisions
@@ -179,7 +179,7 @@ Décidé pendant une session /grill-me : la partie social n'est **pas un pivot m
 
 ### Job to be done
 
-**"Qui a du bon goût dans mon réseau ?"** — Je ne fais pas confiance à TripAdvisor. J'ai confiance en 3-5 amis dont le goût matche le mien. Waymark me montre CE QU'ILS ajoutent, pas ce que le monde ajoute. Insight distinctif vs Insta (feed trop bruyant, non focus lieu) et TripAdvisor (avis d'étrangers).
+**"Qui a du bon goût dans mon réseau ?"** — Je ne fais pas confiance à TripAdvisor. J'ai confiance en 3-5 amis dont le goût matche le mien. Amble me montre CE QU'ILS ajoutent, pas ce que le monde ajoute. Insight distinctif vs Insta (feed trop bruyant, non focus lieu) et TripAdvisor (avis d'étrangers).
 
 ### Décisions verrouillées
 
@@ -190,19 +190,19 @@ Décidé pendant une session /grill-me : la partie social n'est **pas un pivot m
 | 3 | Privacy par défaut | **Public** (comme Mapstr) — profil visible à tout auth user |
 | 4 | Retention loop | "Sauver dans ma carte" avec attribution "via @alice" + activity feed pour Alice |
 | 5 | Notifications V1 | In-app badges seulement (push = V1.1) |
-| 6 | Cold start feed | Seed avec 3-4 comptes officiels **@waymark.paris.{cool,culturel,chic,food}** (Paris only en V1) |
-| 7 | Curation | Comptes clairement badgés "Waymark Curated" (`isCurated: true`). Robin cure manuellement 15-20 lieux/compte avant launch |
+| 6 | Cold start feed | Seed avec 3-4 comptes officiels **@amble.paris.{cool,culturel,chic,food}** (Paris only en V1) |
+| 7 | Curation | Comptes clairement badgés "Amble Curated" (`isCurated: true`). Robin cure manuellement 15-20 lieux/compte avant launch |
 | 8 | Chaîne attribution | **Immediate saver only** (`savedFromUserId` = celui juste avant, pas l'original). Simple data model, matche Twitter RT |
 | 9 | Delete cascade | Cloud Function `onDelete(users/{uid})` → collection-group query sur `savedFromUserId == uid` → batch nullify (RGPD-compliant, zero orphan) |
 | 10 | Block + Report (Apple guideline 1.2) | Bouton Bloquer sur UserProfileScreen (hide + unfollow forcé) + bouton Signaler (form 3 raisons → Cloud Function email/Slack Robin) |
 | 11 | Web view public | **Non en V1**, mobile-only. Lien partagé → App Store. Web view MVP = V1.1 |
-| 12 | Onboarding | Splash → Auth → **3 slides pitch** → PickUsername → **Écran "Follow Waymark Curated"** (toggles ON par défaut, opt-out possible) → App |
+| 12 | Onboarding | Splash → Auth → **3 slides pitch** → PickUsername → **Écran "Follow Amble Curated"** (toggles ON par défaut, opt-out possible) → App |
 
 ### User Stories additionnelles
 
 23. En tant que nouvel utilisateur, je veux voir 3 slides d'accueil qui m'expliquent le pitch (screenshot → carte → follow), afin de comprendre pourquoi ça mérite un handle avant que je choisisse mon @username.
 24. En tant que nouvel utilisateur, je veux choisir un username unique post-signup, afin que mes amis puissent me trouver.
-25. En tant que nouvel utilisateur, je veux voir un écran "Suis les comptes Waymark Curated" (toggles ON par défaut) juste après avoir choisi mon username, afin d'entrer dans l'app avec un feed déjà peuplé et pas vide.
+25. En tant que nouvel utilisateur, je veux voir un écran "Suis les comptes Amble Curated" (toggles ON par défaut) juste après avoir choisi mon username, afin d'entrer dans l'app avec un feed déjà peuplé et pas vide.
 26. En tant qu'utilisateur, je veux rechercher un ami par @username via une barre de recherche.
 27. En tant qu'utilisateur, je veux inviter un ami via SMS/lien iCloud, afin d'accélérer le remplissage de mon réseau.
 28. En tant qu'utilisateur, je veux suivre / me désabonner d'un autre user en 1 tap depuis son profil.
@@ -226,7 +226,7 @@ type User = {
   // NEW for social
   username: string           // unique, lowercase, /^[a-z0-9._]{3,20}$/
   isPublic: boolean          // default true; false = solo mode, invisible au feed
-  isCurated?: boolean        // true pour les comptes officiels @waymark.paris.* — active le badge "Waymark Curated"
+  isCurated?: boolean        // true pour les comptes officiels @amble.paris.* — active le badge "Amble Curated"
   followersCount: number     // denormalized
   followingCount: number     // denormalized
   avatarUrl?: string         // V2
@@ -286,10 +286,10 @@ type Report = {
 
 - `OnboardingSlidesScreen` — 3 slides pitch avant le PickUsername
   - Slide 1 : "Tes screenshots Insta s'entassent." (problem)
-  - Slide 2 : "Waymark les transforme en carte, en 4 secondes." (solution + wedge)
+  - Slide 2 : "Amble les transforme en carte, en 4 secondes." (solution + wedge)
   - Slide 3 : "Suis les amis dont tu aimes le goût." (social hook)
 - `PickUsernameScreen` — post-onboarding, choix du handle avec check unicité côté client (query Firestore `where('username', '==', ...)`) + serveur (Cloud Function safe check à l'écriture)
-- `SeededFollowScreen` — juste après username, "Suis les comptes Waymark Curated" avec 3-4 toggles ON par défaut (@waymark.paris.cool/culturel/chic/food)
+- `SeededFollowScreen` — juste après username, "Suis les comptes Amble Curated" avec 3-4 toggles ON par défaut (@amble.paris.cool/culturel/chic/food)
 - `NetworkScreen` (tab) — feed vertical des pins du réseau, chronologique, most-recent-first
 - `SearchUsersScreen` — barre de recherche @username + tap → UserProfileScreen
 - `UserProfileScreen` — carte + liste des pins d'un user + bouton Follow/Unfollow + menu "Bloquer" + menu "Signaler"
@@ -316,14 +316,14 @@ Copy App Store (`docs/app-store-metadata.md`) : la ligne "Private by design. No 
 - V1 social scope initial : J+10
 - **V1 social scope étendu (block/report + onboarding slides + seeded follow) : J+12 ship**
 
-### Curation manuelle des comptes Waymark (parallèle au dev)
+### Curation manuelle des comptes Amble (parallèle au dev)
 
-**Livrable pré-launch** : 3-4 comptes @waymark.paris.* peuplés avec 15-20 lieux chacun. ~1 jour de curation Robin, à faire pendant le dev.
+**Livrable pré-launch** : 3-4 comptes @amble.paris.* peuplés avec 15-20 lieux chacun. ~1 jour de curation Robin, à faire pendant le dev.
 
-- **@waymark.paris.cool** — bars cocktails, bistros de quartier, cafés indé, spots low-key
-- **@waymark.paris.culturel** — musées, galeries, librairies, cinémas indé, expositions temporaires
-- **@waymark.paris.chic** — restos étoilés, palaces, gastronomie haut de gamme
-- **@waymark.paris.food** — restos généraliste, si redondance avec cool/chic on peut skip
+- **@amble.paris.cool** — bars cocktails, bistros de quartier, cafés indé, spots low-key
+- **@amble.paris.culturel** — musées, galeries, librairies, cinémas indé, expositions temporaires
+- **@amble.paris.chic** — restos étoilés, palaces, gastronomie haut de gamme
+- **@amble.paris.food** — restos généraliste, si redondance avec cool/chic on peut skip
 
 **Playbook curation** (à drafter dans `docs/curation-playbook.md`) :
 - Tone : neutre, factuel, "voici pourquoi ça mérite le détour", pas d'exagération
@@ -378,14 +378,14 @@ Copy App Store (`docs/app-store-metadata.md`) : la ligne "Private by design. No 
 
 ### Plan J1 → J3 (indicatif, à préciser dans les issues)
 
-- **J1** : Setup Expo + Firebase project Waymark + copie des seams Theater (Auth, firebase.ts, claude.ts). Auth Sign in with Apple end-to-end. **Livrable J1** : je peux me logger, l'app s'ouvre sur un écran vide.
+- **J1** : Setup Expo + Firebase project Amble + copie des seams Theater (Auth, firebase.ts, claude.ts). Auth Sign in with Apple end-to-end. **Livrable J1** : je peux me logger, l'app s'ouvre sur un écran vide.
 - **J2** : Cloud Function `/extract` + upload screenshot depuis app + création `Lieu` en Firestore + affichage liste. **Livrable J2** : j'upload scr1.png, je vois "La Gare / Le Gore" dans ma liste.
 - **J3** : Carte MapKit avec pins + fiche détail + iOS Share Extension + polish + submit App Store. **Livrable J3** : app soumise à Apple.
 
 ### Réutilisation Theater — inventaire précis
 
 - `src/auth/AuthContext.tsx` → copie directe, adapter le projet Firebase
-- `src/auth/firebase.ts` → copie, nouvelle config Firebase pour Waymark
+- `src/auth/firebase.ts` → copie, nouvelle config Firebase pour Amble
 - `src/services/claude.ts` → copie, adapter le prompt système
 - `services/systemPrompt.ts` → template, remplacer contenu
 - `api/proxy.js` → pattern à copier pour la Cloud Function `/extract`

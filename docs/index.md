@@ -1,9 +1,9 @@
 ---
-title: Waymark
+title: Amble
 layout: default
 ---
 
-# Waymark
+# Amble
 
 Turn every Instagram screenshot into a pin on your private map.
 

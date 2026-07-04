@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Waymark",
-    "slug": "waymark",
-    "scheme": "waymark",
+    "name": "Amble",
+    "slug": "amble",
+    "scheme": "amble",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,9 +24,9 @@
         "CFBundleLocalizations": [
           "fr"
         ],
-        "NSPhotoLibraryUsageDescription": "Waymark utilise tes screenshots Instagram pour extraire automatiquement les lieux recommandés.",
-        "NSLocationWhenInUseUsageDescription": "Waymark utilise ta position pour te montrer les lieux enregistrés autour de toi.",
-        "NSCameraUsageDescription": "Waymark peut utiliser l'appareil photo pour capturer directement un post Instagram à extraire."
+        "NSPhotoLibraryUsageDescription": "Amble utilise tes screenshots Instagram pour extraire automatiquement les lieux recommandés.",
+        "NSLocationWhenInUseUsageDescription": "Amble utilise ta position pour te montrer les lieux enregistrés autour de toi.",
+        "NSCameraUsageDescription": "Amble peut utiliser l'appareil photo pour capturer directement un post Instagram à extraire."
       }
     },
     "plugins": [
@@ -59,7 +59,7 @@
             "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
             "NSExtensionActivationSupportsText": true
           },
-          "iosShareExtensionName": "Waymark Share",
+          "iosShareExtensionName": "Amble Share",
           "disableAndroid": true
         }
       ]
