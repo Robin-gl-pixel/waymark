@@ -485,6 +485,25 @@ describe('LieuxService seam contract (InMemoryLieuxService)', () => {
         expect(after!.photos[1].storagePath).toBe(added.storagePath);
       });
 
+      it('succeeds when photos[] is currently empty (URL-only Insta pin)', async () => {
+        // v8 polish A regression pin: the founder reported "+ Ajouter" failed on
+        // pins created via extractFromInstagramUrl (empty photos[]). At the
+        // seam, addPhoto must land the first photo cleanly and the new entry
+        // must sit at photos[0] — no phantom hero left behind.
+        const empty = await svc.createLieu(
+          USER,
+          makeInput({ name: 'URL-only', screenshotUri: '' }),
+        );
+        expect(empty.photos).toEqual([]);
+
+        const added = await svc.addPhoto(USER, empty.id, 'file:///tmp/first.jpg', 'user');
+        expect(added.source).toBe('user');
+
+        const after = await svc.getLieuById(USER, empty.id);
+        expect(after!.photos).toHaveLength(1);
+        expect(after!.photos[0].storagePath).toBe(added.storagePath);
+      });
+
       it(`throws PhotoCapReachedError once the pin has ${MAX_PHOTOS_PER_LIEU} photos`, async () => {
         // Fill the gallery up to the cap (1 seeded + 9 added = 10).
         for (let i = 0; i < MAX_PHOTOS_PER_LIEU - 1; i++) {
