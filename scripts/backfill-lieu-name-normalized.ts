@@ -14,7 +14,8 @@
  * Usage:
  *   npx tsx scripts/backfill-lieu-name-normalized.ts [--dry-run]
  */
-import * as admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 import { normalizeName } from '../functions/src/lib/normalize';
@@ -28,12 +29,12 @@ if (!fs.existsSync(KEY_PATH)) {
   process.exit(1);
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(KEY_PATH),
+initializeApp({
+  credential: cert(KEY_PATH),
   projectId: 'mappies-7748d',
 });
 
-const db = admin.firestore();
+const db = getFirestore();
 
 async function main() {
   console.log(`=== Backfill nameNormalized ${DRY ? '(DRY RUN)' : ''} ===`);
