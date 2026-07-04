@@ -108,7 +108,7 @@ export default function LieuDetailScreen() {
   // "Sauver dans ma carte" credit + isCurated badge check.
   const [otherOwner, setOtherOwner] = useState<UserProfile | null>(null);
   // Profile of the saver referenced by `savedFromUserId` on MY pin — used to
-  // upgrade "via @X" to a "Waymark Curated" badge when applicable.
+  // upgrade "via @X" to a "Pinti Curated" badge when applicable.
   const [savedFromProfile, setSavedFromProfile] = useState<UserProfile | null>(null);
   const [resaving, setResaving] = useState(false);
   // Gallery state — edit mode toggles the reorder/delete affordances; lightbox
@@ -134,7 +134,7 @@ export default function LieuDetailScreen() {
         //      pass as `credit` when the user taps "Sauver dans ma carte".
         //   2. Viewing my own pin with a `savedFromUserId` → we need the
         //      saver's `isCurated` flag to decide between "via @X" and the
-        //      "Waymark Curated" badge.
+        //      "Pinti Curated" badge.
         const isViewingOthers = readUid !== user?.uid;
         try {
           if (isViewingOthers) {
@@ -714,7 +714,7 @@ export default function LieuDetailScreen() {
 
           {/* "via @X" attribution — only on MY pins that came from a re-save.
               Tap opens the saver's profile. `savedFromProfile.isCurated`
-              upgrades the tag to the "Waymark Curated" badge. */}
+              upgrades the tag to the "Pinti Curated" badge. */}
           {isMine && lieu.savedFromUsername && (
             <Pressable
               onPress={onTapAttribution}

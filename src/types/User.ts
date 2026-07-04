@@ -1,7 +1,7 @@
 import type { Timestamp } from './Lieu';
 
 /**
- * A user profile in Waymark. Lives at `/users/{uid}`.
+ * A user profile in Pinti. Lives at `/users/{uid}`.
  * Written at signup + username pick, updated via SettingsScreen.
  *
  * `isPublic` defaults to true — matches the "Mapstr-style" social positioning

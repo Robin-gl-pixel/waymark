@@ -24,7 +24,7 @@ import { pickBatchFollowTargets, runBatchFollow } from './seededFollowHelpers';
  * Post-signup seeded follow (GitHub #17).
  *
  * Shown once, right after `PickUsernameScreen`, to bootstrap a fresh account's
- * feed with the 3-4 official Waymark Curated accounts (`isCurated == true`).
+ * feed with the 3-4 official Pinti Curated accounts (`isCurated == true`).
  * Switches default ON — "Continuer" batch-follows the ones still ON; the top
  * "Passer" button skips without following anything. Either exit path calls
  * `onComplete`, which the Root() gate turns into an AsyncStorage flag so the

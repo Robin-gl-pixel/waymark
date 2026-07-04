@@ -293,7 +293,7 @@ function ProfileHeader({
           ) : null}
           {profile.isCurated && (
             <View style={styles.curatedBadge}>
-              <Text style={styles.curatedLabel}>Waymark Curated</Text>
+              <Text style={styles.curatedLabel}>Pinti Curated</Text>
             </View>
           )}
         </View>

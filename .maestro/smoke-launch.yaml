@@ -3,7 +3,7 @@ name: smoke-launch
 tags:
   - smoke
 ---
-# Prerequisite: Expo Go must already be showing Waymark (dev server running
+# Prerequisite: Expo Go must already be showing Pinti (dev server running
 # and Expo Go connected). This flow checks the app boots into AuthScreen.
 - launchApp:
     clearState: false

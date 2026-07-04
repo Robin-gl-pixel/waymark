@@ -270,7 +270,7 @@ export default function MapScreen() {
       const t = setTimeout(() => {
         setShareTip({
           message: 'Marche aussi depuis Insta',
-          hint: 'Partage un post → Waymark Share',
+          hint: 'Partage un post → Pinti Share',
         });
       }, 2000);
       return () => clearTimeout(t);

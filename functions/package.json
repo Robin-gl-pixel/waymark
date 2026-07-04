@@ -1,6 +1,6 @@
 {
   "name": "waymark-functions",
-  "description": "Firebase Cloud Functions for Waymark",
+  "description": "Firebase Cloud Functions for Pinti",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
