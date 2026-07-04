@@ -23,7 +23,7 @@ interface Props {
    *  short French sentence, short enough to not linger on the map. */
   durationMs?: number;
   /** Optional secondary muted line (used by the Share Extension tip to spell
-   *  out the "Insta → Waymark Share" mechanic under the headline). */
+   *  out the "Insta → Pinti Share" mechanic under the headline). */
   hint?: string;
 }
 

@@ -34,7 +34,7 @@ export interface LieuPhoto {
 }
 
 /**
- * A persisted place in Waymark. Lives at `/users/{uid}/lieux/{lieuId}`.
+ * A persisted place in Pinti. Lives at `/users/{uid}/lieux/{lieuId}`.
  */
 export interface Lieu {
   id: string;

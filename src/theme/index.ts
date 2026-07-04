@@ -1,7 +1,7 @@
 import type { LieuCategory } from '../types/Lieu';
 
 /**
- * Waymark visual tokens — v8 "atlas numéroté" refonte (issue #45).
+ * Pinti visual tokens — v8 "atlas numéroté" refonte (issue #45).
  *
  * Ground is warm off-white paper, ink is near-black, and the seven category
  * tokens are the punchy per-Lieu accents that carry the map's identity.
@@ -70,7 +70,7 @@ export function categoryColor(category: LieuCategory): string {
  * choices. Adding new colors at the END is safe (nobody's index shifts down).
  */
 export const avatarPalette = [
-  '#E5253C', // vermillon (Waymark accent)
+  '#E5253C', // vermillon (Pinti accent)
   '#F5A462', // amber
   '#E8C547', // gold
   '#7FB77E', // sage

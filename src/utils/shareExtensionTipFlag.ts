@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 /**
  * One-shot post-first-pin Share Extension tip flag (GitHub #80, parent #77).
  *
- * The tip teaches the user that they can also share a screenshot into Waymark
+ * The tip teaches the user that they can also share a screenshot into Pinti
  * from Instagram via the iOS Share Sheet. It's shown at most ONCE per install
  * (right after the very first pin save), so we persist a boolean here.
  *

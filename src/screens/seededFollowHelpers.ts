@@ -4,7 +4,7 @@ import type { SocialService } from '../services/socialService';
 /**
  * SeededFollowScreen helpers (GitHub #17).
  *
- * The screen shows a small list of Waymark Curated accounts, each with a Switch
+ * The screen shows a small list of Pinti Curated accounts, each with a Switch
  * default-ON, and a "Continuer" button. The two functions below are the pure
  * pieces of the flow that we test at the seam via `InMemorySocialService`:
  *

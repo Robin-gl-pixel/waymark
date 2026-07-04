@@ -44,7 +44,7 @@ export const onReportCreated = onDocumentCreated(
     }
 
     const lines = [
-      `*New Waymark report* — \`${event.params.reportId}\``,
+      `*New Pinti report* — \`${event.params.reportId}\``,
       `• Reason: *${report.reason ?? 'unknown'}*`,
       `• Reporter: \`${report.reporterUid ?? '?'}\``,
       `• Target user: \`${report.targetUid ?? '?'}\``,

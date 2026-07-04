@@ -21,7 +21,7 @@ LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
   // expo-share-intent logs a debug notice on cold-start when no share payload is
   // pending. It's expected on a plain app launch; only firing when the founder
-  // actually opens Waymark from the share sheet is useful. Silence the no-op path.
+  // actually opens Pinti from the share sheet is useful. Silence the no-op path.
   'expo-share-intent module is disabled',
 ]);
 import { StatusBar } from 'expo-status-bar';
