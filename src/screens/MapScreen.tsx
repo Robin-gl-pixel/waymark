@@ -27,6 +27,7 @@ import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, fonts } from '../theme';
 import CategoryPin from '../components/CategoryPin';
 import MapPoiSaveSheet from '../components/MapPoiSaveSheet';
+import ShareExtensionTutorialModal from '../components/ShareExtensionTutorialModal';
 import { createPinPulse } from '../lib/pinPulse';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { RootStackParamList, TabParamList } from '../navigation';
@@ -138,6 +139,9 @@ export default function MapScreen() {
   // sheet's CTA can show a spinner and swallow re-taps.
   const [poiTap, setPoiTap] = useState<MapPoiTap | null>(null);
   const [savingPoi, setSavingPoi] = useState(false);
+  // Local-only state for the Share Extension tutorial modal (issue #79).
+  // Not persisted — the user can reopen from the empty state at will.
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   // Subscribe to the OS-level reduce-motion preference so the selection
   // pulse respects it in real time (user toggles Settings → app foregrounds).
@@ -431,18 +435,52 @@ export default function MapScreen() {
 
       {lieux.length === 0 && (
         <SafeAreaView style={styles.emptyOverlay} edges={['top']} pointerEvents="box-none">
-          <View style={styles.emptyCard}>
+          <View style={styles.emptyStack}>
             <Text style={styles.emptyEyebrow}>Aucun pin</Text>
             <Text style={styles.emptyTitle}>Ta carte commence ici</Text>
             <Text style={styles.emptyBody}>
-              Ajoute ton premier screenshot — ou appuie long sur la carte pour épingler un lieu à la main.
+              Ajoute ton premier lieu — deux voies, à toi de choisir.
             </Text>
-            <Pressable onPress={() => nav.navigate('Upload')} style={styles.emptyBtn}>
-              <Text style={styles.emptyBtnLabel}>Ajouter un lieu</Text>
-            </Pressable>
+            <View style={styles.emptyCardsRow}>
+              <Pressable
+                onPress={() => nav.navigate('Upload')}
+                style={({ pressed }) => [
+                  styles.originCard,
+                  pressed && styles.originCardPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Ajouter un lieu depuis ta pellicule"
+              >
+                <Ionicons name="image-outline" size={28} color={colors.ink} />
+                <Text style={styles.originCardTitle}>Depuis ta pellicule</Text>
+                <Text style={styles.originCardBody}>
+                  Choisis un screenshot déjà pris.
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setTutorialOpen(true)}
+                style={({ pressed }) => [
+                  styles.originCard,
+                  pressed && styles.originCardPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Apprendre à partager depuis Instagram"
+              >
+                <Ionicons name="share-outline" size={28} color={colors.ink} />
+                <Text style={styles.originCardTitle}>Depuis Instagram</Text>
+                <Text style={styles.originCardBody}>
+                  Partage direct via la share sheet.
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </SafeAreaView>
       )}
+
+      <ShareExtensionTutorialModal
+        visible={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+      />
 
     </View>
   );
@@ -558,13 +596,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
-  emptyCard: {
-    backgroundColor: colors.paper,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.hair,
+  // Vertical stack that centers the two-card empty state — heading block on top,
+  // cards row below. Sits over the map on the paper ground, no card frame.
+  emptyStack: {
     alignItems: 'center',
-    maxWidth: 320,
+    maxWidth: 360,
   },
   emptyEyebrow: {
     ...type.mono,
@@ -593,15 +629,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.md,
   },
-  emptyBtn: {
+  // Two-card row — equivalent visual weight, split evenly so neither path
+  // reads as primary vs. secondary (issue #79 AC).
+  emptyCardsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
     marginTop: spacing.xl,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.ink,
+    alignSelf: 'stretch',
   },
-  emptyBtnLabel: {
-    ...type.mono,
-    color: colors.paper,
-    fontWeight: '700',
+  originCard: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.hair,
+    padding: spacing.lg,
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    minHeight: 132,
+  },
+  originCardPressed: {
+    opacity: 0.75,
+  },
+  originCardTitle: {
+    fontFamily: fonts.display,
+    fontWeight: '900',
+    fontSize: 14,
+    lineHeight: 16,
+    letterSpacing: -0.2,
+    color: colors.ink,
+    textTransform: 'uppercase',
+    marginTop: spacing.sm,
+  },
+  originCardBody: {
+    fontFamily: fonts.bodySerifItalic,
+    fontStyle: 'italic',
+    fontSize: 13,
+    lineHeight: 17,
+    color: colors.graphite,
   },
 });
