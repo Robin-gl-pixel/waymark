@@ -1,9 +1,29 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet, Pressable, LogBox } from 'react-native';
 
-// react-native-maps + react-native-map-clustering emit noisy Animated updates on iOS
-// that have no JS listeners. Harmless — silence to keep the console useful.
-LogBox.ignoreLogs(['Sending `onAnimatedValueUpdate` with no listeners registered.']);
+// LogBox — silence *only* well-understood, harmless third-party noise so the
+// dev overlay stays trustworthy for real bugs (post-v8 slice B). Each entry is
+// prefix-matched by RN. Add a one-line rationale for every pattern.
+LogBox.ignoreLogs([
+  // react-native-maps + react-native-map-clustering drive marker `Animated.Value`
+  // pulses with `useNativeDriver: false` (see `src/lib/pinPulse.ts`) — the native
+  // shadow tree fires the update event even when no JS listener is attached.
+  'Sending `onAnimatedValueUpdate` with no listeners registered.',
+  // firebase-js-sdk (Firestore + Auth) schedules long backoff timers on RN. RN's
+  // legacy "Setting a timer for a long period of time" warning is a known false
+  // positive for JS-SDK clients; the SDK maintainers have documented it as safe.
+  // Refs: firebase/firebase-js-sdk#97, facebook/react-native#12981.
+  'Setting a timer for a long period of time',
+  // React Navigation v7 warns when it detects functions inside a screen's params
+  // (e.g. onComplete callbacks passed through render-prop children). We use that
+  // pattern intentionally in the auth/onboarding gate — the callback lives in
+  // React state, not `route.params`, so serialisability is a non-issue for us.
+  'Non-serializable values were found in the navigation state',
+  // expo-share-intent logs a debug notice on cold-start when no share payload is
+  // pending. It's expected on a plain app launch; only firing when the founder
+  // actually opens Waymark from the share sheet is useful. Silence the no-op path.
+  'expo-share-intent module is disabled',
+]);
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -52,6 +72,13 @@ import { resolveRootRoute } from './src/screens/rootGate';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
+
+// Module-scoped so `<ShareIntentProvider>` receives the same object identity on
+// every re-render of `App()`. Passing an inline `{ scheme: 'waymark' }` literal
+// caused the provider's mount effect (see node_modules/expo-share-intent/build/
+// useShareIntent.js) to re-run whenever App re-rendered, which fired duplicate
+// `getShareIntent(...)` calls into the native module on cold start.
+const SHARE_INTENT_OPTIONS = { scheme: 'waymark' } as const;
 
 const theme = {
   ...DefaultTheme,
@@ -306,14 +333,32 @@ function Root() {
       setSocialMigrationSeen(null);
       return;
     }
-    const seen = await hasSeenSocialMigrationModal();
-    setSocialMigrationSeen(seen);
+    try {
+      const seen = await hasSeenSocialMigrationModal();
+      setSocialMigrationSeen(seen);
+    } catch (err) {
+      // Defensive: `hasSeenSocialMigrationModal` swallows AsyncStorage errors
+      // internally, but any future refactor mustn't let a throw here bubble
+      // into an unhandled-promise-rejection (which lights up LogBox's red
+      // "Open debugger" overlay on cold start). Fail-closed → treat as seen
+      // so the modal doesn't re-flash on every launch.
+      console.warn('[Root] refreshSocialMigration failed', err);
+      setSocialMigrationSeen(true);
+    }
   }, [user]);
 
   const acknowledgeSocialMigration = React.useCallback(async () => {
     // Persist BEFORE hiding so a mid-write crash still records the ack; the
     // modal state flips to `true` on completion so the overlay disappears.
-    await markSocialMigrationModalSeen();
+    try {
+      await markSocialMigrationModalSeen();
+    } catch (err) {
+      // markSocialMigrationModalSeen already swallows its own errors; the
+      // try/catch here is a belt-and-braces guard so a future refactor can't
+      // surface an unhandled rejection that would trigger LogBox on the
+      // user's device.
+      console.warn('[Root] acknowledgeSocialMigration persist failed', err);
+    }
     setSocialMigrationSeen(true);
   }, []);
 
@@ -469,7 +514,7 @@ export default function App() {
   const navRef = useNavigationContainerRef();
 
   return (
-    <ShareIntentProvider options={{ scheme: 'waymark' }}>
+    <ShareIntentProvider options={SHARE_INTENT_OPTIONS}>
       <SafeAreaProvider>
         <NavigationContainer theme={theme} ref={navRef}>
           <AuthProvider>
