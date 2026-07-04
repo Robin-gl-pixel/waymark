@@ -447,6 +447,27 @@ function Root() {
             drops the user right back on the Profile tab where they came from.
           */}
           <RootStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Réglages' }} />
+          {/*
+            SeededFollow moved off the blocking rootGate flow in #78 (PRD #77)
+            and now lives as a stack push, opened from the SocialNudgeBanner
+            (#81). On completion (or "Passer") we persist the flag and pop back
+            to whichever screen pushed us — that's what hides the banner.
+            `headerShown: false` because the screen manages its own SafeAreaView
+            + top-right "Passer" button; a nav header would double the top pad.
+          */}
+          <RootStack.Screen
+            name="SeededFollow"
+            options={{ headerShown: false }}
+          >
+            {({ navigation }) => (
+              <SeededFollowScreen
+                onComplete={async () => {
+                  await markSeededFollowDone();
+                  if (navigation.canGoBack()) navigation.goBack();
+                }}
+              />
+            )}
+          </RootStack.Screen>
         </>
       ) : route === 'onboarding' ? (
         <RootStack.Screen
