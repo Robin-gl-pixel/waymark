@@ -11,7 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView from 'react-native-map-clustering';
-import RNMapView, { Marker, PROVIDER_DEFAULT, Callout, type PoiClickEvent } from 'react-native-maps';
+import RNMapView, {
+  Marker,
+  PROVIDER_DEFAULT,
+  Callout,
+  type PoiClickEvent,
+  type LongPressEvent,
+} from 'react-native-maps';
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -249,11 +255,14 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, [focusLieuId, loading, lieux]);
 
-  // POI tap → open the save sheet with the POI's name + coordinate. On iOS
-  // this fires on Apple Maps' native POI tap targets (labelled shops, cafés,
-  // etc.). If the underlying provider doesn't emit onPoiClick (e.g. an Apple
-  // Maps build where the react-native-maps bridge treats POIs as inert), the
-  // handler simply never runs — no error surfaced to the user.
+  // POI tap → open the save sheet with the POI's name + coordinate.
+  //
+  // WARNING: `onPoiClick` is a Google-Maps-only bridge event. On Apple Maps
+  // (PROVIDER_DEFAULT on iOS — what this app ships) Apple captures the POI
+  // label gesture natively and never emits it to JS, so this handler is
+  // effectively dead code on the current build. It's kept for parity with a
+  // future Google Maps switch; the real path today is `handleLongPress`
+  // below (see slice C bug fix).
   const handlePoiClick = useCallback((e: PoiClickEvent) => {
     // Skip anonymous POIs — pinning a spot with no name is worse than a
     // dropped pin from the picker.
@@ -261,6 +270,20 @@ export default function MapScreen() {
     setPoiTap({
       name: e.nativeEvent.name,
       coordinate: e.nativeEvent.coordinate,
+      source: 'poi',
+    });
+  }, []);
+
+  // Long-press → open the save sheet with an empty name pre-filled and let
+  // the user type it in. This is the Apple-Maps-friendly fallback for the
+  // POI-tap flow: `onLongPress` fires reliably on both providers, unlike
+  // `onPoiClick` which Apple swallows. The sheet UX is unchanged apart from
+  // the editable name field.
+  const handleLongPress = useCallback((e: LongPressEvent) => {
+    setPoiTap({
+      name: '',
+      coordinate: e.nativeEvent.coordinate,
+      source: 'longpress',
     });
   }, []);
 
@@ -270,11 +293,19 @@ export default function MapScreen() {
   }, [savingPoi]);
 
   const handlePoiSave = useCallback(
-    async ({ category, status }: { category: LieuCategory; status: 'wishlist' | 'visited' | null }) => {
+    async ({
+      category,
+      status,
+      name,
+    }: {
+      category: LieuCategory;
+      status: 'wishlist' | 'visited' | null;
+      name: string;
+    }) => {
       if (!user || !poiTap) return;
       setSavingPoi(true);
       try {
-        const { input } = mapPoiToLieuInput({ poi: poiTap, category, status });
+        const { input } = mapPoiToLieuInput({ poi: poiTap, category, status, name });
         const created = await getLieuxService().createLieu(user.uid, input);
         // createLieu hardcodes status: 'wishlist'. If the user picked
         // « Allé » (or explicitly cleared), flip via updateLieu so the
@@ -341,6 +372,7 @@ export default function MapScreen() {
         radius={40}
         minPoints={3}
         onPoiClick={handlePoiClick}
+        onLongPress={handleLongPress}
       >
         {lieux.map((lieu) => (
           <PinMarker
@@ -354,9 +386,14 @@ export default function MapScreen() {
 
       {/* Header — minimal mono pin count chip, right-aligned. The « Ta carte »
           eyebrow + city title were dropped: founder pins worldwide, so the
-          hard-coded « Paris » was misleading, and the eyebrow read as chrome. */}
+          hard-coded « Paris » was misleading, and the eyebrow read as chrome.
+          Left side carries an « Appuie long » discovery hint so users learn
+          the Apple-Maps add-a-lieu gesture (POI tap is inert on Apple). */}
       <SafeAreaView style={styles.headerOverlay} edges={['top']} pointerEvents="box-none">
         <View style={styles.headerRow} pointerEvents="none">
+          <View style={styles.hintChip}>
+            <Text style={styles.hintLabel}>Appuie long · ajouter</Text>
+          </View>
           <View style={styles.pinCountChip}>
             <Text style={styles.pinCount}>{pinCountLabel}</Text>
           </View>
@@ -397,7 +434,9 @@ export default function MapScreen() {
           <View style={styles.emptyCard}>
             <Text style={styles.emptyEyebrow}>Aucun pin</Text>
             <Text style={styles.emptyTitle}>Ta carte commence ici</Text>
-            <Text style={styles.emptyBody}>Ajoute ton premier screenshot pour voir la carte se remplir.</Text>
+            <Text style={styles.emptyBody}>
+              Ajoute ton premier screenshot — ou appuie long sur la carte pour épingler un lieu à la main.
+            </Text>
             <Pressable onPress={() => nav.navigate('Upload')} style={styles.emptyBtn}>
               <Text style={styles.emptyBtnLabel}>Ajouter un lieu</Text>
             </Pressable>
@@ -449,12 +488,31 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     paddingHorizontal: spacing.lg,
   },
-  // Right-aligned row so the count sits at the top-right corner and leaves the
-  // left half of the screen clean over the map tiles.
+  // Row spans the full width so the count sits at the right and the "appuie
+  // long" hint sits at the left. Both chips read as archival mono chrome,
+  // never fighting the map tiles.
   headerRow: {
     marginTop: spacing.xs,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  // Left-side discovery hint — teaches the Apple-Maps add-a-lieu gesture.
+  // Half-opacity paper so it fades into the tile texture on busy maps but
+  // stays readable on the empty ground.
+  hintChip: {
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.hair,
+  },
+  hintLabel: {
+    ...type.mono,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: colors.graphite,
+    fontWeight: '700',
   },
   // Small paper chip carrying the count — keeps the count readable over any
   // tile without reintroducing a full-width header bar.

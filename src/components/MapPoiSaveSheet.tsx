@@ -2,14 +2,17 @@ import React, { useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
-import { colors, spacing, type, fonts, categoryColor } from '../theme';
+import { colors, spacing, type, fonts, radius, categoryColor } from '../theme';
 import type { LieuCategory } from '../types/Lieu';
 import type { BadgeStatus } from './BadgeText';
 import StatusToggle from './StatusToggle';
@@ -26,8 +29,11 @@ interface Props {
    * Called when the user hits « Sauvegarder ». The sheet stays open (with a
    * spinner) until the parent flips `saving` back to false — the parent owns
    * the async createLieu + updateLieu calls.
+   *
+   * `name` is whatever the sheet's TextInput ended up with (trimmed by the
+   * caller if needed). Empty names are already blocked at the UI level.
    */
-  onSave: (choice: { category: LieuCategory; status: BadgeStatus }) => void;
+  onSave: (choice: { category: LieuCategory; status: BadgeStatus; name: string }) => void;
   /** Called when the user cancels via backdrop tap or « Annuler ». */
   onCancel: () => void;
   /** Parent-controlled save-in-flight flag — disables buttons + shows spinner. */
@@ -36,19 +42,27 @@ interface Props {
 
 /**
  * Bottom-sheet-style modal that opens when the user taps a POI on the Apple
- * map. Presents a picker for category (7 chips, default resto) and status
- * (Envie / Allé, default Envie), plus a cerise « Sauvegarder » CTA and an
- * ink-outlined « Annuler » button.
+ * map. Presents an editable name field, a picker for category (7 chips,
+ * default resto) and status (Envie / Allé, default Envie), plus a cerise
+ * « Sauvegarder » CTA and an ink-outlined « Annuler » button.
  *
  * The sheet slides up from the bottom on iOS; when the OS-level reduce-motion
  * preference is on, it fades in instead (see `animationType` below).
  *
  * The parent controls saving state so it can call `LieuxService.createLieu`
  * outside of this component — the sheet is a pure picker.
+ *
+ * On Apple Maps (iOS default provider), `onPoiClick` doesn't fire — Apple
+ * captures the POI-label gesture natively and never emits it to JS. This
+ * sheet is therefore reachable through TWO gestures:
+ *   - `source: 'poi'`     — Google Maps POI tap (name pre-filled, editable).
+ *   - `source: 'longpress'` — Apple Maps long-press on any coordinate; name
+ *                             starts empty and the user types it.
  */
 export default function MapPoiSaveSheet({ poi, onSave, onCancel, saving }: Props) {
   const [category, setCategory] = useState<LieuCategory>('resto');
   const [status, setStatus] = useState<BadgeStatus>('wishlist');
+  const [nameDraft, setNameDraft] = useState('');
   const [reducedMotion, setReducedMotion] = useState(false);
 
   // Reset selection every time the sheet opens against a new POI — otherwise
@@ -59,8 +73,9 @@ export default function MapPoiSaveSheet({ poi, onSave, onCancel, saving }: Props
     if (poi) {
       setCategory('resto');
       setStatus('wishlist');
+      setNameDraft(poi.name);
     }
-  }, [poi?.name, poi?.coordinate.latitude, poi?.coordinate.longitude]);
+  }, [poi?.name, poi?.coordinate.latitude, poi?.coordinate.longitude, poi?.source]);
 
   // Subscribe to reduce-motion so we can swap slide→fade at open time.
   useEffect(() => {
@@ -82,6 +97,9 @@ export default function MapPoiSaveSheet({ poi, onSave, onCancel, saving }: Props
   }, []);
 
   const visible = poi !== null;
+  const trimmedName = nameDraft.trim();
+  const canSave = trimmedName.length > 0 && !saving;
+  const isLongPress = poi?.source === 'longpress';
 
   return (
     <Modal
@@ -93,83 +111,111 @@ export default function MapPoiSaveSheet({ poi, onSave, onCancel, saving }: Props
       onRequestClose={onCancel}
       statusBarTranslucent
     >
-      {/* Tap-outside dismiss lives on the backdrop Pressable. */}
-      <Pressable
-        style={styles.backdrop}
-        onPress={saving ? undefined : onCancel}
-        accessibilityLabel="Fermer la fiche"
+      <KeyboardAvoidingView
+        style={styles.kb}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Inner Pressable eats touches so tapping the sheet body itself
-            doesn't dismiss it. */}
-        <Pressable style={styles.sheet} onPress={() => {}} accessibilityViewIsModal>
-          {poi && (
-            <ScrollView
-              contentContainerStyle={styles.sheetInner}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.eyebrow}>Lieu repéré</Text>
-              <Text style={styles.name} numberOfLines={2}>
-                {poi.name}
-              </Text>
+        {/* Tap-outside dismiss lives on the backdrop Pressable. */}
+        <Pressable
+          style={styles.backdrop}
+          onPress={saving ? undefined : onCancel}
+          accessibilityLabel="Fermer la fiche"
+        >
+          {/* Inner Pressable eats touches so tapping the sheet body itself
+              doesn't dismiss it. */}
+          <Pressable style={styles.sheet} onPress={() => {}} accessibilityViewIsModal>
+            {poi && (
+              <ScrollView
+                contentContainerStyle={styles.sheetInner}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={styles.eyebrow}>Ajouter à ta carte</Text>
 
-              <Text style={styles.sectionLabel}>Catégorie</Text>
-              <View style={styles.chipRow}>
-                {MAP_POI_CATEGORY_ORDER.map((cat) => (
-                  <CategoryChip
-                    key={cat}
-                    category={cat}
-                    label={MAP_POI_CATEGORY_LABEL[cat]}
-                    selected={category === cat}
-                    onPress={() => setCategory(cat)}
+                <Text style={styles.sectionLabel}>
+                  {isLongPress ? 'Nom du lieu' : 'Nom repéré'}
+                </Text>
+                <TextInput
+                  value={nameDraft}
+                  onChangeText={setNameDraft}
+                  placeholder={
+                    isLongPress
+                      ? 'Ex. Le Baratin'
+                      : 'Corrige si Apple s’est planté'
+                  }
+                  placeholderTextColor={colors.graphite}
+                  editable={!saving}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  style={styles.nameInput}
+                  accessibilityLabel="Nom du lieu"
+                />
+                {isLongPress && (
+                  <Text style={styles.hint}>
+                    Apple Maps ne partage pas le nom du POI — tape-le à la main.
+                  </Text>
+                )}
+
+                <Text style={styles.sectionLabel}>Catégorie</Text>
+                <View style={styles.chipRow}>
+                  {MAP_POI_CATEGORY_ORDER.map((cat) => (
+                    <CategoryChip
+                      key={cat}
+                      category={cat}
+                      label={MAP_POI_CATEGORY_LABEL[cat]}
+                      selected={category === cat}
+                      onPress={() => setCategory(cat)}
+                      disabled={saving}
+                    />
+                  ))}
+                </View>
+
+                <Text style={styles.sectionLabel}>Ton statut</Text>
+                <StatusToggle
+                  status={status}
+                  onChange={setStatus}
+                  style={styles.statusRow}
+                />
+
+                <View style={styles.actions}>
+                  <Pressable
+                    onPress={onCancel}
                     disabled={saving}
-                  />
-                ))}
-              </View>
-
-              <Text style={styles.sectionLabel}>Ton statut</Text>
-              <StatusToggle
-                status={status}
-                onChange={setStatus}
-                style={styles.statusRow}
-              />
-
-              <View style={styles.actions}>
-                <Pressable
-                  onPress={onCancel}
-                  disabled={saving}
-                  style={({ pressed }) => [
-                    styles.cancelBtn,
-                    pressed && { opacity: 0.7 },
-                    saving && { opacity: 0.5 },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Annuler"
-                >
-                  <Text style={styles.cancelLabel}>Annuler</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => onSave({ category, status })}
-                  disabled={saving}
-                  style={({ pressed }) => [
-                    styles.saveBtn,
-                    pressed && { backgroundColor: colors.accentDim },
-                    saving && { opacity: 0.7 },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Sauvegarder"
-                >
-                  {saving ? (
-                    <ActivityIndicator color={colors.paper} />
-                  ) : (
-                    <Text style={styles.saveLabel}>Sauvegarder</Text>
-                  )}
-                </Pressable>
-              </View>
-            </ScrollView>
-          )}
+                    style={({ pressed }) => [
+                      styles.cancelBtn,
+                      pressed && { opacity: 0.7 },
+                      saving && { opacity: 0.5 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Annuler"
+                  >
+                    <Text style={styles.cancelLabel}>Annuler</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => onSave({ category, status, name: trimmedName })}
+                    disabled={!canSave}
+                    style={({ pressed }) => [
+                      styles.saveBtn,
+                      pressed && canSave && { backgroundColor: colors.accentDim },
+                      !canSave && { opacity: 0.5 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sauvegarder"
+                    accessibilityState={{ disabled: !canSave }}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color={colors.paper} />
+                    ) : (
+                      <Text style={styles.saveLabel}>Sauvegarder</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </ScrollView>
+            )}
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -215,6 +261,7 @@ function CategoryChip({
 }
 
 const styles = StyleSheet.create({
+  kb: { flex: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(20, 16, 10, 0.45)',
@@ -226,7 +273,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.hair,
     // Content-fit height with a safe upper bound. iOS home indicator +
     // paddingBottom below cover the notch.
-    maxHeight: '85%',
+    maxHeight: '90%',
   },
   sheetInner: {
     paddingHorizontal: spacing.xl,
@@ -236,21 +283,35 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     ...type.mono,
-    fontSize: 9,
-    letterSpacing: 2.16,
-    color: colors.graphite,
-    fontWeight: '600',
+    fontSize: 11,
+    letterSpacing: 2.2,
+    color: colors.ink,
+    fontWeight: '700',
   },
-  // Grotesque black uppercase venue name — matches the map header title spec.
-  name: {
+  // Editable venue name — grotesque black uppercase, boxed with a hair border
+  // so it reads as a form field (not display type). Font sizing tuned so a
+  // 24-char name still fits on one line at 30pt.
+  nameInput: {
     fontFamily: fonts.display,
     fontWeight: '900',
-    fontSize: 28,
-    lineHeight: 30,
-    letterSpacing: -0.9,
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.6,
     color: colors.ink,
     textTransform: 'uppercase',
-    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.hair,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.paper,
+  },
+  hint: {
+    ...type.serifItalic,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.graphite,
+    marginTop: -spacing.xs,
   },
   sectionLabel: {
     ...type.monoSm,
