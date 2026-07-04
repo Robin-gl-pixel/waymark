@@ -10,9 +10,13 @@ import { colors, fonts, spacing, type } from '../theme';
  * card. Teaches the Waymark Share flow in three annotated slots without leaving
  * the app:
  *
- *   1. Screenshot Instagram → capture le post à sauvegarder.
- *   2. Share sheet iOS → tape « Waymark Share ».
- *   3. Preview Waymark    → confirme le lieu et sauvegarde.
+ *   1. Instagram post/reel → tape le bouton Partager (avion papier).
+ *   2. Share sheet iOS     → choisis « Waymark Share ».
+ *   3. Preview Waymark     → confirme le lieu et sauvegarde.
+ *
+ * NB : c'est la Share Extension iOS, PAS un screenshot. Le média (photo/vidéo)
+ * du post arrive directement dans l'app. Le path « screenshot déjà pris » vit
+ * dans l'autre card de l'empty state.
  *
  * The three bitmap assets are out of scope for this slice — the PRD explicitly
  * lists them as a follow-up shoot in the simulator. Slots therefore render as
@@ -44,17 +48,17 @@ const SLOTS: readonly Slot[] = [
   {
     icon: 'logo-instagram',
     eyebrow: 'Étape 1',
-    body: 'Screenshote le post Instagram du lieu que tu veux sauvegarder.',
+    body: 'Sur un post ou un reel Insta, tape le bouton Partager (avion papier).',
   },
   {
     icon: 'share-outline',
     eyebrow: 'Étape 2',
-    body: 'Ouvre la share sheet iOS et tape « Waymark Share ».',
+    body: 'Dans la share sheet iOS, choisis « Waymark Share ».',
   },
   {
     icon: 'map-outline',
     eyebrow: 'Étape 3',
-    body: 'Confirme le lieu détecté et il apparaît sur ta carte.',
+    body: 'Waymark reçoit le média, détecte le lieu et l\'épingle sur ta carte.',
   },
 ] as const;
 
@@ -76,8 +80,8 @@ export default function ShareExtensionTutorialModal({ visible, onClose }: Props)
           <Text style={styles.eyebrow}>Tuto Waymark Share</Text>
           <Text style={styles.title}>Depuis Instagram</Text>
           <Text style={styles.subtitle}>
-            Waymark détecte le lieu dans le screenshot et l'épingle sur ta carte
-            en un tap.
+            Partage un post ou un reel Insta vers Waymark Share : on détecte le
+            lieu et on l'épingle sur ta carte, sans screenshot.
           </Text>
 
           <ScrollView
