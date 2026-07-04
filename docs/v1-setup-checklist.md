@@ -1,4 +1,4 @@
-# Amble V1 — setup checklist (things only you can do)
+# Pinti V1 — setup checklist (things only you can do)
 
 Everything in this doc is manual configuration that cannot be automated from code. Work top-down; each section calls out **why** the step exists so you can skip anything that's already in place.
 
@@ -12,7 +12,7 @@ Console: https://console.firebase.google.com
 
 - [ ] Create project `mappies-7748d`
 - [ ] **Authentication → Sign-in method → Apple** → enable
-  - Service ID: bundle identifier (`com.robinhesse.amble` or whatever's in `app.json`)
+  - Service ID: bundle identifier (`com.robinhesse.pinti` or whatever's in `app.json`)
   - Apple Team ID + Key ID + private key (same values as §3 below)
 - [ ] **Firestore → Create database** (region: `europe-west1` to match the Cloud Functions)
 - [ ] **Storage → Get started** (region: `europe-west1`)
@@ -45,7 +45,7 @@ firebase functions:secrets:set MAPBOX_SECRET_TOKEN
 
 Console: https://developer.apple.com/account/resources/authkeys/list
 
-- [ ] **Keys → +** → name "Amble Sign In With Apple" → check **Sign In with Apple** → configure → primary App ID = your bundle ID → Continue → Register
+- [ ] **Keys → +** → name "Pinti Sign In With Apple" → check **Sign In with Apple** → configure → primary App ID = your bundle ID → Continue → Register
 - [ ] Download the `.p8` file **once** (you can't re-download it — treat like a password)
 - [ ] Note the **Key ID** (10 chars, shown next to the key)
 - [ ] Note your **Team ID** (top-right in developer.apple.com)
@@ -55,7 +55,7 @@ Then set the four Firebase Functions secrets:
 ```bash
 firebase functions:secrets:set APPLE_TEAM_ID          # 10-char team ID
 firebase functions:secrets:set APPLE_KEY_ID           # 10-char key ID from previous step
-firebase functions:secrets:set APPLE_CLIENT_ID        # bundle identifier, e.g. com.robinhesse.amble
+firebase functions:secrets:set APPLE_CLIENT_ID        # bundle identifier, e.g. com.robinhesse.pinti
 firebase functions:secrets:set APPLE_PRIVATE_KEY      # paste .p8 contents INCLUDING -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
 ```
 
@@ -67,7 +67,7 @@ Then deploy: `firebase deploy --only functions`.
 
 The iOS Share Extension (`expo-share-intent` plugin) ships with the app bundle
 — nothing to publish separately. After `expo prebuild`, verify in Xcode that
-the extension target `Amble Share` is present and signed with the same team
+the extension target `Pinti Share` is present and signed with the same team
 as the main app.
 
 ## 5. Privacy policy hosting
@@ -77,7 +77,7 @@ Apple requires a public HTTPS URL, not a raw markdown file.
 Cheapest option — GitHub Pages:
 
 - [ ] Repo → Settings → Pages → Source = `Deploy from a branch` → branch `main` /`docs`
-- [ ] Wait ~1 min → note the URL (e.g. `https://robin-gl-pixel.github.io/amble/privacy-policy`)
+- [ ] Wait ~1 min → note the URL (e.g. `https://robin-gl-pixel.github.io/pinti/privacy-policy`)
 - [ ] Paste that URL into `docs/app-store-metadata.md` under "Privacy policy URL"
 - [ ] Reference it in the App Store Connect submission
 
@@ -93,7 +93,7 @@ Alternative — Vercel: `vercel deploy` from the repo root; the URL comes back o
 - [ ] `npx eas credentials` → set up the iOS signing bundle
 - [ ] `npm run build:ios:prod` → wait ~15 min
 - [ ] `npm run submit:ios` → upload to TestFlight
-- [ ] Add yourself as internal tester → install on device → **actually complete the golden path**: sign in, screenshot Insta → Partager → Amble, see the pin, tap into detail, delete account
+- [ ] Add yourself as internal tester → install on device → **actually complete the golden path**: sign in, screenshot Insta → Partager → Pinti, see the pin, tap into detail, delete account
 
 ## 7. Assets to produce manually
 
@@ -126,7 +126,7 @@ Just for your reference — these have code but need §1–§6 config to actuall
 - Map with clustering (`react-native-map-clustering`)
 - Lieu detail with debounced userNotes autosave
 - Delete account (Firestore + Storage + Auth + Apple revoke) — needs §3 secrets to fully work
-- iOS Share Extension (`expo-share-intent`) — extracts inside the app after the user taps Amble in the share sheet
+- iOS Share Extension (`expo-share-intent`) — extracts inside the app after the user taps Pinti in the share sheet
 - Manrope font family loaded via `@expo-google-fonts/manrope`
 - Privacy policy draft in `docs/privacy-policy.md` — needs §5 hosting
 - Onboarding, unit tests for the seam, golden extraction eval — track under remaining follow-ups

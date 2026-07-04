@@ -17,12 +17,12 @@ Utility scripts for one-shot setup and maintenance tasks.
 
 ### `seed-curated-accounts.ts`
 
-Creates the 4 official Amble Curated auth users + Firestore user docs:
+Creates the 4 official Pinti Curated auth users + Firestore user docs:
 
-- `@amble.paris.cool`
-- `@amble.paris.culturel`
-- `@amble.paris.chic`
-- `@amble.paris.food`
+- `@pinti.paris.cool`
+- `@pinti.paris.culturel`
+- `@pinti.paris.chic`
+- `@pinti.paris.food`
 
 Idempotent — safe to re-run. Also reserves each username in `/usernames/{lowercase}` so no regular user can grab them.
 
@@ -30,7 +30,7 @@ Idempotent — safe to re-run. Also reserves each username in `/usernames/{lower
 npx tsx scripts/seed-curated-accounts.ts
 ```
 
-Run this **once** before launch. After it completes, the accounts exist but have no pins — use the Amble app to log in as each account and manually add 15-20 pins per compte per `docs/curation-playbook.md`.
+Run this **once** before launch. After it completes, the accounts exist but have no pins — use the Pinti app to log in as each account and manually add 15-20 pins per compte per `docs/curation-playbook.md`.
 
 ### `seed-curated-pins.ts`
 

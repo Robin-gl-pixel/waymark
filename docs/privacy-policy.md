@@ -1,16 +1,16 @@
 ---
-title: Politique de confidentialité — Amble
+title: Politique de confidentialité — Pinti
 layout: default
 ---
 
-# Politique de confidentialité — Amble
+# Politique de confidentialité — Pinti
 
 **Dernière mise à jour :** 2026-07-01
 **Contact :** hesserobin1234@gmail.com
 
 ## En bref
 
-Amble est un carnet de lieux personnel. On ne vend rien, on ne track pas, on ne partage tes données avec personne.
+Pinti est un carnet de lieux personnel. On ne vend rien, on ne track pas, on ne partage tes données avec personne.
 
 - **Tu contrôles tes données** : tu peux tout supprimer depuis Réglages → *Supprimer mon compte*.
 - **Aucune publicité, aucun tracker tiers.**
@@ -20,7 +20,7 @@ Amble est un carnet de lieux personnel. On ne vend rien, on ne track pas, on ne 
 
 ## 1. Qui nous sommes
 
-Amble est développé par Robin Hesse, développeur indépendant basé en France. Contact : hesserobin1234@gmail.com.
+Pinti est développé par Robin Hesse, développeur indépendant basé en France. Contact : hesserobin1234@gmail.com.
 
 ## 2. Données collectées
 
@@ -53,7 +53,7 @@ Ces données sont stockées sur Firebase Firestore + Firebase Storage, dans un e
 
 ## 3. Comment tes données sont utilisées
 
-Uniquement pour faire fonctionner Amble :
+Uniquement pour faire fonctionner Pinti :
 - Afficher tes lieux sur ta carte et ta liste
 - Extraire automatiquement les informations depuis tes screenshots (via Claude vision, voir §5)
 - Géocoder les adresses (via Mapbox, voir §5)
@@ -75,7 +75,7 @@ Après traitement, l'image est stockée sur Firebase Storage sous ton propre esp
 
 ## 5. Sous-traitants (tiers)
 
-Pour faire fonctionner Amble, nous utilisons ces services :
+Pour faire fonctionner Pinti, nous utilisons ces services :
 
 | Service | Rôle | Localisation |
 |---|---|---|
@@ -101,7 +101,7 @@ Aucun humain (y compris nous, développeur solo) n'accède à tes données perso
 
 ## 8. Tes droits (RGPD)
 
-Étant basé en France, Amble respecte le RGPD. Tu as le droit :
+Étant basé en France, Pinti respecte le RGPD. Tu as le droit :
 - **D'accès** : demander une copie de toutes tes données (contact email ci-dessus)
 - **De rectification** : modifier tes données directement dans l'app
 - **D'effacement** : bouton *Supprimer mon compte* dans Réglages, effet immédiat
@@ -112,12 +112,12 @@ Aucun humain (y compris nous, développeur solo) n'accède à tes données perso
 ## 9. Sécurité
 
 - Toutes les communications entre l'app et nos serveurs sont chiffrées (HTTPS/TLS 1.3)
-- L'authentification passe par Sign in with Apple (0 mot de passe manipulé côté Amble)
+- L'authentification passe par Sign in with Apple (0 mot de passe manipulé côté Pinti)
 - Les règles Firebase Firestore et Storage isolent strictement les données par utilisateur (`request.auth.uid == userId`)
 
 ## 10. Enfants
 
-Amble n'est pas conçu pour les moins de 13 ans. Nous ne collectons pas sciemment de données auprès d'enfants.
+Pinti n'est pas conçu pour les moins de 13 ans. Nous ne collectons pas sciemment de données auprès d'enfants.
 
 ## 11. Modifications de cette politique
 

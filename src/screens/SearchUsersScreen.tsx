@@ -197,7 +197,7 @@ function UserRow({ user, onPress }: { user: UserProfile; onPress: () => void }) 
       </View>
       {user.isCurated && (
         <View style={styles.badge}>
-          <Text style={styles.badgeLabel}>Amble</Text>
+          <Text style={styles.badgeLabel}>Pinti</Text>
         </View>
       )}
       <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />

@@ -37,7 +37,7 @@ const SLIDES: Slide[] = [
   {
     key: 'solution',
     icon: 'map-outline',
-    title: 'Amble les transforme en carte, en 4 secondes.',
+    title: 'Pinti les transforme en carte, en 4 secondes.',
     subtitle: 'Screenshot → pin sur ta carte perso. Zéro saisie.',
   },
   {

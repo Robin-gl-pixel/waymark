@@ -70,12 +70,12 @@ describe('<ShareExtensionTutorialModal />', () => {
     expect(eyebrows).toEqual(['Étape 1', 'Étape 2', 'Étape 3']);
   });
 
-  it('mentions « Amble Share » in one of the step captions', () => {
+  it('mentions « Pinti Share » in one of the step captions', () => {
     // The whole point of the modal is to name the Share Extension by its
     // exact iOS share-sheet label so the user recognises it when scrolling.
     const { tree } = render();
     const texts = findAll(tree, 'Text').map((t) => textContent(t.props.children));
-    expect(texts.some((t) => t.includes('Amble Share'))).toBe(true);
+    expect(texts.some((t) => t.includes('Pinti Share'))).toBe(true);
   });
 
   it('renders a close button labelled « Fermer »', () => {

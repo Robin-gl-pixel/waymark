@@ -112,7 +112,7 @@ export default function PickUsernameScreen({ onComplete }: Props) {
         <View style={styles.header}>
           <Text style={styles.title}>Choisis ton @</Text>
           <Text style={styles.subtitle}>
-            C'est comme ça que tes amis vont te trouver sur Amble.
+            C'est comme ça que tes amis vont te trouver sur Pinti.
           </Text>
         </View>
 

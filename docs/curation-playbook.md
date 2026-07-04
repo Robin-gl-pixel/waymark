@@ -1,9 +1,9 @@
-# Amble Curated — Playbook de curation Paris V1
+# Pinti Curated — Playbook de curation Paris V1
 
 **Statut** : draft J-3 avant launch
 **Auteur** : Robin Hesse
 **Dernière révision** : 2026-07-02
-**Portée** : les 4 comptes @amble.paris.cool / .culturel / .chic / .food
+**Portée** : les 4 comptes @pinti.paris.cool / .culturel / .chic / .food
 **Livrable attendu** : 60-80 pins au total, prêts au moment du submit App Store
 **Effort estimé** : 1 jour de curation Robin (~8h)
 
@@ -11,13 +11,13 @@
 
 ## 0. À qui ce playbook s'adresse
 
-Toi, Robin, curateur solo en V1. Ce doc te donne les règles à suivre pour que les 4 comptes officiels Amble Curated :
+Toi, Robin, curateur solo en V1. Ce doc te donne les règles à suivre pour que les 4 comptes officiels Pinti Curated :
 
 1. **Aient chacun une identité claire** — un user qui suit un des comptes sait ce qu'il va recevoir.
 2. **Ne se marchent pas sur les pieds** — pas de doublon entre "cool" et "chic" sur le même lieu.
 3. **Se différencient des benchmarks** existants (Le Fooding, Time Out, etc.) — on ne fait pas doublon de ce qui existe déjà.
 4. **Passent Apple review** — pas de faux avis, pas de content scraping, pas de fake influenceur.
-5. **Puissent être scale** — quand tu ouvres @amble.lisbon dans 6 mois, tu réutilises le même cadre.
+5. **Puissent être scale** — quand tu ouvres @pinti.lisbon dans 6 mois, tu réutilises le même cadre.
 
 ---
 
@@ -26,8 +26,8 @@ Toi, Robin, curateur solo en V1. Ce doc te donne les règles à suivre pour que 
 ### 1.1 Rôle des comptes dans le produit
 
 - **Résoudre le cold start** — quand user #5 s'inscrit sans amis sur la plateforme, son tab Réseau ne doit pas être vide (voir décisions #6-#7 du PRD).
-- **Poser la barre qualité** — chaque compte Amble Curated est un contre-exemple des feeds saturés (Insta = 15 restos "cool" par jour, on filtre).
-- **Être un canal de découverte assumé** — l'user sait qu'il suit un compte éditorial, pas un ami. Le badge "Amble Curated" (`isCurated: true`) est visible sur le profil.
+- **Poser la barre qualité** — chaque compte Pinti Curated est un contre-exemple des feeds saturés (Insta = 15 restos "cool" par jour, on filtre).
+- **Être un canal de découverte assumé** — l'user sait qu'il suit un compte éditorial, pas un ami. Le badge "Pinti Curated" (`isCurated: true`) est visible sur le profil.
 
 ### 1.2 Ce que ces comptes ne sont PAS
 
@@ -38,7 +38,7 @@ Toi, Robin, curateur solo en V1. Ce doc te donne les règles à suivre pour que 
 
 ### 1.3 Différenciation vs les 5 benchmarks Paris
 
-Tableau de positionnement — ce qui existe déjà sur Paris et où Amble Curated se place.
+Tableau de positionnement — ce qui existe déjà sur Paris et où Pinti Curated se place.
 
 | Media | Voix dominante | Audience | Format | Trou dans le marché |
 |---|---|---|---|---|
@@ -48,9 +48,9 @@ Tableau de positionnement — ce qui existe déjà sur Paris et où Amble Curate
 | **Enlarge Your Paris** | Contre-culture, banlieue-friendly, engagée | Curieux du Grand Paris, gens qui sortent d'intra-muros | Newsletter + articles longs | Militantisme parfois pesant, moins bon en resto/quotidien |
 | **Fisheye Magazine** | Photo/art contemporain | Visuels, photographes, amateurs d'art | Magazine papier + web | Très spécialisé image — pas food, pas quotidien |
 
-**Trou stratégique que Amble Curated occupe** : le "carte perso partageable, resserée, ni éphémère ni listicle" — l'équivalent d'un ami parisien bien informé qui te ferait sa carte plutôt qu'un article. C'est ce que Google Maps "Listes" essaie de faire mais sans identité éditoriale.
+**Trou stratégique que Pinti Curated occupe** : le "carte perso partageable, resserée, ni éphémère ni listicle" — l'équivalent d'un ami parisien bien informé qui te ferait sa carte plutôt qu'un article. C'est ce que Google Maps "Listes" essaie de faire mais sans identité éditoriale.
 
-**Signature Amble** en une phrase : *"Un lieu par pin, une raison précise d'y aller."*
+**Signature Pinti** en une phrase : *"Un lieu par pin, une raison précise d'y aller."*
 
 ---
 
@@ -63,7 +63,7 @@ Chaque compte est décrit avec :
 - **Différenciation vs benchmarks**
 - **In / Out** — 5-7 critères d'inclusion et d'exclusion
 
-### 2.1 @amble.paris.cool
+### 2.1 @pinti.paris.cool
 
 > **Tagline** : *"Les spots parisiens qu'on trouve après un an sur place — pas avant."*
 
@@ -95,7 +95,7 @@ Chaque compte est décrit avec :
 **Out** :
 - Chaînes (Starbucks, Pret, Big Mamma group — même Ober Mamma).
 - Lieux qui buzzent sur TikTok/Insta touristique (>50k tag Insta = signe de tourism trap).
-- Fine dining, gastronomie étoilée (va dans @amble.paris.chic).
+- Fine dining, gastronomie étoilée (va dans @pinti.paris.chic).
 - Événements ponctuels sans lieu physique durable.
 
 **Fourchette de prix** : 10-40€ par personne.
@@ -104,7 +104,7 @@ Chaque compte est décrit avec :
 
 ---
 
-### 2.2 @amble.paris.culturel
+### 2.2 @pinti.paris.culturel
 
 > **Tagline** : *"Ce que Paris a de mieux à te faire lire, entendre, regarder."*
 
@@ -146,7 +146,7 @@ Chaque compte est décrit avec :
 
 ---
 
-### 2.3 @amble.paris.chic
+### 2.3 @pinti.paris.chic
 
 > **Tagline** : *"Quand tu veux marquer le coup, sans regretter la note."*
 
@@ -187,7 +187,7 @@ Chaque compte est décrit avec :
 
 ---
 
-### 2.4 @amble.paris.food
+### 2.4 @pinti.paris.food
 
 > **Tagline** : *"Un lieu, un plat, une raison d'y retourner."*
 
@@ -204,7 +204,7 @@ Chaque compte est décrit avec :
 
 **Différenciation vs benchmarks** :
 - vs **Le Fooding** : plus mono-focus (un plat par lieu, pas panorama de la carte).
-- vs les 3 autres comptes Amble : catégorie transversale. Un lieu peut être "cool" (bar à vin de quartier) ET dans "food" (parce que la terrine y est parfaite). Un lieu peut être "chic" (palace) ET dans "food" (parce que leur brunch a la meilleure viennoiserie). Pas de conflit — l'angle est différent.
+- vs les 3 autres comptes Pinti : catégorie transversale. Un lieu peut être "cool" (bar à vin de quartier) ET dans "food" (parce que la terrine y est parfaite). Un lieu peut être "chic" (palace) ET dans "food" (parce que leur brunch a la meilleure viennoiserie). Pas de conflit — l'angle est différent.
 
 **In** :
 1. **Un plat identifiable et remarquable** — pas "bon partout", précisément "ce plat-là".
@@ -235,7 +235,7 @@ Un lieu ne peut être curated que si toutes les conditions suivantes sont vraies
 - [ ] **Adresse physique fixe** — pas de food truck itinérant, pas de pop-up temporaire.
 - [ ] **Existe depuis ≥ 6 mois** (ou ≥ 3 ans pour @chic, ≥ 5 ans pour @culturel).
 - [ ] **Robin y est allé personnellement au moins 1 fois**, ou il connaît quelqu'un de confiance qui y va régulièrement. Pas de curation depuis Google Reviews.
-- [ ] **Le lieu peut être trouvé sur Google Maps** avec une adresse claire (nécessaire pour Amble et pour les users qui suivent le pin).
+- [ ] **Le lieu peut être trouvé sur Google Maps** avec une adresse claire (nécessaire pour Pinti et pour les users qui suivent le pin).
 - [ ] **Pas d'engagement légal problématique** — pas de "restaurant clandestin", pas de squat culturel qui n'a pas d'existence officielle. Rien qui exposerait à un litige.
 
 ### 3.2 Test du "pourquoi j'y retournerais"
@@ -245,11 +245,11 @@ Avant de mettre un lieu, réponds **en une phrase précise** : pourquoi je retou
 - Bonne réponse : "Pour le café espresso de X qui est le seul à Paris à sortir un extract chaudement rond comme à Rome."
 - Mauvaise réponse : "Parce que c'est cool" / "Parce que la déco est belle" / "Parce que les gens sympas".
 
-Si tu n'as pas de raison précise et défendable, **le lieu ne rentre pas**. Même si tu l'aimes. Amble Curated = curation resserée, pas dump de tes favoris.
+Si tu n'as pas de raison précise et défendable, **le lieu ne rentre pas**. Même si tu l'aimes. Pinti Curated = curation resserée, pas dump de tes favoris.
 
 ### 3.3 Filtre anti-doublon entre comptes
 
-Un lieu ne peut être dans **qu'un seul compte** — sauf @amble.paris.food qui est transversal.
+Un lieu ne peut être dans **qu'un seul compte** — sauf @pinti.paris.food qui est transversal.
 
 Règles de résolution des ambiguïtés :
 
@@ -270,13 +270,13 @@ Pour ne pas suringénieuriser Paris intra-muros centre :
 - **chic** : concentration acceptable (les palaces sont dans le 8e/1er) mais pas > 60% d'un même arrondissement.
 - **food** : couvrir 6+ arrondissements. Force la variété.
 
-Objectif : quand un user zoome sur son quartier, il doit y avoir au moins 1 Amble Curated dans un rayon de 2 km, où qu'il soit dans Paris.
+Objectif : quand un user zoome sur son quartier, il doit y avoir au moins 1 Pinti Curated dans un rayon de 2 km, où qu'il soit dans Paris.
 
 ---
 
 ## 4. Règles rédactionnelles
 
-### 4.1 Structure canonique d'une description Amble Curated
+### 4.1 Structure canonique d'une description Pinti Curated
 
 Chaque pin a une description en **2-3 phrases**, ~180-250 caractères total. Structure :
 
@@ -359,7 +359,7 @@ Structure : produit précis en gras → technique (spécificités du feuilletage
 - **Nom du lieu** dans le champ `name` (obligatoire).
 - Description dans le champ `description` — **PAS** de markdown lourd (pas de titres, pas de listes). Seul le gras (**...**) est utilisé pour souligner un plat (compte @food uniquement).
 - Pas d'emoji dans les descriptions — l'emoji catégorie apparaît déjà via le champ `category`.
-- Adresse : Amble la géocode automatiquement via Mapbox. Vérifie que l'adresse extraite est bonne, ajuste si besoin.
+- Adresse : Pinti la géocode automatiquement via Mapbox. Vérifie que l'adresse extraite est bonne, ajuste si besoin.
 
 ---
 
@@ -379,13 +379,13 @@ Un lieu ne peut être ajouté que si sa recommandation vient d'une source **acce
 - Google Reviews sans expérience personnelle — juste des étoiles agrégées.
 - ChatGPT, Claude, autres LLM — sortent des hallucinations, risque de nommer un lieu qui n'existe pas ou a fermé.
 - Scraping de sites — illégal + fragile + mauvaise foi.
-- Auto-promotion — Amble ne fait pas de partenariat rémunéré en V1. Zéro exception.
+- Auto-promotion — Pinti ne fait pas de partenariat rémunéré en V1. Zéro exception.
 
 ### 5.3 Guardrails Apple review
 
 Ce qui expose au rejet App Store :
 
-- **Faux avis / fausses identités** — les comptes Amble Curated doivent avoir un avatar générique clairement institutionnel (icône Amble colorée par thème), PAS une photo de personne. Le bio explique "Compte officiel Amble curé par la rédaction". Sans ambiguïté.
+- **Faux avis / fausses identités** — les comptes Pinti Curated doivent avoir un avatar générique clairement institutionnel (icône Pinti colorée par thème), PAS une photo de personne. Le bio explique "Compte officiel Pinti curé par la rédaction". Sans ambiguïté.
 - **Contenu offensant** — un lieu litigieux (bar accusé de discrimination, resto au procès en cours) ne rentre pas. Google-check chaque nom 30 secondes avant ajout.
 - **Copyright / trademark** — les screenshots que tu associes aux pins doivent être des captures d'écran **de tes propres visites** (photos que tu as prises), pas des screenshots des comptes Instagram du lieu. Utilise une photo neutre ou saute le screenshot.
 
@@ -395,7 +395,7 @@ Pour chaque pin, garde dans un Google Sheet privé (non partagé, non commit) :
 
 | Colonne | Contenu |
 |---|---|
-| Compte | @amble.paris.cool / .culturel / .chic / .food |
+| Compte | @pinti.paris.cool / .culturel / .chic / .food |
 | Nom | Nom du lieu |
 | Source | "Perso 2024-06" / "Le Fooding 2024" / "Ami: X" |
 | Date curation | Date ISO |
@@ -409,7 +409,7 @@ Utile si un lieu est challengé, retiré, ou si tu dois expliquer une décision 
 
 Ces exemples sont des **templates**. Le contenu factuel doit être vérifié le jour de la curation — utilise-les comme structure, pas comme copy-paste. J'ai laissé certains détails à confirmer marqués `[TODO Robin]`.
 
-### 6.1 @amble.paris.cool — 3 templates
+### 6.1 @pinti.paris.cool — 3 templates
 
 #### Cool #1 : bar à vins de quartier
 
@@ -444,7 +444,7 @@ Ces exemples sont des **templates**. Le contenu factuel doit être vérifié le 
   > *"Bistrot ouvert en 2014 par les soeurs Levha (ex-L'Arpège). Cuisine française avec touches asiatiques discrètes, produits impeccables, salle petite (30 couverts). Réserver 2-3 semaines. Prix cohérent pour la précision (~55€)."*
 - **screenshot** : photo perso.
 
-### 6.2 @amble.paris.culturel — 3 templates
+### 6.2 @pinti.paris.culturel — 3 templates
 
 #### Culturel #1 : musée de niche
 
@@ -479,7 +479,7 @@ Ces exemples sont des **templates**. Le contenu factuel doit être vérifié le 
   > *"Cinéma art & essai dans un ancien théâtre égyptien de 1921 restauré en 2013. Programmation entre grands classiques (rétros par cycles) et films contemporains internationaux. Salle Youssef Chahine, la plus grande, vaut le déplacement même en fond de salle."*
 - **screenshot** : photo perso façade.
 
-### 6.3 @amble.paris.chic — 3 templates
+### 6.3 @pinti.paris.chic — 3 templates
 
 #### Chic #1 : restaurant étoilé personnalité
 
@@ -514,7 +514,7 @@ Ces exemples sont des **templates**. Le contenu factuel doit être vérifié le 
   > *"Restaurant deux étoiles de David Toutain, cuisine française végétale et fermentée avec fort accent sur les producteurs franciliens. Menu unique aveugle en 7 services. Salle intimiste (28 couverts). Réserver 4-5 semaines. Menu déjeuner à 110€."*
 - **screenshot** : photo perso.
 
-### 6.4 @amble.paris.food — 3 templates
+### 6.4 @pinti.paris.food — 3 templates
 
 #### Food #1 : viennoiserie signature
 
@@ -566,7 +566,7 @@ Objectif : produire 60-80 pins prêts à publier en ~8 heures de travail focus.
 | 4h00-4h30 | Test diversité géographique (règle §3.4), swap ce qui est trop concentré | ~65 candidats équilibrés |
 | 4h30-6h30 | Rédaction des descriptions (2-3 phrases chacune, règles §4) | 65 descriptions |
 | 6h30-7h30 | Vérification adresses via Google Maps, photos perso pré-uploadées | 65 pins prêts |
-| 7h30-8h00 | Publication depuis les 4 comptes Amble (compte perso Robin en admin) | Live |
+| 7h30-8h00 | Publication depuis les 4 comptes Pinti (compte perso Robin en admin) | Live |
 
 ### 7.2 Comment brainstorm sans oublier des trucs
 
@@ -586,10 +586,10 @@ Puis pour compléter :
 
 Ordre de curation recommandé :
 
-1. **@amble.paris.chic en premier** — cible la plus étroite, on identifie facilement.
-2. **@amble.paris.culturel en 2e** — également étroit et clair.
-3. **@amble.paris.food en 3e** — transversal, mais on liste les plats d'abord.
-4. **@amble.paris.cool en dernier** — remplit ce qui reste (le plus mou).
+1. **@pinti.paris.chic en premier** — cible la plus étroite, on identifie facilement.
+2. **@pinti.paris.culturel en 2e** — également étroit et clair.
+3. **@pinti.paris.food en 3e** — transversal, mais on liste les plats d'abord.
+4. **@pinti.paris.cool en dernier** — remplit ce qui reste (le plus mou).
 
 Pour chaque candidat qui semble matcher plusieurs comptes, applique la règle §3.3.
 
@@ -597,7 +597,7 @@ Pour chaque candidat qui semble matcher plusieurs comptes, applique la règle §
 
 - **Fréquence recommandée** : 1 nouveau pin par compte par mois post-launch (donc ~4 pins/mois total).
 - **Retrait** : si un lieu ferme définitivement, supprime-le (Firestore delete propagera aux followers). Si un lieu change de chef ou de direction et perd la qualité qui justifiait sa curation, réévalue.
-- **Élargissement V1.1** : quand tu ouvres Lisbonne / Rome / Tokyo, refais le même exercice avec le même playbook. Pas de nouveau compte pour un nouvel arrondissement (pas de @amble.paris.marais).
+- **Élargissement V1.1** : quand tu ouvres Lisbonne / Rome / Tokyo, refais le même exercice avec le même playbook. Pas de nouveau compte pour un nouvel arrondissement (pas de @pinti.paris.marais).
 
 ### 7.5 Checklist finale avant publication
 
@@ -610,7 +610,7 @@ Pour chaque candidat qui semble matcher plusieurs comptes, applique la règle §
 - [ ] Aucun copier-coller d'une source externe (§5.2).
 - [ ] Photos perso ou aucun screenshot pour chaque pin (§5.3).
 - [ ] Google Sheet privé rempli avec source et notes internes (§5.4).
-- [ ] Les 4 profils Amble Curated ont `isPublic: true`, `isCurated: true`, un avatar générique Amble, et un `displayName` "Amble Cool" / "Amble Culturel" etc.
+- [ ] Les 4 profils Pinti Curated ont `isPublic: true`, `isCurated: true`, un avatar générique Pinti, et un `displayName` "Pinti Cool" / "Pinti Culturel" etc.
 
 ---
 
@@ -621,7 +621,7 @@ Pour chaque candidat qui semble matcher plusieurs comptes, applique la règle §
 - **Monétisation curation** — quand un lieu paye pour être curated (V3+ post product-market fit). Pas V1.
 - **Curation partagée** — quand plusieurs curateurs (Robin + amis proches) contribuent aux comptes officiels. V1.1 quand la charge dépassera 1 personne.
 - **Traduction** — si les users anglophones veulent la version EN des descriptions. V2.
-- **Comptes régionaux France hors Paris** — @amble.marseille, @amble.lyon, etc. V2 lointaine.
+- **Comptes régionaux France hors Paris** — @pinti.marseille, @pinti.lyon, etc. V2 lointaine.
 
 ### 8.2 Signaux à surveiller après le launch pour évaluer la curation
 
@@ -633,5 +633,5 @@ Pour chaque candidat qui semble matcher plusieurs comptes, applique la règle §
 ### 8.3 Références annexes
 
 - `docs/PRD.md` — section "V1 Social Layer > Cold start" pour le contexte produit.
-- `docs/competitive-analysis.md` — analyse des concurrents Amble (Mapstr, Beli, etc.).
+- `docs/competitive-analysis.md` — analyse des concurrents Pinti (Mapstr, Beli, etc.).
 - `docs/app-store-metadata.md` — copy des descriptions App Store pour rester cohérent en tone.

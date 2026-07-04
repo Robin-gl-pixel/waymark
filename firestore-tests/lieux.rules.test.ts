@@ -23,7 +23,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, getDocs, collection, setDoc } from 'firebase/firestore';
 
-const PROJECT_ID = 'amble-rules-test';
+const PROJECT_ID = 'pinti-rules-test';
 const OWNER_UID = 'owner-alice';
 const FOLLOWER_UID = 'follower-bob';
 const STRANGER_UID = 'stranger-carol';
