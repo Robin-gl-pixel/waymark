@@ -26,7 +26,12 @@
         ],
         "NSPhotoLibraryUsageDescription": "Pinti utilise tes screenshots Instagram pour extraire automatiquement les lieux recommandés.",
         "NSLocationWhenInUseUsageDescription": "Pinti utilise ta position pour te montrer les lieux enregistrés autour de toi.",
-        "NSCameraUsageDescription": "Pinti peut utiliser l'appareil photo pour capturer directement un post Instagram à extraire."
+        "NSCameraUsageDescription": "Pinti peut utiliser l'appareil photo pour capturer directement un post Instagram à extraire.",
+        "NSLocalNetworkUsageDescription": "Pinti se connecte à Metro (le bundler React Native) sur ton Mac en Debug pour recharger le code à chaud.",
+        "NSBonjourServices": [
+          "_expo-metro._tcp",
+          "_rctmetro._tcp"
+        ]
       }
     },
     "plugins": [
