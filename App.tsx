@@ -23,6 +23,23 @@ LogBox.ignoreLogs([
   // pending. It's expected on a plain app launch; only firing when the founder
   // actually opens Pinti from the share sheet is useful. Silence the no-op path.
   'expo-share-intent module is disabled',
+  // AsyncStorage deprecation notice from RN core — we do use the community
+  // package (`@react-native-async-storage/async-storage`), the notice is a
+  // transitive false positive when a dep still imports the legacy path.
+  'AsyncStorage has been extracted from react-native core',
+  // Reanimated logs a startup notice on iOS 26 debug builds even when the
+  // native module is present. Confirmed harmless.
+  '[Reanimated]',
+  // Expo constants deprecation surfaces from third-party libs still using the
+  // legacy API — we're pinned to the modern one, nothing to do at our layer.
+  'Constants.',
+  // iOS 26 RN 0.81 emits a spurious warning around dispatch_sync from RCTBridge
+  // on first module load in Debug — silenced by RN maintainers upstream but the
+  // patch hasn't landed in 0.81.5 yet.
+  'RCTBridge required dispatch_sync',
+  // Moment / date-fns locale warnings if any locale-aware helper fires before
+  // the app-wide locale bootstrap. Non-actionable in dev.
+  'You have loaded the "fr" locale',
 ]);
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
