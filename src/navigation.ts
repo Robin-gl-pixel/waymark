@@ -37,7 +37,14 @@ export type RootStackParamList = {
  * via the gear icon in MyProfileScreen's header.
  */
 export type TabParamList = {
-  Map: { focusLieuId?: string } | undefined;
+  // `showPinAddedToast` / `showShareExtensionTip` are one-shot signals set by
+  // `ExtractConfirmScreen.handleConfirm` when it navigates back after a
+  // successful save (GitHub #80). The Map consumes them on mount, renders the
+  // relevant Toast overlays, and forgets them — the flags are transient UI
+  // triggers, not persistent state.
+  Map:
+    | { focusLieuId?: string; showPinAddedToast?: boolean; showShareExtensionTip?: boolean }
+    | undefined;
   List: undefined;
   _Add: undefined; // Fake tab: central prominent + button that opens Upload.
   Network: undefined;

@@ -28,6 +28,7 @@ import { colors, spacing, type, fonts } from '../theme';
 import CategoryPin from '../components/CategoryPin';
 import MapPoiSaveSheet from '../components/MapPoiSaveSheet';
 import ShareExtensionTutorialModal from '../components/ShareExtensionTutorialModal';
+import Toast from '../components/Toast';
 import { createPinPulse } from '../lib/pinPulse';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { RootStackParamList, TabParamList } from '../navigation';
@@ -128,6 +129,8 @@ export default function MapScreen() {
   const nav = useNavigation<Nav>();
   const route = useRoute<MapRt>();
   const focusLieuId = route.params?.focusLieuId;
+  const showPinAddedToast = route.params?.showPinAddedToast === true;
+  const showShareExtensionTip = route.params?.showShareExtensionTip === true;
   const mapRef = useRef<MapHandle | null>(null);
   const focusedLieuIdRef = useRef<string | null>(null);
   const [lieux, setLieux] = useState<Lieu[]>([]);
@@ -142,6 +145,17 @@ export default function MapScreen() {
   // Local-only state for the Share Extension tutorial modal (issue #79).
   // Not persisted — the user can reopen from the empty state at will.
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  // Post-first-pin celebration overlays (GitHub #80). The confirm toast fires
+  // on every successful save; the Share Extension tip fires on the very first
+  // pin only, 2s after the confirm toast so both can be read one after the
+  // other. Both fields are `null` when idle, and each Toast component owns its
+  // own auto-dismiss timer — we just clear the ref on dismiss.
+  const [pinToastMessage, setPinToastMessage] = useState<string | null>(null);
+  const [shareTip, setShareTip] = useState<{ message: string; hint: string } | null>(null);
+  // Ref-guard so the confirm-toast/tip only fire once per nav transition. A
+  // re-render (e.g. focus changes) leaves route.params flags untouched, so
+  // without this we'd re-trigger on every focus.
+  const celebrationRef = useRef<string | null>(null);
 
   // Subscribe to the OS-level reduce-motion preference so the selection
   // pulse respects it in real time (user toggles Settings → app foregrounds).
@@ -236,6 +250,31 @@ export default function MapScreen() {
       load();
     }, [load]),
   );
+
+  // Post-first-pin celebration trigger (GitHub #80). The nav param arrives
+  // once per save transition from ExtractConfirmScreen; we key the ref-guard
+  // on the freshly-created lieu id so the same tab visit doesn't fire twice,
+  // but a subsequent save (different focusLieuId) still triggers.
+  useEffect(() => {
+    if (!showPinAddedToast && !showShareExtensionTip) return;
+    const key = focusLieuId ?? '__no_focus__';
+    if (celebrationRef.current === key) return;
+    celebrationRef.current = key;
+    if (showPinAddedToast) {
+      setPinToastMessage('Nice, lieu ajouté !');
+    }
+    if (showShareExtensionTip) {
+      // 2s delay per PRD so the confirm toast lands first and the tip reads
+      // as a separate teaching moment, not a stacked pair.
+      const t = setTimeout(() => {
+        setShareTip({
+          message: 'Marche aussi depuis Insta',
+          hint: 'Partage un post → Waymark Share',
+        });
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [focusLieuId, showPinAddedToast, showShareExtensionTip]);
 
   // When we land on the tab with a focusLieuId (e.g. "Voir sur la carte" from detail),
   // animate to that pin once lieux are loaded. Ref-guarded so a re-render doesn't re-focus.
@@ -482,6 +521,30 @@ export default function MapScreen() {
         onClose={() => setTutorialOpen(false)}
       />
 
+      {/* Post-first-pin celebration toasts (GitHub #80). Stacked in a bottom
+          overlay with `pointerEvents="box-none"` so the map underneath stays
+          fully pannable — only each pill intercepts taps. */}
+      {(pinToastMessage || shareTip) && (
+        <SafeAreaView style={styles.toastOverlay} edges={['bottom']} pointerEvents="box-none">
+          {pinToastMessage && (
+            <Toast
+              message={pinToastMessage}
+              onDismiss={() => setPinToastMessage(null)}
+            />
+          )}
+          {shareTip && (
+            <View style={pinToastMessage ? styles.toastGap : undefined}>
+              <Toast
+                message={shareTip.message}
+                hint={shareTip.hint}
+                durationMs={4200}
+                onDismiss={() => setShareTip(null)}
+              />
+            </View>
+          )}
+        </SafeAreaView>
+      )}
+
     </View>
   );
 }
@@ -666,5 +729,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     color: colors.graphite,
+  },
+  // Toast stack pinned to the bottom edge — sits above the tab bar via the
+  // `bottom` safe-area inset. `box-none` lets map gestures reach the tiles.
+  toastOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'stretch',
+    justifyContent: 'flex-end',
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+  },
+  toastGap: {
+    marginTop: spacing.sm,
   },
 });
