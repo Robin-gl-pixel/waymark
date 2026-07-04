@@ -25,11 +25,11 @@ SIM=D068A5AD-153E-475E-BD84-6EC714A15BA4
 xcrun simctl shutdown $SIM && xcrun simctl erase $SIM && xcrun simctl boot $SIM
 
 # Build + install the app
-cd ios && xcodebuild -workspace Waymark.xcworkspace -scheme Waymark \
+cd ios && xcodebuild -workspace Amble.xcworkspace -scheme Amble \
   -configuration Debug \
   -destination "platform=iOS Simulator,id=$SIM" \
   -derivedDataPath build build
-xcrun simctl install $SIM ios/build/Build/Products/Debug-iphonesimulator/Waymark.app
+xcrun simctl install $SIM ios/build/Build/Products/Debug-iphonesimulator/Amble.app
 
 # Seed the Photos library with the reference screenshot (for tests that need it later)
 xcrun simctl addmedia $SIM screenshots-examples/scr1.png

@@ -1,16 +1,16 @@
-# Waymark — Competitive Velocity Map
+# Amble — Competitive Velocity Map
 
 _Last updated: 2026-07-01. Focus: SPEED and THREAT, not features. Verified via App Store listings, product pages, and 2026 comparison articles._
 
 ## TL;DR
 
 - **The land is being taken. Rhyme (~4,800 ratings), Plotline (798 ratings, 17k users, 1M places), and Stasht (v6, screenshots supported) are all live and shipping weekly.** The "extract places from social to a map" niche is no longer greenfield — it has an incumbent (Rhyme) and two fast-followers.
-- **Only two players today accept an Instagram screenshot as input: Stasht and DocentPro/SpotFetch.** Everyone else (Plotline, Rhyme, JoySpot, Stashed, Postcard, Mapstr) requires a share-sheet URL — which breaks on Stories, DMs, and cross-posted reels. That is Waymark' remaining moat, and it is *narrow*.
+- **Only two players today accept an Instagram screenshot as input: Stasht and DocentPro/SpotFetch.** Everyone else (Plotline, Rhyme, JoySpot, Stashed, Postcard, Mapstr) requires a share-sheet URL — which breaks on Stories, DMs, and cross-posted reels. That is Amble' remaining moat, and it is *narrow*.
 - **Ship to TestFlight in 3 days, App Store in ~10.** Racing to App Store submission before the incumbents notice screenshot mode is more valuable than any feature polish. Every week of delay hands Rhyme/Plotline more first-mover distribution.
 
 ## Velocity Leaderboard
 
-| # | Competitor | Status | Extraction today | Threat | Weakness Waymark exploits |
+| # | Competitor | Status | Extraction today | Threat | Weakness Amble exploits |
 |---|---|---|---|---|---|
 | 1 | **Rhyme (ex-Roamy)** | Live iOS, v1.4.1 (Jun 6) | Share sheet: IG + TikTok URLs, no screenshots | **HIGH** | No screenshot / Story / DM path; paywalled ($9.99/mo Pro) |
 | 2 | **Stasht** | Live iOS + Android + Web, v6.0.2 (5 days ago) | Share sheet + **screenshots** from IG/TikTok/Pinterest/X | **HIGH** | Everything-bucket ("saves that work") — not maps-first; UX diffuse |
@@ -29,60 +29,60 @@ _Last updated: 2026-07-01. Focus: SPEED and THREAT, not features. Verified via A
 - **Extraction:** Share-sheet import from Instagram + TikTok; auto-detects all places in a video and drops pins. No screenshot support.
 - **Traction:** **4,800+ App Store ratings at 4.8★** — by far the largest in this niche. Active Instagram (@roamy.travel).
 - **Team/funding:** Studio-branded (LOGOS STUDIO INC.); implies a small team, not a solo builder. Monetized: Pro at $9.99/mo–$49.99/yr — revenue means runway to defend.
-- **Weakness Waymark exploits:** Requires a share-sheet URL — cannot ingest Stories, DMs, or a friend's screenshot pasted in a group chat. Also paid; Waymark free is a wedge.
+- **Weakness Amble exploits:** Requires a share-sheet URL — cannot ingest Stories, DMs, or a friend's screenshot pasted in a group chat. Also paid; Amble free is a wedge.
 
 ### 2. Stasht — HIGH
 - **Status:** Live iOS + Android + web + Safari extension, v6.0.2 shipped ~5 days ago. Developer: Stasht LLC.
-- **Extraction:** Screenshots, photos, links, and share-sheet posts from Instagram/TikTok/Pinterest/X/YouTube. **Directly overlaps Waymark' screenshot wedge.**
+- **Extraction:** Screenshots, photos, links, and share-sheet posts from Instagram/TikTok/Pinterest/X/YouTube. **Directly overlaps Amble' screenshot wedge.**
 - **Traction:** 5.0★ but only 21 ratings — small but rising. Blog + Silicon Snark press coverage. Multi-platform launch signals ambition.
 - **Team/funding:** Self-described "small team, building fast" — likely bootstrapped, no disclosed funding.
-- **Weakness Waymark exploits:** Positioned as a universal saves inbox (map + calendar + reminders + recipes). Waymark wins on focus — a map, only a map. Stasht will lose casual users who just want "screenshot → pin."
+- **Weakness Amble exploits:** Positioned as a universal saves inbox (map + calendar + reminders + recipes). Amble wins on focus — a map, only a map. Stasht will lose casual users who just want "screenshot → pin."
 
 ### 3. Plotline (getplotline.app) — HIGH
 - **Status:** Live iOS, actively publishing SEO blog posts vs. every competitor. Version cadence not published but 798 App Store reviews at 4.9★ implies significant velocity for a young app.
 - **Extraction:** Share sheet only — IG, TikTok, YouTube, blogs, GMaps, Apple Maps. Multi-place extraction from a single post. No screenshot mode.
 - **Traction:** 17,000+ users, 1M+ places pinned, 300k+ posts analyzed. Numbers are self-reported but consistent with review count.
 - **Team/funding:** Distinct from the B2B Plotline.so ($2.6M Elevation Capital). Travel app appears independent, solo/small; no visible funding.
-- **Weakness Waymark exploits:** No screenshot ingestion — same URL-only limitation as Rhyme. Also heavily SEO-driven (blog farm), which reads as "top-of-funnel play," not viral product loop.
+- **Weakness Amble exploits:** No screenshot ingestion — same URL-only limitation as Rhyme. Also heavily SEO-driven (blog farm), which reads as "top-of-funnel play," not viral product loop.
 
 ### 4. DocentPro / SpotFetch — MEDIUM-HIGH
 - **Status:** Live iOS + Android, v1.5.11 (4 days ago), 4.8★ / 19 ratings. Developer: DocentPro Inc.
-- **Extraction:** SpotFetch **now supports images/screenshots** in addition to IG/TikTok/YouTube URLs. This is the closest direct threat to Waymark' wedge.
+- **Extraction:** SpotFetch **now supports images/screenshots** in addition to IG/TikTok/YouTube URLs. This is the closest direct threat to Amble' wedge.
 - **Traction:** Small ratings base but rapid ship cadence. Positioned as AI trip planner; SpotFetch is a feature, not the whole product.
 - **Team/funding:** Inc-registered, likely a small funded team. No public funding announcement found.
-- **Weakness Waymark exploits:** SpotFetch is buried inside a bigger itinerary product. A user who just wants a screenshot-to-pin app will bounce off the onboarding surface. Waymark wins on "one thing, done fast."
+- **Weakness Amble exploits:** SpotFetch is buried inside a bigger itinerary product. A user who just wants a screenshot-to-pin app will bounce off the onboarding surface. Amble wins on "one thing, done fast."
 
 ### 5. JoySpot — MEDIUM
 - **Status:** Live iOS + Android, v2.0.0 shipped ~1 day ago. Developer: Xavier Villelegier (solo).
 - **Extraction:** Import from TikTok, Instagram, Google Maps, Mapstr, websites. No explicit screenshot support in copy.
 - **Traction:** 4 ratings, 3.0★ average — poor first impressions. Premium: $1.99/mo or $14.99/yr with 7-day trial.
 - **Team:** Solo dev; no disclosed funding.
-- **Weakness Waymark exploits:** 3.0★ signals UX pain; also monetizes aggressively pre-PMF. Waymark clean free experience wins early users.
+- **Weakness Amble exploits:** 3.0★ signals UX pain; also monetizes aggressively pre-PMF. Amble clean free experience wins early users.
 
 ### 6. Mapstr — LOW-MEDIUM
 - **Status:** Mature (10+ years), still shipping — recent batch-update tool and reservations filter added 2026.
 - **Extraction:** None from social. Manual search + Foursquare/Swarm/GMaps sync. Instagram "integration" is social discovery only.
 - **Traction:** Large existing base (millions), French incumbent. Mapstr Plus $80/yr.
 - **Team:** Hulab / French company, established. Not chasing this trend.
-- **Weakness Waymark exploits:** 300-place free cap, no screenshot extraction, no urgency to build one. Their user base skews power-users; Waymark grabs new savers from IG-native cohort.
+- **Weakness Amble exploits:** 300-place free cap, no screenshot extraction, no urgency to build one. Their user base skews power-users; Amble grabs new savers from IG-native cohort.
 
 ### 7. Postcard — LOW-MEDIUM
 - **Status:** Live iOS/macOS/visionOS. Latest **v1.1.16 released May 29** (2026); slower cadence than Plotline/Rhyme/Stasht.
 - **Extraction:** Share sheet requires a post URL; Google Maps import; no screenshot vision. Push toward sharing TO Instagram Stories, not extracting FROM.
 - **Traction:** 5.0★ / 28 reviews. Very small base.
 - **Team/funding:** Postcard Technologies Inc.; unfunded per Crunchbase. Small team (LinkedIn shows ~12 followers).
-- **Weakness Waymark exploits:** Social-first assumption (feeds, follows, creators) alienates the private-journal user. Slow release cadence + no screenshot mode = Waymark can leapfrog before v1.2 lands.
+- **Weakness Amble exploits:** Social-first assumption (feeds, follows, creators) alienates the private-journal user. Slow release cadence + no screenshot mode = Amble can leapfrog before v1.2 lands.
 
 ### 8. Stashed (Harrison Johnston) — LOW
 - **Status:** Live iOS. Solo indie. TikTok-only.
 - **Extraction:** Paste TikTok URL → location. No Instagram, no screenshots.
 - **Traction:** "Insufficient ratings to display." Effectively no distribution yet.
 - **Team:** Solo builder, no funding signal.
-- **Weakness Waymark exploits:** Instagram not supported — Waymark takes the entire IG surface. Also URL-only.
+- **Weakness Amble exploits:** Instagram not supported — Amble takes the entire IG surface. Also URL-only.
 
 ### 9. Via — NOT A REAL COMPETITOR
 - **Reality check:** viatravelapp.com is a **group-trip planning app** (Via Travel LLC, v1.13 Jun 5). It does **not** extract places from Instagram. Third-party listicles (Plotline blog, Map Your Voyage) mislabel it as an extraction app; the actual App Store description is expenses, group chat, itineraries.
-- **Threat:** None to Waymark. Ignore.
+- **Threat:** None to Amble. Ignore.
 
 ### Others discovered
 - **Triply** — content-farm blog, not an app of note.
@@ -92,10 +92,10 @@ _Last updated: 2026-07-01. Focus: SPEED and THREAT, not features. Verified via A
 - **mio: save places** — new App Store listing, early, unranked.
 - **TravelTreasure** — early save-places app, unranked.
 
-## Speed Recommendations for Waymark
+## Speed Recommendations for Amble
 
 1. **Ship to TestFlight in 3 days, don't wait for App Store review.** TestFlight lets you claim first users, seed screenshots for App Store copy, and gather 20 reviews before submission. App Store review is currently 24-72h — submit day 4. Do not add features to justify delay.
-2. **Own the "screenshot" keyword before Rhyme/Plotline do.** They rank for "save Instagram places" via SEO. Register the domain, publish one comparison post ("Waymark vs Plotline: screenshot vs share sheet"), and get your App Store title to include "screenshot" (e.g. "Waymark: Screenshot to Map"). This is the exact wedge Stasht already understands — do not let them out-SEO you.
+2. **Own the "screenshot" keyword before Rhyme/Plotline do.** They rank for "save Instagram places" via SEO. Register the domain, publish one comparison post ("Amble vs Plotline: screenshot vs share sheet"), and get your App Store title to include "screenshot" (e.g. "Amble: Screenshot to Map"). This is the exact wedge Stasht already understands — do not let them out-SEO you.
 3. **Lock the Instagram Stories / DM demo as your launch hero.** Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) fails on Stories and DMs. Record a 15-second demo of "friend DMs you a screenshot → 5 pins on your map." That single asset is your entire top-of-funnel.
 4. **Free forever + no login for v1.** Mapstr caps at 300; JoySpot paywalls; Rhyme is $9.99/mo. A free, no-account, on-device-first launch is a direct answer to every paywall complaint in their reviews. Add paid tier later.
 5. **Skip social features entirely for v1.** Postcard, Beli, Mapstr all bloated their apps with feeds. Ship a lockbox: screenshots in → pins out → private map. Compete on velocity of the core loop, not surface area. Add sharing in v1.1 once you know what users actually do.

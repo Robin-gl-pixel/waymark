@@ -1,6 +1,6 @@
-# CLAUDE.md — project-scoped rules for Waymark
+# CLAUDE.md — project-scoped rules for Amble
 
-Loaded by Claude Code at the start of every session in this repo. Global user preferences live in `~/.claude/projects/…/memory/MEMORY.md`; this file holds rules that are specific to the Waymark codebase and should apply regardless of who's collaborating.
+Loaded by Claude Code at the start of every session in this repo. Global user preferences live in `~/.claude/projects/…/memory/MEMORY.md`; this file holds rules that are specific to the Amble codebase and should apply regardless of who's collaborating.
 
 ## Manual-action steps → NEXT-STEPS.md, ALWAYS
 
@@ -25,7 +25,7 @@ When the user references a screen error or says "cf screen", the file is in `err
 
 ## Product context (short)
 
-Waymark is a React Native + Expo iOS app that turns Instagram screenshots into a personal map, with a full social layer (follow / feed / activity / save-from-network). The full spec is in `docs/PRD.md`. The 9 social V1 slices are all merged and deployed.
+Amble is a React Native + Expo iOS app that turns Instagram screenshots into a personal map, with a full social layer (follow / feed / activity / save-from-network). The full spec is in `docs/PRD.md`. The 9 social V1 slices are all merged and deployed.
 
 ## Codebase conventions
 
@@ -45,5 +45,5 @@ Waymark is a React Native + Expo iOS app that turns Instagram screenshots into a
 
 - `docs/PRD.md` — product spec
 - `docs/testing-social.md` — how to test the social layer
-- `docs/curation-playbook.md` — editorial rules for the Waymark Curated accounts (LLM curation IS forbidden here)
+- `docs/curation-playbook.md` — editorial rules for the Amble Curated accounts (LLM curation IS forbidden here)
 - `docs/app-store-metadata.md` — App Store copy, positioning

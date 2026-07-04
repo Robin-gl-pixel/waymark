@@ -1,5 +1,5 @@
 /**
- * Bulk-import curated pins for the 4 Waymark Curated accounts.
+ * Bulk-import curated pins for the 4 Amble Curated accounts.
  *
  * Prerequisites:
  *   1. `scripts/seed-curated-accounts.ts` has been run at least once
@@ -94,7 +94,7 @@ function validatePin(pin: any, source: string, index: number): CuratedPin {
 }
 
 async function seedAccount(account: typeof ACCOUNTS[number]) {
-  const username = `waymark.paris.${account}`;
+  const username = `amble.paris.${account}`;
   const dataPath = path.join(DATA_DIR, `curated-${account}.json`);
 
   if (!fs.existsSync(dataPath)) {
@@ -159,7 +159,7 @@ async function seedAccount(account: typeof ACCOUNTS[number]) {
 }
 
 async function main() {
-  console.log('=== Waymark Curated pins seed ===');
+  console.log('=== Amble Curated pins seed ===');
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no writes)' : 'LIVE'}\n`);
 
   const totals = { added: 0, updated: 0 };

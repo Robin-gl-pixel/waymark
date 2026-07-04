@@ -1,6 +1,6 @@
-# Waymark
+# Amble
 
-[![CI](https://github.com/Robin-gl-pixel/waymark/actions/workflows/ci.yml/badge.svg)](https://github.com/Robin-gl-pixel/waymark/actions/workflows/ci.yml)
+[![CI](https://github.com/Robin-gl-pixel/amble/actions/workflows/ci.yml/badge.svg)](https://github.com/Robin-gl-pixel/amble/actions/workflows/ci.yml)
 
 Screenshot Instagram → pin sur ta carte perso. Zéro saisie.
 
@@ -48,7 +48,7 @@ npm run build:ios:dev
 
 ## Issues
 
-Ready-for-agent : https://github.com/Robin-gl-pixel/waymark/issues?q=label%3Aready-for-agent
+Ready-for-agent : https://github.com/Robin-gl-pixel/amble/issues?q=label%3Aready-for-agent
 
 ## Stack
 

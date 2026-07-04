@@ -78,7 +78,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 // caused the provider's mount effect (see node_modules/expo-share-intent/build/
 // useShareIntent.js) to re-run whenever App re-rendered, which fired duplicate
 // `getShareIntent(...)` calls into the native module on cold start.
-const SHARE_INTENT_OPTIONS = { scheme: 'waymark' } as const;
+const SHARE_INTENT_OPTIONS = { scheme: 'amble' } as const;
 
 const theme = {
   ...DefaultTheme,

@@ -141,7 +141,7 @@ export default function SeededFollowScreen({ onComplete }: Props) {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Suis Waymark Curated</Text>
+        <Text style={styles.title}>Suis Amble Curated</Text>
         <Text style={styles.subtitle}>
           Nos comptes officiels : des lieux parisiens choisis, un par un.
           Tu peux te désabonner à tout moment.
@@ -168,7 +168,7 @@ export default function SeededFollowScreen({ onComplete }: Props) {
           <EmptyState
             icon="sparkles-outline"
             title="Bientôt"
-            body="Nos comptes Waymark Curated arrivent. En attendant, tu peux commencer par ajouter tes propres lieux."
+            body="Nos comptes Amble Curated arrivent. En attendant, tu peux commencer par ajouter tes propres lieux."
           />
         )}
 

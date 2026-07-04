@@ -13,9 +13,9 @@ import type { RootStackParamList } from '../navigation';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 // TODO(Robin): replace with real App Store URL post-submit.
-const WAYMARK_APP_STORE_URL = 'https://apps.apple.com/app/waymark';
+const AMBLE_APP_STORE_URL = 'https://apps.apple.com/app/amble';
 
-const INVITE_MESSAGE = `Rejoins-moi sur Waymark, l'app qui transforme tes screenshots Insta en carte : ${WAYMARK_APP_STORE_URL}`;
+const INVITE_MESSAGE = `Rejoins-moi sur Amble, l'app qui transforme tes recos Insta en carte : ${AMBLE_APP_STORE_URL}`;
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -84,7 +84,7 @@ export default function SettingsScreen() {
     try {
       await Share.share({
         message: INVITE_MESSAGE,
-        url: WAYMARK_APP_STORE_URL,
+        url: AMBLE_APP_STORE_URL,
       });
     } catch (err) {
       console.warn('[Settings] invite share failed', err);
@@ -149,7 +149,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionEyebrow}>Nº 01</Text>
         <Text style={styles.sectionTitle}>Ajout depuis Partager</Text>
         <Text style={styles.sectionBody}>
-          Photos, Instagram, n'importe quelle app : tape Partager, choisis Waymark dans la grille — l'extraction se lance, tu touches à rien.
+          Photos, Instagram, n'importe quelle app : tape Partager, choisis Amble dans la grille — l'extraction se lance, tu touches à rien.
         </Text>
 
         {!user?.isAnonymous && (

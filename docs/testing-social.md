@@ -1,6 +1,6 @@
 # Testing the Social Layer
 
-Guide for exercising Waymark's social features (follow / feed / block / report / delete cascade) end-to-end, at each level of the testing pyramid.
+Guide for exercising Amble's social features (follow / feed / block / report / delete cascade) end-to-end, at each level of the testing pyramid.
 
 **Status**: living doc, updated as slices land.
 **Related**: `docs/PRD.md` V1 Social Layer, `docs/curation-playbook.md`.
@@ -93,7 +93,7 @@ npm run dev:emulator
 ```
 
 Emulator UI: http://localhost:4000. Log in with any seeded email
-(`alice@waymark.test`, `bob@waymark.test`, …) — set a password from the
+(`alice@amble.test`, `bob@amble.test`, …) — set a password from the
 emulator UI's Auth tab if the Apple/anonymous flow isn't available in your dev
 build.
 
@@ -125,17 +125,17 @@ launch. It also works against the emulator if you export
 - `MyProfileScreen` shows the chosen `@handle`
 
 ### #11 Read profiles + search
-- SearchUsersScreen: exact `@waymark.paris.cool` returns the profile ; partial match returns empty ; private user returns empty
+- SearchUsersScreen: exact `@amble.paris.cool` returns the profile ; partial match returns empty ; private user returns empty
 - UserProfileScreen: shows pins + counts + no interactive actions yet
 
 ### #12 Follow + feed
-- Follow `@waymark.paris.cool` → `followingCount` = 1 on my profile, `followersCount` = 1 on cool's
+- Follow `@amble.paris.cool` → `followingCount` = 1 on my profile, `followersCount` = 1 on cool's
 - Réseau tab: shows cool's pins tri desc
 - Unfollow: counts decrement, feed empties
 
 ### #13 Save from network
 - Tap a pin from the feed → detail → "Sauver dans ma carte"
-- Pin appears in my carte with "via @waymark.paris.cool"
+- Pin appears in my carte with "via @amble.paris.cool"
 - Screenshot preserved (referenced, not duplicated)
 - Original owner receives activity item
 

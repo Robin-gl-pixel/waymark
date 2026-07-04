@@ -722,7 +722,7 @@ export default function LieuDetailScreen() {
             >
               {savedFromProfile?.isCurated ? (
                 <View style={styles.curatedBadge}>
-                  <Text style={styles.curatedLabel}>Waymark Curated</Text>
+                  <Text style={styles.curatedLabel}>Amble Curated</Text>
                 </View>
               ) : (
                 <Text style={styles.viaLabel}>via @{lieu.savedFromUsername}</Text>

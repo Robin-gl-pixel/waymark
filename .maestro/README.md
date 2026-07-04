@@ -22,7 +22,7 @@ In one terminal, start the dev server:
 ```
 npx expo start
 ```
-Open Expo Go in the sim and load Waymark once (tap the project in Expo Go's
+Open Expo Go in the sim and load Amble once (tap the project in Expo Go's
 "Recently opened", or scan the QR).
 
 In another terminal:

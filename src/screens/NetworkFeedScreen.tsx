@@ -196,7 +196,7 @@ export default function NetworkFeedScreen() {
           <EmptyState
             icon="people-outline"
             title="Ton feed est vide"
-            body="Suis un ami ou un compte Waymark Curated pour voir leurs lieux apparaître ici."
+            body="Suis un ami ou un compte Amble Curated pour voir leurs lieux apparaître ici."
             ctaLabel="Trouver un ami"
             onCtaPress={() => nav.navigate('SearchUsers')}
           />
