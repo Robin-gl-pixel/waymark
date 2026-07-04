@@ -32,10 +32,26 @@ export const MAP_POI_CATEGORY_LABEL: Record<LieuCategory, string> = {
   autre: 'Autre',
 };
 
-/** Minimal shape of a react-native-maps `PoiClickEvent`'s payload. */
+/**
+ * How the user opened the save sheet.
+ *
+ * - `poi`      — tapped a labelled POI (Google Maps only; the react-native-maps
+ *                bridge does NOT emit onPoiClick on Apple Maps, which is why
+ *                the founder's tap-a-resto flow silently broke in v7).
+ * - `longpress` — long-pressed a bare coordinate on Apple Maps. No name is
+ *                available; the user types it in the sheet's TextInput.
+ */
+export type MapPoiSource = 'poi' | 'longpress';
+
+/**
+ * Payload passed from MapScreen to the save sheet. `name` may be empty when
+ * the source is `longpress` — the sheet's TextInput fills it in before we
+ * build a `LieuInput`.
+ */
 export interface MapPoiTap {
   name: string;
   coordinate: { latitude: number; longitude: number };
+  source: MapPoiSource;
 }
 
 /**
@@ -43,6 +59,10 @@ export interface MapPoiTap {
  * sheet. Pure — no service calls, no navigation, no side effects.
  *
  * Notes:
+ * - `name` in the arg overrides `poi.name`. This lets the sheet's TextInput
+ *   drive the final venue name — either correcting Apple's POI label or
+ *   supplying a name when the user long-pressed a bare coordinate. Both are
+ *   trimmed to avoid a stray leading/trailing space getting into Firestore.
  * - `screenshotUri` is empty because a POI tap has no photo. The seam
  *   already handles this branch: both `FirebaseLieuxService.createLieu`
  *   and `InMemoryLieuxService.createLieu` skip the Storage upload and
@@ -65,10 +85,16 @@ export function mapPoiToLieuInput(args: {
   category: LieuCategory;
   /** Optional; defaults to `'wishlist'`. Consumers pass `null` to leave unclassified. */
   status?: BadgeStatus;
+  /**
+   * Optional override for the venue name — supplied by the sheet's TextInput.
+   * When omitted, `poi.name` is used verbatim (still trimmed).
+   */
+  name?: string;
 }): { input: LieuInput; status: BadgeStatus } {
   const status: BadgeStatus = args.status === undefined ? 'wishlist' : args.status;
+  const rawName = args.name ?? args.poi.name;
   const input: LieuInput = {
-    name: args.poi.name,
+    name: rawName.trim(),
     city: '',
     country: '',
     address: '',
