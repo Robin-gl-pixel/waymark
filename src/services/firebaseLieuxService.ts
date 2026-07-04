@@ -103,14 +103,18 @@ export class FirebaseLieuxService implements LieuxService {
     // NEW SCHEMA (parent PRD #34, slice #35): `photos: [{ storagePath, source, addedAt }]`.
     // We DO NOT write `sourceInstagram.screenshotStoragePath` on new pins —
     // the read layer synthesises `photos[]` from it only for legacy docs.
-    const now = serverTimestamp();
+    //
+    // NOTE: Firestore forbids `serverTimestamp()` INSIDE array elements. The
+    // photo-add time is inherently client-driven anyway (it's whenever the
+    // picker returned), so `Timestamp.now()` is semantically correct here.
+    // Document-level `createdAt`/`updatedAt` still use `serverTimestamp()`.
     const photos =
       storagePath.length > 0
         ? [
             {
               storagePath,
               source: 'insta' as const,
-              addedAt: now,
+              addedAt: Timestamp.now(),
             },
           ]
         : [];
@@ -134,8 +138,8 @@ export class FirebaseLieuxService implements LieuxService {
       // contract enforced by both service impls. `visitedAt` is intentionally
       // not written — it only gets set when the user flips status to 'visited'.
       status: 'wishlist',
-      createdAt: now,
-      updatedAt: now,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
     await setDoc(lieuRef, data);
 
