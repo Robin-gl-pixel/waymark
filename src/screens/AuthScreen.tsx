@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { getAuthService } from '../services/authService';
-import { colors, spacing, type, radius } from '../theme';
+import { colors, spacing, type } from '../theme';
 
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
@@ -93,19 +93,6 @@ export default function AuthScreen() {
     }
   };
 
-  const handleDevBypass = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      await getAuthService().signInAnonymouslyDev();
-    } catch (err) {
-      console.warn('[AuthScreen] dev bypass failed', err);
-      setError('Dev bypass foiré — active Anonymous auth dans Firebase Console.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.hero}>
@@ -130,11 +117,6 @@ export default function AuthScreen() {
                 style={styles.appleBtn}
                 onPress={handleAppleSignIn}
               />
-            )}
-            {__DEV__ && (
-              <Pressable style={styles.devBtn} onPress={handleDevBypass}>
-                <Text style={styles.devBtnText}>Skip (dev anonymous sign-in)</Text>
-              </Pressable>
             )}
           </>
         )}
@@ -178,18 +160,6 @@ const styles = StyleSheet.create({
   appleBtn: {
     height: 56,
     width: '100%',
-  },
-  devBtn: {
-    marginTop: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.ink,
-    alignItems: 'center',
-  },
-  devBtnText: {
-    ...type.mono,
-    color: colors.ink,
   },
   errorText: {
     ...type.caption,

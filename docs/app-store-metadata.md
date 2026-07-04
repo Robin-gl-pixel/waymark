@@ -61,7 +61,7 @@ HOW IT WORKS
 3. Our AI extracts the name, city, address, and category — in about 4 seconds.
 4. The place lands on your map, with the original screenshot attached and the creator's handle saved.
 
-WHY WAYMARK, NOT THE OTHERS
+WHY PINTI, NOT THE OTHERS
 - Works on Stories and DMs. Every other app requires a shareable URL — which Stories and DMs don't have.
 - Built native for iPhone: Sign in with Apple, Apple MapKit, iOS Share Extension for one-tap saves.
 - Creator handle saved with every pin, so you remember whose taste led you there.
@@ -139,7 +139,7 @@ COMMENT ÇA MARCHE
 3. Notre IA extrait le nom, la ville, l'adresse et la catégorie — en 4 secondes.
 4. Le lieu apparaît sur votre carte, avec le screenshot d'origine et le pseudo du créateur.
 
-POURQUOI WAYMARK, ET PAS LES AUTRES
+POURQUOI PINTI, ET PAS LES AUTRES
 - Fonctionne sur Stories et DMs. Les autres apps exigent une URL partageable — et Stories/DMs n'en ont pas.
 - Pensé iPhone : Sign in with Apple, MapKit natif, Share Sheet iOS pour ajouter en un tap.
 - Le pseudo du créateur est sauvegardé pour se rappeler qui a recommandé quoi.
@@ -281,7 +281,7 @@ Anthropic API: v1 sends full screenshot bytes. Confirm Anthropic zero-retention 
 Mapbox: only text is sent (name + city), never the image or user identifier.
 
 ### Privacy Policy URL (required)
-Publish at `https://robin-gl-pixel.github.io/pinti/privacy-policy.html` before submission. Same URL goes in App Store Connect + in-app Settings.
+Live at `https://robin-gl-pixel.github.io/waymark/privacy-policy` (GitHub Pages sur le repo `waymark`, gardé sous ce nom malgré le rename Pinti). Même URL dans App Store Connect + in-app Settings.
 
 ---
 
@@ -325,8 +325,8 @@ No mature content, no unrestricted web access (only Instagram-share ingest), no 
 
 - [ ] Title, subtitle, keywords locked in App Store Connect (EN + FR)
 - [ ] 5 screenshots exported at 1290x2796 for both locales
-- [ ] Privacy Policy URL live at `https://robin-gl-pixel.github.io/pinti/privacy-policy.html`
-- [ ] Support URL live at `https://github.com/Robin-gl-pixel/pinti/issues` (or Notion page)
+- [ ] Privacy Policy URL live at `https://robin-gl-pixel.github.io/waymark/privacy-policy`
+- [ ] Support URL live at `https://github.com/Robin-gl-pixel/waymark/issues` (or Notion page)
 - [ ] Marketing URL points to landing page (or App Store direct)
 - [ ] App Privacy questionnaire completed per matrix above
 - [ ] Delete Account flow verified end-to-end (issue #6 closed)
