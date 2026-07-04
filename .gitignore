@@ -41,6 +41,7 @@ screenshots-examples/*.jpeg
 # Dev debug screenshots at repo root (not shipped)
 /scr*.png
 error screenshot/
+desing screenshots/
 
 # Sensitive
 GoogleService-Info.plist
