@@ -413,14 +413,21 @@ export default function LieuDetailScreen() {
     // Ask user: camera or library. An empty message string (not undefined) is
     // used because some RN Alert stacks render the buttons oddly when message
     // is `undefined` — the empty string is the boring/safe form.
+    //
+    // BUG FIX (v8 polish A): on iOS, calling `ImagePicker.launch*Async` from
+    // directly inside `Alert.alert`'s `onPress` silently no-ops — the picker
+    // modal presentation is dropped because the Alert is still dismissing when
+    // we try to present. Wrap the picker launch in `setTimeout(fn, 0)` so the
+    // Alert has fully torn down before we present the next modal. See:
+    // https://github.com/expo/expo/issues/22083
     Alert.alert('Ajouter une photo', '', [
       {
         text: 'Prendre une photo',
-        onPress: () => launchPickerAndAdd('camera'),
+        onPress: () => setTimeout(() => launchPickerAndAdd('camera'), 0),
       },
       {
         text: "Choisir depuis l'album",
-        onPress: () => launchPickerAndAdd('library'),
+        onPress: () => setTimeout(() => launchPickerAndAdd('library'), 0),
       },
       { text: 'Annuler', style: 'cancel' },
     ]);
@@ -433,7 +440,21 @@ export default function LieuDetailScreen() {
       if (source === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
-          Alert.alert("Autorise l'accès à l'appareil photo pour prendre une photo.");
+          // If iOS refuses to re-prompt (canAskAgain === false), the user has
+          // to flip the switch in Settings — surface a route there so we're
+          // not just showing a dead-end message.
+          if (!perm.canAskAgain) {
+            Alert.alert(
+              'Accès appareil photo refusé',
+              "Active l'accès dans Réglages iOS pour prendre une photo.",
+              [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Ouvrir Réglages', onPress: () => Linking.openSettings() },
+              ],
+            );
+          } else {
+            Alert.alert("Autorise l'accès à l'appareil photo pour prendre une photo.");
+          }
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -444,7 +465,18 @@ export default function LieuDetailScreen() {
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
-          Alert.alert("Autorise l'accès aux photos pour choisir une image.");
+          if (!perm.canAskAgain) {
+            Alert.alert(
+              'Accès photos refusé',
+              "Active l'accès dans Réglages iOS pour choisir une image.",
+              [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Ouvrir Réglages', onPress: () => Linking.openSettings() },
+              ],
+            );
+          } else {
+            Alert.alert("Autorise l'accès aux photos pour choisir une image.");
+          }
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
@@ -490,8 +522,17 @@ export default function LieuDetailScreen() {
       if (err instanceof PhotoCapReachedError) {
         Alert.alert('Galerie pleine', `${MAX_PHOTOS_PER_LIEU} photos max par lieu.`);
       } else {
+        // Surface the actual error message so the founder can debug on device
+        // (v8 polish A: prior generic "Réessaie" message hid Firebase/Storage
+        // failures behind a wall of nothing).
         console.error('[LieuDetail] add photo failed', err);
-        Alert.alert('Erreur', "L'ajout a échoué. Réessaie dans un instant.");
+        const msg =
+          err instanceof Error && err.message
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : 'Erreur inconnue';
+        Alert.alert("L'ajout a échoué", msg);
       }
     } finally {
       setUploadingPhoto(false);
