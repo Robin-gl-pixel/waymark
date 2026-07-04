@@ -1,8 +1,8 @@
 # data/
 
-JSON files consumed by `scripts/seed-curated-pins.ts` to bulk-import the Amble Curated accounts' pins into Firestore.
+JSON files consumed by `scripts/seed-curated-pins.ts` to bulk-import the Pinti Curated accounts' pins into Firestore.
 
-## Files (one per Amble Curated account)
+## Files (one per Pinti Curated account)
 
 - `curated-cool.json` — bars quartier, bistrots, cafés indé (~15-20 pins)
 - `curated-culturel.json` — musées niche, librairies, cinémas art & essai, galeries (~15-20 pins)
@@ -37,7 +37,7 @@ JSON files consumed by `scripts/seed-curated-pins.ts` to bulk-import the Amble C
 | `lat` / `lng` | Coords précises. Copier depuis Google Maps ou laisser le script les remplir. |
 | `category` | Un de : `resto`, `bar`, `café`, `activité`, `musée`, `hôtel`, `autre`. |
 | `description` | **180-250 chars, 2-3 phrases** selon `docs/curation-playbook.md` §4. Pas de mots interdits (§4.3). |
-| `sourceAuthor` | Toujours `null` pour les Amble Curated (contenu éditorial, pas de source Insta). |
+| `sourceAuthor` | Toujours `null` pour les Pinti Curated (contenu éditorial, pas de source Insta). |
 
 ## Règles éditoriales
 

@@ -1,5 +1,5 @@
 /**
- * Seed the 4 Amble Curated accounts (@amble.paris.cool / .culturel / .chic / .food).
+ * Seed the 4 Pinti Curated accounts (@pinti.paris.cool / .culturel / .chic / .food).
  *
  * Prerequisites:
  *   1. Firebase Admin SDK service account key at /secrets/service-account.json
@@ -10,7 +10,7 @@
  *
  * This is a one-shot idempotent script:
  *   - Creates 4 auth users (or reuses if they exist) with fake emails
- *     `curated+cool@amble.internal`, etc. (never used for login).
+ *     `curated+cool@pinti.internal`, etc. (never used for login).
  *   - Writes their /users/{uid} docs with isCurated: true, isPublic: true.
  *   - Reserves the 4 usernames in a /usernames/{lowercase} index doc so no
  *     regular user can steal them.
@@ -46,29 +46,29 @@ interface CuratedAccount {
 
 const CURATED_ACCOUNTS: CuratedAccount[] = [
   {
-    username: 'amble.paris.cool',
-    displayName: 'Amble Cool',
-    bio: 'Les spots parisiens qu\'on trouve après un an sur place — pas avant. Curation officielle Amble.',
+    username: 'pinti.paris.cool',
+    displayName: 'Pinti Cool',
+    bio: 'Les spots parisiens qu\'on trouve après un an sur place — pas avant. Curation officielle Pinti.',
   },
   {
-    username: 'amble.paris.culturel',
-    displayName: 'Amble Culturel',
-    bio: 'Ce que Paris a de mieux à te faire lire, entendre, regarder. Curation officielle Amble.',
+    username: 'pinti.paris.culturel',
+    displayName: 'Pinti Culturel',
+    bio: 'Ce que Paris a de mieux à te faire lire, entendre, regarder. Curation officielle Pinti.',
   },
   {
-    username: 'amble.paris.chic',
-    displayName: 'Amble Chic',
-    bio: 'Quand tu veux marquer le coup, sans regretter la note. Curation officielle Amble.',
+    username: 'pinti.paris.chic',
+    displayName: 'Pinti Chic',
+    bio: 'Quand tu veux marquer le coup, sans regretter la note. Curation officielle Pinti.',
   },
   {
-    username: 'amble.paris.food',
-    displayName: 'Amble Food',
-    bio: 'Un lieu, un plat, une raison d\'y retourner. Curation officielle Amble.',
+    username: 'pinti.paris.food',
+    displayName: 'Pinti Food',
+    bio: 'Un lieu, un plat, une raison d\'y retourner. Curation officielle Pinti.',
   },
 ];
 
 async function ensureAuthUser(username: string, displayName: string): Promise<string> {
-  const email = `curated+${username.split('.').pop()}@amble.internal`;
+  const email = `curated+${username.split('.').pop()}@pinti.internal`;
   try {
     const user = await auth.getUserByEmail(email);
     console.log(`  → auth user exists: ${user.uid} (${email})`);
@@ -117,7 +117,7 @@ async function seedAccount(account: CuratedAccount) {
 }
 
 async function main() {
-  console.log('=== Amble Curated accounts seed ===');
+  console.log('=== Pinti Curated accounts seed ===');
   console.log(`Project: mappies-7748d`);
   console.log(`Accounts: ${CURATED_ACCOUNTS.length}\n`);
 
@@ -127,7 +127,7 @@ async function main() {
 
   console.log('\n=== Done ===');
   console.log('Next step: run scripts/seed-curated-pins.ts (once written) to populate 60-80 pins.');
-  console.log('Or use the Amble app itself: log in as any of the accounts and add pins manually.');
+  console.log('Or use the Pinti app itself: log in as any of the accounts and add pins manually.');
   console.log('The auth password can be set via `firebase auth:import` or by triggering a password reset.');
 }
 

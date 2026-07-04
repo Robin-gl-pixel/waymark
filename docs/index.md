@@ -1,9 +1,9 @@
 ---
-title: Amble
+title: Pinti
 layout: default
 ---
 
-# Amble
+# Pinti
 
 Turn every Instagram screenshot into a pin on your private map.
 

@@ -13,9 +13,9 @@ import type { RootStackParamList } from '../navigation';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 // TODO(Robin): replace with real App Store URL post-submit.
-const AMBLE_APP_STORE_URL = 'https://apps.apple.com/app/amble';
+const AMBLE_APP_STORE_URL = 'https://apps.apple.com/app/pinti';
 
-const INVITE_MESSAGE = `Rejoins-moi sur Amble, l'app qui transforme tes recos Insta en carte : ${AMBLE_APP_STORE_URL}`;
+const INVITE_MESSAGE = `Rejoins-moi sur Pinti, l'app qui transforme tes recos Insta en carte : ${AMBLE_APP_STORE_URL}`;
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -149,7 +149,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionEyebrow}>Nº 01</Text>
         <Text style={styles.sectionTitle}>Ajout depuis Partager</Text>
         <Text style={styles.sectionBody}>
-          Photos, Instagram, n'importe quelle app : tape Partager, choisis Amble dans la grille — l'extraction se lance, tu touches à rien.
+          Photos, Instagram, n'importe quelle app : tape Partager, choisis Pinti dans la grille — l'extraction se lance, tu touches à rien.
         </Text>
 
         {!user?.isAnonymous && (

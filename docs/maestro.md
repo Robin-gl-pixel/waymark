@@ -25,11 +25,11 @@ SIM=D068A5AD-153E-475E-BD84-6EC714A15BA4
 xcrun simctl shutdown $SIM && xcrun simctl erase $SIM && xcrun simctl boot $SIM
 
 # Build + install the app
-cd ios && xcodebuild -workspace Amble.xcworkspace -scheme Amble \
+cd ios && xcodebuild -workspace Pinti.xcworkspace -scheme Pinti \
   -configuration Debug \
   -destination "platform=iOS Simulator,id=$SIM" \
   -derivedDataPath build build
-xcrun simctl install $SIM ios/build/Build/Products/Debug-iphonesimulator/Amble.app
+xcrun simctl install $SIM ios/build/Build/Products/Debug-iphonesimulator/Pinti.app
 
 # Seed the Photos library with the reference screenshot (for tests that need it later)
 xcrun simctl addmedia $SIM screenshots-examples/scr1.png

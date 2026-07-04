@@ -22,7 +22,7 @@
  * run again after `firebase emulators:start --import` restores state.
  *
  * What gets written:
- *   - 10 fake auth users (@alice ... @jack) with emails at @amble.test
+ *   - 10 fake auth users (@alice ... @jack) with emails at @pinti.test
  *   - 10 /users/{uid} docs (2 with isCurated: true, 1 with isPublic: false)
  *   - 10 /usernames/{lowercase} reservation docs
  *   - ~30 fake lieux distributed across users (Test — prefix, invented coords
@@ -153,7 +153,7 @@ const FOLLOW_EDGES: FollowEdge[] = [
 
 async function ensureAuthUser(username: string, displayName: string): Promise<string> {
   // Deterministic email so re-running finds the same user.
-  const email = `${username}@amble.test`;
+  const email = `${username}@pinti.test`;
   try {
     const user = await auth.getUserByEmail(email);
     return user.uid;
@@ -182,7 +182,7 @@ async function seedUsers(): Promise<Map<string, string>> {
       uid,
       username: u.username,
       displayName: u.displayName,
-      email: `${u.username}@amble.test`,
+      email: `${u.username}@pinti.test`,
       isPublic: u.isPublic,
       isCurated: u.isCurated,
       followersCount: 0,      // recomputed below after follow edges land
@@ -286,7 +286,7 @@ async function seedFollows(usernameToUid: Map<string, string>) {
 }
 
 async function main() {
-  console.log('=== Amble emulator seed ===');
+  console.log('=== Pinti emulator seed ===');
   console.log(`Firestore: ${firestoreHost}`);
   console.log(`Auth:      ${authHost}`);
 
@@ -297,7 +297,7 @@ async function main() {
   console.log('\n=== Done ===');
   console.log('Emulator UI: http://localhost:4000');
   console.log('Log in via the app with any of: alice, bob, charlie, dana, eve, frank, grace, henri, iris, jack');
-  console.log('(emails: {username}@amble.test — set a password in the emulator UI if needed)');
+  console.log('(emails: {username}@pinti.test — set a password in the emulator UI if needed)');
 }
 
 main().catch((err) => {

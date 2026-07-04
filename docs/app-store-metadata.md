@@ -1,4 +1,4 @@
-# Amble — App Store Metadata (v1.0.0)
+# Pinti — App Store Metadata (v1.0.0)
 
 **Status**: draft for J3 submission
 **Author**: Robin Hesse
@@ -12,7 +12,7 @@
 Three positioning bets, drawn from `docs/competitive-velocity.md` and the /grill-me session (2026-07-02):
 
 1. **Own the word "screenshot"** in the title. Zero direct competitor (Rhyme, Plotline, Stasht, DocentPro, JoySpot, Mapstr, Postcard, Stashed) uses "screenshot" in their App Store title or subtitle today. Stasht *does* extract screenshots but positions as a "saves inbox." Claiming the word first is a defensible search + memory hook — Apple Search Ads on "screenshot map" is currently empty inventory.
-2. **Lead with Instagram Stories and DMs**, not Instagram in general. Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) *can't* extract Stories or DMs because there's no shareable URL. That gap is Amble's only durable moat while the screenshot-vision shelf life holds (est. 6–12 months).
+2. **Lead with Instagram Stories and DMs**, not Instagram in general. Every URL-based competitor (Plotline, Rhyme, JoySpot, Postcard, Stashed) *can't* extract Stories or DMs because there's no shareable URL. That gap is Pinti's only durable moat while the screenshot-vision shelf life holds (est. 6–12 months).
 3. **Social layer as retention, not acquisition.** Follow your friends whose taste you trust and see the places they save — but stay silent about the social layer in the title/subtitle. The download decision is driven by the wedge (screenshot → carte), the app-open habit is driven by "what did Alice add this weekend?" This split keeps the marketing sharp while adding the Mapstr-style network effect that Rhyme/JoySpot lack.
 
 Every field below is aligned to those three bets. Title/subtitle stay wedge-focused; description reveals the social layer as a benefit.
@@ -22,7 +22,7 @@ Every field below is aligned to those three bets. Title/subtitle stay wedge-focu
 ## English (App Store US — primary locale)
 
 ### Title — 30 char max
-**`Amble: Screenshot to Map`** — 26 chars
+**`Pinti: Screenshot to Map`** — 26 chars
 
 - Contains the wedge keyword ("screenshot") no competitor owns.
 - Implicit verb-phrase: screenshot -> map.
@@ -53,11 +53,11 @@ Notes:
 ```
 Your Instagram screenshots. On a map. In seconds.
 
-Amble turns every Instagram screenshot — including Stories and DMs — into a pin on your personal map. No more forgetting the restaurant your favorite creator raved about. No more retyping addresses into Google Maps. No more Photos-app graveyard.
+Pinti turns every Instagram screenshot — including Stories and DMs — into a pin on your personal map. No more forgetting the restaurant your favorite creator raved about. No more retyping addresses into Google Maps. No more Photos-app graveyard.
 
 HOW IT WORKS
 1. Screenshot any place recommendation on Instagram: post, reel, or story.
-2. Share to Amble via the iOS Share Sheet.
+2. Share to Pinti via the iOS Share Sheet.
 3. Our AI extracts the name, city, address, and category — in about 4 seconds.
 4. The place lands on your map, with the original screenshot attached and the creator's handle saved.
 
@@ -67,7 +67,7 @@ WHY WAYMARK, NOT THE OTHERS
 - Creator handle saved with every pin, so you remember whose taste led you there.
 
 FOLLOW FRIENDS WHOSE TASTE YOU TRUST
-Amble isn't a feed of strangers. Follow the 3 or 5 people whose recos you actually rely on. See what they save, save theirs to your own map with one tap — original saver credited. Your profile can be public or private, your call.
+Pinti isn't a feed of strangers. Follow the 3 or 5 people whose recos you actually rely on. See what they save, save theirs to your own map with one tap — original saver credited. Your profile can be public or private, your call.
 
 PERFECT FOR
 - Foodies collecting restos, bars, and cafés in Paris, Lisbon, Rome, NYC, Tokyo.
@@ -82,7 +82,7 @@ Made in Paris.
 
 ### What's New (v1.0.0) — ~500 char target
 ```
-Welcome to Amble 1.0.
+Welcome to Pinti 1.0.
 
 The fastest way to turn Instagram screenshots into a personal map — and see what your friends save.
 
@@ -95,7 +95,7 @@ This first release includes:
 - Public or private profile, your call
 - Sign in with Apple + full account/data deletion
 
-Made in Paris. Feedback welcome at hello@amble.app.
+Made in Paris. Feedback welcome at hello@pinti.app.
 ```
 ~540 chars.
 
@@ -110,7 +110,7 @@ Screenshot Instagram Stories, DMs, reels → pin on your map. Follow friends. Se
 ## French (App Store FR — secondary locale)
 
 ### Title — 30 char max
-**`Amble : Screenshot en carte`** — 29 chars
+**`Pinti : Screenshot en carte`** — 29 chars
 
 - Garde "Screenshot" en anglais : le mot est utilisé tel quel en français courant, et il conserve la valeur SEO cross-store.
 - "En carte" = plus court que "vers carte" et plus idiomatique.
@@ -131,11 +131,11 @@ instagram,reels,stories,resto,voyage,carte,pin,ocr,ia,amis,social,bookmark,paris
 ```
 Vos screenshots Instagram. Sur une carte. En quelques secondes.
 
-Amble transforme chaque screenshot Instagram — Stories et DMs compris — en épingle sur votre carte perso. Fini le resto oublié au fond de la pellicule. Fini la ressaisie manuelle des adresses dans Google Maps. Fini l'album Photos qui déborde de captures inutilisables.
+Pinti transforme chaque screenshot Instagram — Stories et DMs compris — en épingle sur votre carte perso. Fini le resto oublié au fond de la pellicule. Fini la ressaisie manuelle des adresses dans Google Maps. Fini l'album Photos qui déborde de captures inutilisables.
 
 COMMENT ÇA MARCHE
 1. Screenshotez une reco de lieu sur Instagram : post, reel ou story.
-2. Partagez vers Amble depuis le Share Sheet iOS.
+2. Partagez vers Pinti depuis le Share Sheet iOS.
 3. Notre IA extrait le nom, la ville, l'adresse et la catégorie — en 4 secondes.
 4. Le lieu apparaît sur votre carte, avec le screenshot d'origine et le pseudo du créateur.
 
@@ -145,7 +145,7 @@ POURQUOI WAYMARK, ET PAS LES AUTRES
 - Le pseudo du créateur est sauvegardé pour se rappeler qui a recommandé quoi.
 
 SUIVEZ LES AMIS DONT VOUS AIMEZ LES RECOS
-Amble n'est pas un feed d'inconnus. Suivez les 3 ou 5 personnes dont vous suivez vraiment les recos. Voyez ce qu'elles sauvegardent, sauvegardez leurs lieux dans votre carte en un tap — le créateur d'origine est crédité. Profil public ou privé, à votre convenance.
+Pinti n'est pas un feed d'inconnus. Suivez les 3 ou 5 personnes dont vous suivez vraiment les recos. Voyez ce qu'elles sauvegardent, sauvegardez leurs lieux dans votre carte en un tap — le créateur d'origine est crédité. Profil public ou privé, à votre convenance.
 
 FAIT POUR
 - Les foodies qui collectionnent restos, bars et cafés à Paris, Lisbonne, Rome, Tokyo.
@@ -160,7 +160,7 @@ Fait à Paris.
 
 ### What's New (v1.0.0) — ~500 char
 ```
-Bienvenue sur Amble 1.0.
+Bienvenue sur Pinti 1.0.
 
 La façon la plus rapide de transformer vos screenshots Instagram en carte perso — et de voir ce que vos amis sauvegardent.
 
@@ -173,13 +173,13 @@ Cette première version inclut :
 - Profil public ou privé, à votre convenance
 - Sign in with Apple + suppression totale du compte
 
-Fait à Paris. Retours : hello@amble.app.
+Fait à Paris. Retours : hello@pinti.app.
 ```
 ~570 chars.
 
 ### Promotional text — 170 char max
 ```
-Stories Instagram, DMs, reels — Amble extrait les lieux là où aucune autre app ne sait lire. Screenshot in, épingle sur la carte out. Gratuit à essayer.
+Stories Instagram, DMs, reels — Pinti extrait les lieux là où aucune autre app ne sait lire. Screenshot in, épingle sur la carte out. Gratuit à essayer.
 ```
 152 chars.
 
@@ -199,9 +199,9 @@ Order matters — App Store shows the first 3 screenshots on the search result c
 ### Screen 2 — Upload / Share Sheet demo
 - **Screen shown**: Upload screen mid-extraction, ideally with iOS Share Sheet overlay from Instagram (Stories UI visible in the source)
 - **EN headline** (5 max): `Works on Stories and DMs`
-- **EN subline** (10 max): `Every other app needs a URL. Amble reads the screenshot.`
+- **EN subline** (10 max): `Every other app needs a URL. Pinti reads the screenshot.`
 - **FR headline**: `Marche sur Stories et DMs`
-- **FR subline**: `Les autres exigent une URL. Amble lit le screenshot.`
+- **FR subline**: `Les autres exigent une URL. Pinti lit le screenshot.`
 
 ### Screen 3 — List view
 - **Screen shown**: List of saved places with category emoji, city, thumbnail, creator handle
@@ -249,7 +249,7 @@ Fill Apple's questionnaire as follows:
 | Diagnostics — Crash Data | Yes | No | No | App stability (if Firebase Crashlytics is enabled — confirm before submit) |
 | Diagnostics — Product Interaction | No | — | — | No PostHog in v1 (moved to v1.1) |
 
-**Tracking**: No. Amble does not use IDFA and does not share any data with third parties for advertising.
+**Tracking**: No. Pinti does not use IDFA and does not share any data with third parties for advertising.
 
 ### Delete Account (Apple mandate since June 30, 2022 — issue #6)
 
@@ -281,7 +281,7 @@ Anthropic API: v1 sends full screenshot bytes. Confirm Anthropic zero-retention 
 Mapbox: only text is sent (name + city), never the image or user identifier.
 
 ### Privacy Policy URL (required)
-Publish at `https://robin-gl-pixel.github.io/amble/privacy-policy.html` before submission. Same URL goes in App Store Connect + in-app Settings.
+Publish at `https://robin-gl-pixel.github.io/pinti/privacy-policy.html` before submission. Same URL goes in App Store Connect + in-app Settings.
 
 ---
 
@@ -297,7 +297,7 @@ Every direct competitor lives in Travel:
 - JoySpot — Travel
 - Postcard — Travel
 
-The only outlier is Stasht ("Save social inspo") which sits in **Lifestyle** to reflect its universal-saves-inbox positioning. Amble is not that — it is maps-first.
+The only outlier is Stasht ("Save social inspo") which sits in **Lifestyle** to reflect its universal-saves-inbox positioning. Pinti is not that — it is maps-first.
 
 **Secondary category**: **Food & Drink**. Restaurants and bars are the dominant use case per the PRD problem statement. Food & Drink has less crowded charts than Travel and gives a second discovery surface.
 
@@ -310,7 +310,7 @@ No mature content, no unrestricted web access (only Instagram-share ingest), no 
 
 | App | Primary category | Age | Model |
 |---|---|---|---|
-| Amble (proposed) | Travel | 4+ | Free (v1) |
+| Pinti (proposed) | Travel | 4+ | Free (v1) |
 | Rhyme | Travel | 4+ | Freemium $9.99/mo |
 | Plotline | Travel | 4+ | Freemium |
 | Stasht | Lifestyle | 4+ | Free |
@@ -325,8 +325,8 @@ No mature content, no unrestricted web access (only Instagram-share ingest), no 
 
 - [ ] Title, subtitle, keywords locked in App Store Connect (EN + FR)
 - [ ] 5 screenshots exported at 1290x2796 for both locales
-- [ ] Privacy Policy URL live at `https://robin-gl-pixel.github.io/amble/privacy-policy.html`
-- [ ] Support URL live at `https://github.com/Robin-gl-pixel/amble/issues` (or Notion page)
+- [ ] Privacy Policy URL live at `https://robin-gl-pixel.github.io/pinti/privacy-policy.html`
+- [ ] Support URL live at `https://github.com/Robin-gl-pixel/pinti/issues` (or Notion page)
 - [ ] Marketing URL points to landing page (or App Store direct)
 - [ ] App Privacy questionnaire completed per matrix above
 - [ ] Delete Account flow verified end-to-end (issue #6 closed)
