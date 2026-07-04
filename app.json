@@ -2,7 +2,7 @@
   "expo": {
     "name": "Amble",
     "slug": "amble",
-    "scheme": "amble",
+    "scheme": "waymark",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
