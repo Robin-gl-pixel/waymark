@@ -18,6 +18,11 @@ import { useAuth } from '../auth/AuthContext';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, spacing, type, radius, categoryColor } from '../theme';
 import type { RootStackParamList } from '../navigation';
+import { resolvePostPin } from './postPinCelebration';
+import {
+  hasShownShareExtensionTip,
+  markShareExtensionTipShown,
+} from '../utils/shareExtensionTipFlag';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ExtractConfirm'>;
 type Rt = RouteProp<RootStackParamList, 'ExtractConfirm'>;
@@ -44,6 +49,25 @@ export default function ExtractConfirmScreen() {
     setSaving(true);
     setError(null);
     try {
+      // Read the pre-save state that feeds the post-pin celebration resolver
+      // (GitHub #80). We read BEFORE `createLieu` so the count reflects "how
+      // many pins did this user have before this save", which is what
+      // `resolvePostPin` is documented to take. A fail here shouldn't block
+      // the save itself — degrade to "not the first pin, tip already seen"
+      // so we never spam the tip on a broken read.
+      let pinsCountBeforeSave = 1;
+      let tipAlreadyShown = true;
+      try {
+        const [existing, alreadyShown] = await Promise.all([
+          getLieuxService().getAllLieux(user.uid),
+          hasShownShareExtensionTip(),
+        ]);
+        pinsCountBeforeSave = existing.length;
+        tipAlreadyShown = alreadyShown;
+      } catch (readErr) {
+        console.warn('[ExtractConfirmScreen] post-pin state read failed', readErr);
+      }
+
       const created = await getLieuxService().createLieu(user.uid, {
         name: extracted.name!,
         city: extracted.city ?? '',
@@ -58,13 +82,34 @@ export default function ExtractConfirmScreen() {
         screenshotUri,
         screenshotMediaType,
       });
-      // Land the user on the Map tab with the freshly-created pin in view.
+
+      const verdict = resolvePostPin({
+        pinsCountBeforeSave,
+        hasShownShareExtensionTip: tipAlreadyShown,
+      });
+      // Persist the one-shot flag NOW, before we hand off to the Map — that
+      // way even a crash on the Map render can't cause a duplicate tip on the
+      // next save. The Map screen still reads the nav param to decide whether
+      // to actually render the tip pill for this transition.
+      if (verdict.showShareTip) {
+        await markShareExtensionTipShown();
+      }
+
+      // Land the user on the Map tab with the freshly-created pin in view,
+      // and pass the toast/tip flags so the Map can render them non-blocking.
       nav.reset({
         index: 0,
         routes: [
           {
             name: 'Main',
-            params: { screen: 'Map', params: { focusLieuId: created.id } },
+            params: {
+              screen: 'Map',
+              params: {
+                focusLieuId: created.id,
+                showPinAddedToast: verdict.showToast,
+                showShareExtensionTip: verdict.showShareTip,
+              },
+            },
           },
         ],
       });
