@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import BadgeText from '../components/BadgeText';
 import CategoryPin from '../components/CategoryPin';
+import SocialNudgeBanner from '../components/SocialNudgeBanner';
 import { getLieuxService } from '../services/lieuxService';
 import { colors, fonts, spacing, type } from '../theme';
 import type { Lieu } from '../types/Lieu';
@@ -114,6 +115,11 @@ export default function ListScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* Social nudge banner (post-first-pin, dismissible — PRD #77 · #81).
+          Rendered at the very top of the list surface so the ask sits above
+          the eyebrow / count header without pushing the row list down when
+          it's hidden. */}
+      <SocialNudgeBanner hasAnyLieu={lieux.length > 0} />
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Ta collection</Text>
         <View style={styles.titleRow}>

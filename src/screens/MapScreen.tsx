@@ -29,6 +29,7 @@ import CategoryPin from '../components/CategoryPin';
 import MapPoiSaveSheet from '../components/MapPoiSaveSheet';
 import ShareExtensionTutorialModal from '../components/ShareExtensionTutorialModal';
 import Toast from '../components/Toast';
+import SocialNudgeBanner from '../components/SocialNudgeBanner';
 import { createPinPulse } from '../lib/pinPulse';
 import type { Lieu, LieuCategory } from '../types/Lieu';
 import type { RootStackParamList, TabParamList } from '../navigation';
@@ -431,13 +432,18 @@ export default function MapScreen() {
           eyebrow + city title were dropped: founder pins worldwide, so the
           hard-coded « Paris » was misleading, and the eyebrow read as chrome.
           Left side carries an « Appuie long » discovery hint so users learn
-          the Apple-Maps add-a-lieu gesture (POI tap is inert on Apple). */}
+          the Apple-Maps add-a-lieu gesture (POI tap is inert on Apple).
+
+          The social nudge banner (post-first-pin, PRD #77 · #81) sits ABOVE
+          the chip row inside the same overlay — it's an edge-to-edge paper
+          strip so the row's horizontal padding is applied one level down. */}
       <SafeAreaView style={styles.headerOverlay} edges={['top']} pointerEvents="box-none">
-        <View style={styles.headerRow} pointerEvents="none">
-          <View style={styles.hintChip}>
+        <SocialNudgeBanner hasAnyLieu={lieux.length > 0} />
+        <View style={styles.headerRow} pointerEvents="box-none">
+          <View style={styles.hintChip} pointerEvents="none">
             <Text style={styles.hintLabel}>Appuie long · ajouter</Text>
           </View>
-          <View style={styles.pinCountChip}>
+          <View style={styles.pinCountChip} pointerEvents="none">
             <Text style={styles.pinCount}>{pinCountLabel}</Text>
           </View>
         </View>
@@ -587,13 +593,14 @@ const styles = StyleSheet.create({
   headerOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'stretch',
-    paddingHorizontal: spacing.lg,
   },
   // Row spans the full width so the count sits at the right and the "appuie
   // long" hint sits at the left. Both chips read as archival mono chrome,
-  // never fighting the map tiles.
+  // never fighting the map tiles. Horizontal padding lives here (not on the
+  // overlay) so the social nudge banner above it can go edge-to-edge.
   headerRow: {
     marginTop: spacing.xs,
+    paddingHorizontal: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
